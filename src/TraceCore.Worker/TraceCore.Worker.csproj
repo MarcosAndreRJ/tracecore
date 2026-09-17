@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-TraceCore.Worker-5c9f0f3c-33de-4c93-b25f-e2a307f71710</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TraceCore.Application\TraceCore.Application.csproj" />
+    <ProjectReference Include="..\TraceCore.Infrastructure\TraceCore.Infrastructure.csproj" />
+    <ProjectReference Include="..\TraceCore.Contracts\TraceCore.Contracts.csproj" />
+    <ProjectReference Include="..\TraceCore.Shared\TraceCore.Shared.csproj" />
+  </ItemGroup>
+</Project>

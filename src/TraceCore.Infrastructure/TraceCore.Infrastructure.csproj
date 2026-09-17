@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\TraceCore.Application\TraceCore.Application.csproj" />
+    <ProjectReference Include="..\TraceCore.Domain\TraceCore.Domain.csproj" />
+    <ProjectReference Include="..\TraceCore.Contracts\TraceCore.Contracts.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
