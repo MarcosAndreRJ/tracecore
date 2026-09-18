@@ -1,0 +1,19 @@
+flowchart TD
+    A[Relato/Sintoma] --> B[Coletar contexto conhecido]
+    B --> C[Buscar casos/soluções semelhantes]
+    C --> D[Gerar/recuperar hipóteses]
+    D --> E[Priorizar próxima verificação]
+    E --> F{Informação automática disponível?}
+    F -- Sim --> G[Coletar telemetria]
+    F -- Não --> H[Perguntar/solicitar teste]
+    G --> I[Registrar evidência]
+    H --> I
+    I --> J[Atualizar hipóteses]
+    J --> K{Solução suficientemente sustentada?}
+    K -- Não --> E
+    K -- Sim --> L[Aplicar solução autorizada]
+    L --> M[Validar]
+    M --> N{Resolvido?}
+    N -- Não --> E
+    N -- Sim --> O[Encerrar e registrar causa/validação]
+    O --> P[Atualizar/criar conhecimento]

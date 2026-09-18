@@ -1,0 +1,14 @@
+flowchart LR
+    DESK[Desktop] --> API[API]
+    WEB[Web] --> API
+    MOB[Mobile] --> API
+    API --> DB[(Banco de Dados)]
+    API --> SAP[SAP]
+    API --> EXT[Sistema Externo]
+    WEB --> AUTH[Autenticação]
+    DESK --> AUTH
+    MOB --> AUTH
+    API --> AUTH
+    INFRA[Infra/Rede] --> WEB
+    INFRA --> API
+    INFRA --> DB

@@ -1,0 +1,66 @@
+openapi: 3.1.0
+info:
+  title: Knowledge Platform API
+  version: 1.0.0-draft
+  description: Esqueleto de contrato. Expandir endpoint por endpoint durante implementação.
+servers:
+  - url: /api/v1
+paths:
+  /cases:
+    get:
+      summary: Lista casos autorizados
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Cria caso
+      responses:
+        '201': { description: Created }
+        '400': { description: Validation Problem }
+  /cases/{id}:
+    get:
+      summary: Obtém caso e contexto principal
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: OK }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /cases/{id}/diagnostic-sessions:
+    post:
+      summary: Inicia sessão de diagnóstico
+      responses:
+        '201': { description: Created }
+  /cases/{id}/resolve:
+    post:
+      summary: Registra resolução e validação
+      responses:
+        '200': { description: Resolved }
+  /knowledge:
+    get:
+      summary: Lista conhecimento
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Cria rascunho
+      responses:
+        '201': { description: Created }
+  /search:
+    post:
+      summary: Busca híbrida/estruturada
+      responses:
+        '200': { description: Search results }
+  /ai/query:
+    post:
+      summary: Pergunta ao assistente RAG quando habilitado
+      responses:
+        '200': { description: Answer with source references }
+        '503': { description: AI temporarily unavailable }
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth

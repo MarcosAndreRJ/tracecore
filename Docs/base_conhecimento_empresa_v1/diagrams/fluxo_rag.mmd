@@ -1,0 +1,11 @@
+flowchart TD
+    Q[Pergunta + contexto] --> AUTH[Aplicar autorização e filtros]
+    AUTH --> LEX[Busca lexical/exata]
+    AUTH --> SEM[Busca semântica futura]
+    LEX --> FUSE[Fusão/reranking]
+    SEM --> FUSE
+    FUSE --> ACL[Validação final de ACL]
+    ACL --> CTX[Montar contexto com fontes]
+    CTX --> LLM[LLM]
+    LLM --> ANS[Resposta + citações]
+    ANS --> FB[Feedback + telemetria]

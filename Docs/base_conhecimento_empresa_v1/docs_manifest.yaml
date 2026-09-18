@@ -1,0 +1,20 @@
+project: Plataforma Corporativa de Conhecimento, Diagnóstico e Lições Aprendidas
+version: 1.0
+baseline_date: 2026-09-17
+mandatory_stack:
+  language: C# 14
+  runtime: .NET 10 LTS
+  web: ASP.NET Core 10 + Blazor Web App
+  database: MySQL 8.4 LTS
+architecture: modular_monolith
+document_precedence:
+  - business_rules
+  - approved_acceptance_criteria
+  - functional_requirements
+  - accepted_adrs
+  - technical_architecture
+  - data_api_specs
+  - manuals
+entrypoint: README.md
+ai_developer_guide: 16_GUIA_DA_IA_DESENVOLVEDORA.md
+open_decisions: 21_ADRS_E_DECISOES_ABERTAS.md

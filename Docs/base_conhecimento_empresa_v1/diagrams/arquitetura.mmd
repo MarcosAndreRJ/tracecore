@@ -1,0 +1,18 @@
+flowchart LR
+    U[Usuário] --> WEB[Blazor Web App]
+    EXT[Sistema de Chamados / Integrações] --> API[ASP.NET Core API]
+    WEB --> APP[Application Layer]
+    API --> APP
+    APP --> DOM[Domain]
+    APP --> INFRA[Infrastructure]
+    INFRA --> DB[(MySQL)]
+    INFRA --> FS[(Storage de Anexos)]
+    INFRA --> EXT2[Adapters: SAP / Monitoramento / APIs]
+    APP --> OUT[Transactional Outbox]
+    OUT --> DB
+    WRK[.NET Worker] --> DB
+    WRK --> IDX[Índice de Busca / Vetorial futuro]
+    WRK --> ANA[Agregações Analytics]
+    AI[Módulo IA/RAG] --> APP
+    AI --> IDX
+    AI --> LLM[Provedor LLM]

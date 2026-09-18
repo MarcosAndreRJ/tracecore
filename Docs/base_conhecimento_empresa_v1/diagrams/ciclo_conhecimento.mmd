@@ -1,0 +1,11 @@
+flowchart LR
+    C[Caso real] --> R[Resolução]
+    R --> D[Rascunho de conhecimento]
+    D --> V[Revisão técnica]
+    V --> P[Publicado]
+    P --> U[Uso em novos casos]
+    U --> F[Feedback/resultado]
+    F --> P
+    P --> X{Revisão vencida ou mudança?}
+    X -- Sim --> V
+    X -- Substituído --> O[Obsoleto]
