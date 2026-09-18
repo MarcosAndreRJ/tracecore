@@ -1,0 +1,377 @@
+@page
+@model TraceCore.Web.Pages.Knowledge.IndexModel
+@{
+    ViewData["Title"] = "Base de Conhecimento e Soluções (M05)";
+    var activeCategory = Model.Category ?? "all";
+}
+
+<div class="tc-container-fluid py-3">
+    <!-- BREADCRUMB -->
+    <nav class="tc-breadcrumb mb-3" aria-label="Navegação">
+        <a asp-page="/Index" class="tc-breadcrumb-item">
+            <i class="bi bi-house-door me-1"></i>Início
+        </a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="tc-breadcrumb-item active" aria-current="page">Conhecimento e Soluções</span>
+    </nav>
+
+    <!-- HEADER DA PÁGINA -->
+    <div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h1 class="tc-title-page mb-0">Base de Conhecimento & Soluções Técnicas</h1>
+                <span class="tc-badge tc-badge-secondary">Módulo M05</span>
+                <span class="tc-badge tc-badge-success">Curadoria Contínua</span>
+            </div>
+            <p class="tc-subtitle text-muted mb-0">
+                Procedimentos homologados, resoluções com eficácia mensurada e lições aprendidas de incidentes operacionais.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a asp-page="/Knowledge/Index" class="tc-btn tc-btn-secondary tc-btn-sm" title="Recarregar catálogo">
+                <i class="bi bi-arrow-clockwise"></i>
+                <span>Atualizar</span>
+            </a>
+            <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalProposeSolution">
+                <i class="bi bi-plus-lg"></i>
+                <span>Propor Nova Solução</span>
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="tc-alert tc-alert-success mb-3" role="alert">
+            <i class="bi bi-check-circle tc-alert-icon" aria-hidden="true"></i>
+            <div class="tc-alert-content">@Model.StatusMessage</div>
+            <button type="button" class="tc-alert-close" data-bs-dismiss="alert" aria-label="Fechar">&times;</button>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="tc-alert tc-alert-danger mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle tc-alert-icon" aria-hidden="true"></i>
+            <div class="tc-alert-content">@Model.ErrorMessage</div>
+            <button type="button" class="tc-alert-close" data-bs-dismiss="alert" aria-label="Fechar">&times;</button>
+        </div>
+    }
+
+    <!-- CARDS DE MÉTRICAS (DRILL-DOWN DIRETO) -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Total de Procedimentos",
+                Model.TotalArticles.ToString(),
+                "Soluções e lições no acervo",
+                "bi-journal-bookmark",
+                "/Knowledge/Index?status=all",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Soluções Homologadas",
+                Model.PublishedCount.ToString(),
+                "Aprovadas para uso operacional",
+                "bi-shield-check",
+                "/Knowledge/Index?status=Published",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            @* Bloco 7.A (§11): removido valor mockado "94.6%" fixo — Value agora usa o
+               mesmo dado real computado (BR-047/048: percentual sempre com amostra) que
+               já era exibido no Subtitle. *@
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Taxa Média de Sucesso",
+                Model.OverallSuccessRate,
+                "Cálculo real por utilização registrada (BR-047/048)",
+                "bi-graph-up-arrow",
+                "/Knowledge/Index?status=Published",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Pendentes de Revisão",
+                Model.InReviewCount.ToString(),
+                "Rascunhos ou propostas novas",
+                "bi-hourglass-split",
+                "/Knowledge/Index?status=Review",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+    </div>
+
+    <!-- BANNER DE GOVERNANÇA OPERACIONAL (BR-040 a BR-048) -->
+    <div class="tc-alert tc-alert-info mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="tc-alert-icon">
+                <i class="bi bi-shield-lock-fill fs-4 text-info"></i>
+            </div>
+            <div>
+                <div class="fw-semibold text-dark mb-1">Governança de Conhecimento Reutilizável (Políticas BR-040 a BR-048)</div>
+                <div class="small text-muted">
+                    Todo artigo técnico do TraceCore possui ciclo de vida auditado, matriz de aplicabilidade (produto, componente e versão), método de validação obrigatório e cálculo de eficácia baseado exclusivamente em utilizações reais.
+                </div>
+            </div>
+        </div>
+        <div>
+            <span class="badge bg-light text-dark border">
+                <i class="bi bi-check2-circle text-success me-1"></i>Ciclo BR-040 Homologado
+            </span>
+        </div>
+    </div>
+
+    <!-- NAVEGAÇÃO DE CATEGORIAS / ABAS -->
+    <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3 flex-wrap gap-2">
+        <div class="tc-tabs" role="tablist">
+            <a asp-page="/Knowledge/Index" asp-route-category="all"
+               class="tc-tab-item @(activeCategory == "all" ? "active" : "")">
+                <i class="bi bi-grid me-1"></i>Todos os Itens
+                <span class="tc-tab-badge">@Model.TotalArticles</span>
+            </a>
+            <a asp-page="/Knowledge/Index" asp-route-category="solutions"
+               class="tc-tab-item @(activeCategory == "solutions" ? "active" : "")">
+                <i class="bi bi-journal-check me-1"></i>Soluções e Procedimentos
+                <span class="tc-tab-badge">@(Model.TotalArticles - 2)</span>
+            </a>
+            <a asp-page="/Knowledge/Index" asp-route-category="lessons"
+               class="tc-tab-item @(activeCategory == "lessons" ? "active" : "")">
+                <i class="bi bi-lightbulb me-1"></i>Lições Aprendidas
+                <span class="tc-tab-badge">2</span>
+            </a>
+        </div>
+        <div class="small text-muted">
+            Exibindo <strong>@Model.Items.Count</strong> registro(s) correspondente(s)
+        </div>
+    </div>
+
+    <!-- BARRA DE FILTROS ENTERPRISE -->
+    <form method="get" class="tc-filter-bar mb-4">
+        <input type="hidden" name="category" value="@Model.Category" />
+
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <label for="filterSearch" class="tc-form-label mb-1">Buscar por Palavra-chave ou Código</label>
+                <div class="tc-input-search">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="filterSearch" name="Search" value="@Model.Search"
+                           class="tc-input" placeholder="Ex: deadlock, kafka, timeout, SOL-001..." />
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <label for="filterProduct" class="tc-form-label mb-1">Produto Tecnológico</label>
+                <select id="filterProduct" name="ProductId" class="tc-select">
+                    <option value="">Todos os Produtos</option>
+                    @foreach (var prod in Model.Products)
+                    {
+                        <option value="@prod.Id" selected="@(Model.ProductId == prod.Id)">@prod.Code — @prod.Name</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-6 col-md-2">
+                <label for="filterStatus" class="tc-form-label mb-1">Ciclo de Vida</label>
+                <select id="filterStatus" name="Status" class="tc-select">
+                    <option value="all" selected="@(string.IsNullOrEmpty(Model.Status) || Model.Status == "all")">Todos os Estados</option>
+                    <option value="Published" selected="@(Model.Status == "Published")">Publicado</option>
+                    <option value="Review" selected="@(Model.Status == "Review")">Em Revisão</option>
+                    <option value="Draft" selected="@(Model.Status == "Draft")">Rascunho</option>
+                    <option value="Stale" selected="@(Model.Status == "Stale")">Obsoleto</option>
+                </select>
+            </div>
+
+            <div class="col-6 col-md-2">
+                <label for="filterProvenance" class="tc-form-label mb-1">Proveniência</label>
+                <select id="filterProvenance" name="Provenance" class="tc-select">
+                    <option value="all" selected="@(string.IsNullOrEmpty(Model.Provenance) || Model.Provenance == "all")">Todas as Origens</option>
+                    <option value="case" selected="@(Model.Provenance == "case")">Caso Real</option>
+                    <option value="documentation" selected="@(Model.Provenance == "documentation")">Documentação</option>
+                    <option value="ai" selected="@(Model.Provenance == "ai")">Assistência IA</option>
+                </select>
+            </div>
+
+            <div class="col-6 col-md-1 d-flex gap-1">
+                <button type="submit" class="tc-btn tc-btn-primary w-100" title="Aplicar filtros">
+                    <i class="bi bi-funnel"></i>
+                </button>
+                <a asp-page="/Knowledge/Index" class="tc-btn tc-btn-secondary" title="Limpar filtros">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <!-- LISTAGEM DE ARTIGOS E SOLUÇÕES -->
+    @if (Model.Items.Count == 0)
+    {
+        <div class="tc-card p-5">
+            @await Html.PartialAsync("Partials/_EmptyState", (
+                Title: "Nenhum artigo ou solução encontrado",
+                Description: "Não encontramos registros que satisfaçam os filtros informados. Tente ajustar os termos de busca ou remover as restrições.",
+                Icon: "bi-journal-x",
+                ActionText: "Limpar Todos os Filtros",
+                ActionUrl: "/Knowledge/Index"
+            ))
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var item in Model.Items)
+            {
+                <div class="col-12 col-lg-6">
+                    <div class="tc-card h-100 p-3 d-flex flex-column justify-content-between">
+                        <div>
+                            <!-- CABEÇALHO DO ITEM -->
+                            <div class="d-flex align-items-start justify-content-between mb-2 gap-2">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                        <span class="tc-code-inline fw-bold text-primary">@item.Code</span>
+                                        @await Html.PartialAsync("Partials/_KnowledgeStatusBadge", item.Status)
+                                        @await Html.PartialAsync("Partials/_KnowledgeProvenance", (item.ProvenanceType, item.ProvenanceRef, item.Author))
+                                        @if (item.ProvenanceType == "ai")
+                                        {
+                                            @await Html.PartialAsync("Partials/_AIContentBadge", ("Conteúdo Proposto por IA", "Pendente de validação formal por especialista humano"))
+                                        }
+                                    </div>
+                                    <h5 class="tc-card-title mb-1">
+                                        <a asp-page="/Knowledge/Details" asp-route-id="@item.Id" class="text-decoration-none text-dark hover-primary">
+                                            @item.Title
+                                        </a>
+                                    </h5>
+                                </div>
+                            </div>
+
+                            <!-- RESUMO EXECUTIVO -->
+                            <p class="tc-body small text-muted mb-3 line-clamp-2">
+                                @item.Summary
+                            </p>
+
+                            <!-- MATRIZ DE APLICABILIDADE (BR-043) -->
+                            <div class="p-2 rounded bg-light border mb-3 small">
+                                <div class="d-flex align-items-center gap-3 flex-wrap">
+                                    <div>
+                                        <span class="text-muted"><i class="bi bi-box me-1"></i>Produto:</span>
+                                        <strong class="text-dark">@item.ProductName</strong>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted"><i class="bi bi-diagram-2 me-1"></i>Componente:</span>
+                                        <span class="text-dark">@item.Component</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted"><i class="bi bi-tag me-1"></i>Versões:</span>
+                                        <span class="font-monospace text-secondary">@item.ApplicableVersions</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RODAPÉ DO CARD COM EFICÁCIA E AÇÃO -->
+                        <div class="pt-2 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-3 small">
+                                <div>
+                                    <span class="text-muted me-1">Eficácia:</span>
+                                    <span class="fw-bold text-success">@item.SuccessRate</span>
+                                    <span class="text-muted font-monospace ms-1">(@item.SuccessSample)</span>
+                                </div>
+                                <div class="text-muted">
+                                    <i class="bi bi-calendar3 me-1"></i>@item.UpdatedAt.ToString("dd/MM/yyyy")
+                                </div>
+                            </div>
+                            <div>
+                                <a asp-page="/Knowledge/Details" asp-route-id="@item.Id" class="tc-btn tc-btn-secondary tc-btn-sm">
+                                    <span>Ver Artigo Completo</span>
+                                    <i class="bi bi-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- MODAL: PROPOR NOVA SOLUÇÃO -->
+<div class="modal fade" id="modalProposeSolution" tabindex="-1" aria-labelledby="modalProposeSolutionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="CreateDraft">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title tc-modal-title" id="modalProposeSolutionLabel">
+                            <i class="bi bi-journal-plus me-2 text-primary"></i>Propor Novo Procedimento Técnico
+                        </h5>
+                        <p class="tc-caption text-muted mb-0">Submeter rascunho de conhecimento para ciclo de revisão e homologação</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label asp-for="NewTitle" class="tc-form-label required">Título da Solução ou Lição Aprendida *</label>
+                        <input asp-for="NewTitle" class="tc-input" placeholder="Ex: Recuperação de deadlocks em workers de fila..." required />
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="NewProductId" class="tc-form-label required">Produto Homologado *</label>
+                            <select asp-for="NewProductId" class="tc-select" required>
+                                <option value="">Selecione o produto...</option>
+                                @foreach (var p in Model.Products)
+                                {
+                                    <option value="@p.Id">@p.Code — @p.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="NewApplicableVersions" class="tc-form-label">Versões Homologadas (BR-043)</label>
+                            <input asp-for="NewApplicableVersions" class="tc-input" placeholder="Ex: >= 2.0.0 ou 1.4.x" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="NewSummary" class="tc-form-label required">Resumo do Problema e Mitigação *</label>
+                        <textarea asp-for="NewSummary" rows="3" class="tc-textarea" placeholder="Descreva sucintamente quando este procedimento deve ser aplicado..." required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="NewValidationMethod" class="tc-form-label required">Método Obrigatório de Validação (BR-044) *</label>
+                        <textarea asp-for="NewValidationMethod" rows="2" class="tc-textarea" placeholder="Como o operador deve comprovar que a falha foi de fato sanada? (Queries, testes, métricas)" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="NewContentMarkdown" class="tc-form-label">Instruções / Conteúdo Detalhado</label>
+                        <textarea asp-for="NewContentMarkdown" rows="4" class="tc-textarea font-monospace" placeholder="Descreva o passo a passo, comandos de execução e cuidados operacionais..."></textarea>
+                    </div>
+
+                    <div class="tc-alert tc-alert-warning mb-0 small">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Aviso de Governança:</strong> O artigo entrará com estado inicial de <strong>Rascunho</strong> e precisará da aprovação de um revisor técnico para ser promovido a <strong>Publicado</strong> (BR-040 e BR-041).
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">
+                        <i class="bi bi-check2-circle me-1"></i>
+                        <span>Criar Rascunho</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

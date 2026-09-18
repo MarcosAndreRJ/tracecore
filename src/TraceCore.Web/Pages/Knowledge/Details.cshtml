@@ -1,0 +1,499 @@
+@page "{id:long}"
+@model TraceCore.Web.Pages.Knowledge.DetailsModel
+@{
+    ViewData["Title"] = $"{Model.Item.Code} — {Model.Item.Title}";
+}
+
+<div class="tc-container-fluid py-3">
+    <!-- BREADCRUMB -->
+    <nav class="tc-breadcrumb mb-3" aria-label="Navegação">
+        <a asp-page="/Index" class="tc-breadcrumb-item">
+            <i class="bi bi-house-door me-1"></i>Início
+        </a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <a asp-page="/Knowledge/Index" class="tc-breadcrumb-item">Conhecimento e Soluções</a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="tc-breadcrumb-item active" aria-current="page">@Model.Item.Code</span>
+    </nav>
+
+    <!-- MENSAGENS DE FEEDBACK -->
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="tc-alert tc-alert-success mb-3">
+            <i class="bi bi-check-circle me-2"></i>@Model.StatusMessage
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="tc-alert tc-alert-danger mb-3">
+            <i class="bi bi-exclamation-octagon me-2"></i>@Model.ErrorMessage
+        </div>
+    }
+
+    <!-- CABEÇALHO DO ARTIGO / PROCEDIMENTO -->
+    <div class="tc-card p-4 mb-4">
+        <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                    <span class="tc-code-inline fw-bold text-primary fs-6">@Model.Item.Code</span>
+                    <span class="tc-badge tc-badge-neutral font-monospace">@Model.Item.Version</span>
+                    @await Html.PartialAsync("Partials/_KnowledgeStatusBadge", Model.Item.LifecycleStatus)
+                    @await Html.PartialAsync("Partials/_KnowledgeProvenance", (Model.Item.ProvenanceType, Model.Item.SourceReference, Model.Item.Author))
+                    @if (Model.Item.IsAiGenerated)
+                    {
+                        @await Html.PartialAsync("Partials/_AIContentBadge", ("Artigo Proposto por IA", "Pendente de validação formal por especialista humano"))
+                    }
+                </div>
+                <h1 class="tc-title-page mb-2">@Model.Item.Title</h1>
+                <div class="d-flex align-items-center gap-3 text-muted small flex-wrap">
+                    <span><i class="bi bi-person me-1"></i>Autor: <strong class="text-dark">@Model.Item.Author</strong></span>
+                    <span><i class="bi bi-shield-check me-1"></i>Revisor: <strong class="text-dark">@Model.Item.Reviewer</strong></span>
+                    <span><i class="bi bi-calendar-check me-1"></i>Publicado em: @(Model.Item.PublishedAt > DateTime.MinValue ? Model.Item.PublishedAt.ToString("dd/MM/yyyy") : "—")</span>
+                    <span><i class="bi bi-clock-history me-1"></i>Última revisão: @(Model.Item.LastReviewedAt > DateTime.MinValue ? Model.Item.LastReviewedAt.ToString("dd/MM/yyyy") : "—")</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a asp-page="/Knowledge/Index" class="tc-btn tc-btn-secondary tc-btn-sm">
+                    <i class="bi bi-arrow-left"></i>
+                    <span>Voltar ao Catálogo</span>
+                </a>
+                <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="window.print();" title="Imprimir procedimento">
+                    <i class="bi bi-printer"></i>
+                    <span>Imprimir</span>
+                </button>
+
+                @if (Model.Item.LifecycleStatus == "Draft" && Model.CanReview)
+                {
+                    <form method="post" asp-page-handler="SubmitForReview" asp-route-id="@Model.Item.Id" class="d-inline">
+                        <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm border-info text-info">
+                            <i class="bi bi-send-check"></i>
+                            <span>Submeter p/ Revisão</span>
+                        </button>
+                    </form>
+                }
+
+                @if (Model.Item.LifecycleStatus == "Review" && Model.CanPublish)
+                {
+                    <form method="post" asp-page-handler="ApproveAndPublish" asp-route-id="@Model.Item.Id" class="d-inline">
+                        <button type="submit" class="tc-btn tc-btn-primary tc-btn-sm">
+                            <i class="bi bi-patch-check-fill"></i>
+                            <span>Aprovar e Publicar (BR-041)</span>
+                        </button>
+                    </form>
+                }
+
+                @if (Model.Item.LifecycleStatus == "Published")
+                {
+                    @if (Model.CanCreate)
+                    {
+                        <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalNewVersion">
+                            <i class="bi bi-git"></i>
+                            <span>Nova Versão (BR-042)</span>
+                        </button>
+                    }
+                    @if (Model.CanPublish)
+                    {
+                        <form method="post" asp-page-handler="Deprecate" asp-route-id="@Model.Item.Id" class="d-inline" onsubmit="return confirm('Tem certeza que deseja descontinuar este item de conhecimento (BR-049)?');">
+                            <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm border-danger text-danger">
+                                <i class="bi bi-slash-circle"></i>
+                                <span>Descontinuar (BR-049)</span>
+                            </button>
+                        </form>
+                    }
+                }
+
+                <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalApplySolution">
+                    <i class="bi bi-check2-circle"></i>
+                    <span>Registrar Uso em Caso (BR-047)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CORPO PRINCIPAL EM 2 COLUNAS -->
+    <div class="row g-4">
+        <!-- COLUNA PRINCIPAL: PROCEDIMENTO TÉCNICO E VALIDAÇÃO (8 COLS) -->
+        <div class="col-lg-8">
+            <!-- 1. DESCRIÇÃO DO PROBLEMA E SINTOMA -->
+            <div class="tc-card p-4 mb-4">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <i class="bi bi-file-text text-primary fs-5"></i>
+                    <h3 class="tc-title-section mb-0">1. Contexto e Descrição da Ocorrência</h3>
+                </div>
+                <p class="tc-body text-dark mb-0">
+                    @Model.Item.ProblemDescription
+                </p>
+            </div>
+
+            <!-- 2. ANÁLISE DE RISCO OPERACIONAL E ROLLBACK (BR-045) -->
+            <div class="tc-card p-4 mb-4 border-warning">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                        <h3 class="tc-title-section mb-0">2. Avaliação de Risco & Procedimento de Rollback (BR-045)</h3>
+                    </div>
+                    <span class="tc-badge tc-badge-warning">Risco: @Model.Item.RiskLevel</span>
+                </div>
+
+                <div class="tc-alert tc-alert-warning mb-3">
+                    <div class="fw-semibold mb-1"><i class="bi bi-shield-exclamation me-1"></i>Aviso de Impacto Operacional:</div>
+                    <div class="small">@Model.Item.RiskWarning</div>
+                </div>
+
+                <div class="p-3 bg-light rounded border">
+                    <div class="fw-semibold text-danger small mb-1">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Plano de Reversão / Rollback Imediato:
+                    </div>
+                    <div class="small text-dark font-monospace">
+                        @Model.Item.RollbackPlan
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. PROCEDIMENTO TÉCNICO PASSO A PASSO -->
+            <div class="tc-card p-4 mb-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-terminal-dash text-primary fs-5"></i>
+                        <h3 class="tc-title-section mb-0">3. Roteiro Técnico de Execução</h3>
+                    </div>
+                    <span class="tc-caption text-muted">@Model.Item.Steps.Count passos sequenciais</span>
+                </div>
+
+                <div class="d-flex flex-column gap-4">
+                    @foreach (var step in Model.Item.Steps)
+                    {
+                        <div class="border rounded p-3 bg-white">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge bg-primary rounded-pill px-2">Passo @step.StepNumber</span>
+                                <h5 class="tc-card-title mb-0">@step.Title</h5>
+                            </div>
+                            <p class="small text-muted mb-2">@step.Description</p>
+
+                            @if (!string.IsNullOrEmpty(step.Command))
+                            {
+                                <div class="bg-dark text-light p-3 rounded font-monospace small mb-2 position-relative">
+                                    <div class="d-flex align-items-center justify-content-between mb-1 text-secondary border-bottom border-secondary pb-1">
+                                        <span><i class="bi bi-terminal me-1"></i>Terminal / Shell de Comando</span>
+                                        <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm py-0 px-2"
+                                                onclick="navigator.clipboard.writeText('@step.Command.Replace("'", "\\'")}'); alert('Comando copiado para a área de transferência!');">
+                                            <i class="bi bi-clipboard me-1"></i>Copiar
+                                        </button>
+                                    </div>
+                                    <div class="text-success">$ @step.Command</div>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(step.ExpectedOutput))
+                            {
+                                <div class="bg-light p-2 rounded border small text-muted">
+                                    <span class="fw-semibold text-secondary me-1">Saída / Resposta Esperada:</span>
+                                    <code class="text-dark">@step.ExpectedOutput</code>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- 4. MÉTODO OBRIGATÓRIO DE VALIDAÇÃO DO RESULTADO (BR-044) -->
+            <div class="tc-card p-4 mb-4 border-success">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                    <h3 class="tc-title-section mb-0">4. Método Obrigatório de Validação (BR-044)</h3>
+                </div>
+                <p class="small text-dark mb-3">
+                    @Model.Item.ValidationMethod
+                </p>
+
+                @if (!string.IsNullOrEmpty(Model.Item.ValidationCommand))
+                {
+                    <div class="bg-dark text-light p-3 rounded font-monospace small mb-2">
+                        <div class="text-secondary small mb-1"><i class="bi bi-search me-1"></i>Comando de Aferição do Resultado:</div>
+                        <div class="text-info">$ @Model.Item.ValidationCommand</div>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Item.ExpectedValidationOutput))
+                {
+                    <div class="p-2 rounded bg-light border small">
+                        <div class="fw-semibold text-success mb-1"><i class="bi bi-shield-check me-1"></i>Padrão de Sucesso Esperado:</div>
+                        <pre class="mb-0 text-dark font-monospace small">@Model.Item.ExpectedValidationOutput</pre>
+                    </div>
+                }
+            </div>
+
+            <!-- 5. HISTÓRICO DE REVISÕES (BR-041, BR-042) -->
+            <div class="tc-card p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-clock-history text-secondary fs-5"></i>
+                        <h3 class="tc-title-section mb-0">5. Trilha de Auditoria & Revisões (BR-042)</h3>
+                    </div>
+                    <span class="tc-caption text-muted">Versão ativa: @Model.Item.Version</span>
+                </div>
+                <div class="tc-table-responsive">
+                    <table class="tc-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Versão</th>
+                                <th>Responsável Técnico</th>
+                                <th>Data</th>
+                                <th>Motivo da Modificação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rev in Model.Item.Revisions)
+                            {
+                                <tr>
+                                    <td><span class="tc-badge tc-badge-neutral font-monospace">@rev.Version</span></td>
+                                    <td class="fw-semibold text-dark">@rev.ChangedBy</td>
+                                    <td class="text-muted small">@rev.ChangedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="small text-muted">@rev.Reason</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUNA LATERAL: GOVERNANÇA, APLICABILIDADE E EFICÁCIA (4 COLS) -->
+        <div class="col-lg-4">
+            <!-- CARD: GOVERNANÇA E CICLO DE VIDA -->
+            <div class="tc-card p-3 mb-4">
+                <h4 class="tc-title-section mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-lock text-primary"></i>
+                    <span>Governança do Artigo</span>
+                </h4>
+                <div class="d-flex flex-column gap-2 small">
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Ciclo BR-040:</span>
+                        @await Html.PartialAsync("Partials/_KnowledgeStatusBadge", Model.Item.LifecycleStatus)
+                    </div>
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Autor Técnico:</span>
+                        <strong class="text-dark">@Model.Item.Author</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Revisor Homologador:</span>
+                        <strong class="text-dark">@Model.Item.Reviewer</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Data Homologação:</span>
+                        <span class="text-dark">@Model.Item.PublishedAt.ToString("dd/MM/yyyy")</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-1">
+                        <span class="text-muted">Próxima Revisão:</span>
+                        <span class="text-primary fw-semibold">@Model.Item.NextReviewDue.ToString("dd/MM/yyyy")</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD: MATRIZ DE APLICABILIDADE (BR-043) -->
+            <div class="tc-card p-3 mb-4">
+                <h4 class="tc-title-section mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-cpu text-primary"></i>
+                    <span>Aplicabilidade Técnica (BR-043)</span>
+                </h4>
+                <div class="d-flex flex-column gap-2 small">
+                    <div class="py-1 border-bottom">
+                        <div class="text-muted mb-1">Produto Tecnológico:</div>
+                        <span class="tc-badge tc-badge-primary">@Model.Item.ProductCode — @Model.Item.ProductName</span>
+                    </div>
+                    <div class="py-1 border-bottom">
+                        <div class="text-muted mb-1">Componente Sistêmico:</div>
+                        <span class="fw-semibold text-dark">@Model.Item.Component</span>
+                    </div>
+                    <div class="py-1 border-bottom">
+                        <div class="text-muted mb-1">Versões Homologadas:</div>
+                        <span class="tc-code-inline">@Model.Item.ApplicableVersions</span>
+                    </div>
+                    <div class="py-1 border-bottom">
+                        <div class="text-muted mb-1">Ambientes Compatíveis:</div>
+                        <div class="d-flex flex-wrap gap-1 mt-1">
+                            @foreach (var env in Model.Item.ApplicableEnvironments)
+                            {
+                                <span class="badge bg-light text-dark border">@env</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="py-1">
+                        <div class="text-muted mb-1">Pré-condições Obrigatórias:</div>
+                        <ul class="list-unstyled mb-0">
+                            @foreach (var pre in Model.Item.Prerequisites)
+                            {
+                                <li class="text-muted py-1 d-flex align-items-start gap-2">
+                                    <i class="bi bi-check2 text-success mt-1"></i>
+                                    <span>@pre</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD: EFICÁCIA COMPROVADA (BR-047, BR-048) -->
+            <div class="tc-card p-3 mb-4">
+                <h4 class="tc-title-section mb-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-graph-up-arrow text-success"></i>
+                    <span>Eficácia em Casos Reais</span>
+                </h4>
+                <p class="tc-caption text-muted mb-3">Métrica apurada exclusivamente em aplicações confirmadas (BR-047/048)</p>
+
+                <div class="p-3 bg-light rounded text-center mb-3">
+                    <div class="display-6 fw-bold text-success">@Model.Item.SuccessRate</div>
+                    <div class="small fw-semibold text-dark">
+                        @Model.Item.SuccessfulUsages sucessos em @Model.Item.TotalUsages aplicações registradas
+                    </div>
+                    <div class="tc-caption text-muted mt-1">
+                        Amostra auditada em conformidade com BR-048
+                    </div>
+                </div>
+
+                <div class="small fw-semibold text-dark mb-2">Casos Recentes que Comprovaram a Solução:</div>
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var cs in Model.Item.AssociatedCases)
+                    {
+                        <div class="p-2 border rounded bg-white small">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <a asp-page="/Cases/Details" asp-route-id="@cs.CaseId" class="tc-code-inline fw-bold text-decoration-none">
+                                    @cs.Code
+                                </a>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">@cs.Outcome</span>
+                            </div>
+                            <div class="text-muted text-truncate" title="@cs.Title">@cs.Title</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- CARD: ORIGEM E RASTREABILIDADE (BR-046) -->
+            <div class="tc-card p-3">
+                <h4 class="tc-title-section mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-diagram-3 text-primary"></i>
+                    <span>Rastreabilidade de Origem</span>
+                </h4>
+                <div class="small text-muted mb-2">
+                    Este procedimento foi formulado a partir da investigação do incidente crítico registrado abaixo:
+                </div>
+                @if (Model.Item.SourceCaseId.HasValue)
+                {
+                    <div class="p-3 border rounded bg-light">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="bi bi-folder2-open text-primary"></i>
+                            <span class="fw-semibold text-dark">Caso de Origem:</span>
+                        </div>
+                        <div class="mb-2">
+                            <a asp-page="/Cases/Details" asp-route-id="@Model.Item.SourceCaseId.Value" class="text-decoration-none fw-bold">
+                                #@Model.Item.SourceCaseId.Value — @Model.Item.SourceCaseTitle
+                            </a>
+                        </div>
+                        <div class="tc-caption text-muted font-monospace">
+                            Ref: @Model.Item.SourceReference
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: REGISTRAR USO EM CASO (BR-047 / BR-048) -->
+<div class="modal fade" id="modalApplySolution" tabindex="-1" aria-labelledby="modalApplySolutionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="RecordUsage" asp-route-id="@Model.Item.Id">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title tc-modal-title" id="modalApplySolutionLabel">
+                            <i class="bi bi-link-45deg me-2 text-primary"></i>Registrar Aplicação em Caso (BR-047)
+                        </h5>
+                        <p class="tc-caption text-muted mb-0">Registrar utilização formal desta solução para fins de auditoria e cálculo amostral de sucesso</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label asp-for="UsageCaseId" class="tc-form-label">ID do Caso de Diagnóstico *</label>
+                        <input type="number" asp-for="UsageCaseId" class="tc-input" placeholder="Ex: 1" required min="1" />
+                        <span class="tc-caption text-muted">O caso informado deve existir no sistema.</span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="UsageOutcome" class="tc-form-label">Resultado Obtido *</label>
+                        <select asp-for="UsageOutcome" class="tc-select">
+                            <option value="Worked">Resolveu Completamente (Sucesso)</option>
+                            <option value="PartiallyWorked">Resolveu Parcialmente (Sucesso Parcial)</option>
+                            <option value="NotWorked">Não Teve Efeito / Ineficaz</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="UsageNotes" class="tc-form-label">Observações da Aplicação</label>
+                        <textarea asp-for="UsageNotes" rows="3" class="tc-textarea" placeholder="Descreva se o procedimento foi aplicado integralmente ou se houve variações operacionais..."></textarea>
+                    </div>
+                    <div class="tc-alert tc-alert-info small mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        A taxa de sucesso (BR-048) é calculada considerando apenas casos com resolução comprovada, acompanhada pelo tamanho amostral.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">
+                        <i class="bi bi-check2-circle me-1"></i>
+                        <span>Confirmar Aplicação</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CRIAR NOVA VERSÃO (BR-042) -->
+<div class="modal fade" id="modalNewVersion" tabindex="-1" aria-labelledby="modalNewVersionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="CreateNewVersion" asp-route-id="@Model.Item.Id">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title tc-modal-title" id="modalNewVersionLabel">
+                            <i class="bi bi-git me-2 text-primary"></i>Criar Nova Versão da Solução (BR-042)
+                        </h5>
+                        <p class="tc-caption text-muted mb-0">A versão anterior permanecerá intacta no histórico para fins de auditoria e conformidade</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label asp-for="NewVersionChangeSummary" class="tc-form-label">Motivo da Nova Revisão / Sumário de Alterações *</label>
+                        <input type="text" asp-for="NewVersionChangeSummary" class="tc-input" placeholder="Ex: Atualização dos parâmetros para a release 2.4" required />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="NewVersionValidationMethod" class="tc-form-label">Método de Validação Obrigatório (BR-044) *</label>
+                        <textarea asp-for="NewVersionValidationMethod" rows="2" class="tc-textarea" placeholder="Descreva como comprovar tecnicamente que a solução funcionou" required></textarea>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="NewVersionRiskWarning" class="tc-form-label">Aviso de Risco Operacional</label>
+                            <textarea asp-for="NewVersionRiskWarning" rows="3" class="tc-textarea" placeholder="Impactos ou riscos conhecidos durante a execução..."></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="NewVersionRollbackPlan" class="tc-form-label">Plano de Rollback / Reversão (BR-045)</label>
+                            <textarea asp-for="NewVersionRollbackPlan" rows="3" class="tc-textarea" placeholder="Obrigatório se houver aviso de risco preenchido..."></textarea>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="NewVersionContentMarkdown" class="tc-form-label">Conteúdo Técnico Atualizado (Markdown)</label>
+                        <textarea asp-for="NewVersionContentMarkdown" rows="6" class="tc-textarea font-monospace" placeholder="Descreva os novos passos técnicos detalhados..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">
+                        <i class="bi bi-save me-1"></i>
+                        <span>Salvar Nova Versão</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

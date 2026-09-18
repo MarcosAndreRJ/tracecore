@@ -1,0 +1,125 @@
+@model (string Value, string Type)
+
+@{
+    var val = Model.Value ?? string.Empty;
+    var type = Model.Type ?? "Status";
+    var cssClass = "tc-badge-open";
+    var iconClass = "bi-circle-fill";
+    var label = val;
+
+    switch (type.ToLowerInvariant())
+    {
+        case "status":
+            if (val.Equals("Open", StringComparison.OrdinalIgnoreCase))
+            {
+                cssClass = "tc-badge-open";
+                iconClass = "bi-record-circle";
+                label = "Aberto";
+            }
+            else if (val.Equals("Closed", StringComparison.OrdinalIgnoreCase))
+            {
+                cssClass = "tc-badge-closed";
+                iconClass = "bi-check-circle";
+                label = "Fechado";
+            }
+            break;
+
+        case "severity":
+            switch (val.ToLowerInvariant())
+            {
+                case "critical":
+                    cssClass = "tc-badge-critical";
+                    iconClass = "bi-exclamation-octagon-fill";
+                    label = "Crítica";
+                    break;
+                case "high":
+                    cssClass = "tc-badge-high";
+                    iconClass = "bi-exclamation-triangle-fill";
+                    label = "Alta";
+                    break;
+                case "medium":
+                    cssClass = "tc-badge-medium";
+                    iconClass = "bi-dash-circle-fill";
+                    label = "Média";
+                    break;
+                default:
+                    cssClass = "tc-badge-low";
+                    iconClass = "bi-info-circle-fill";
+                    label = "Baixa";
+                    break;
+            }
+            break;
+
+        case "hypothesis":
+            switch (val.ToLowerInvariant())
+            {
+                case "proposed":
+                    cssClass = "tc-badge-proposed";
+                    iconClass = "bi-lightbulb";
+                    label = "Proposta";
+                    break;
+                case "discarded":
+                    cssClass = "tc-badge-discarded";
+                    iconClass = "bi-x-circle";
+                    label = "Descartada";
+                    break;
+                case "supported":
+                    cssClass = "tc-badge-supported";
+                    iconClass = "bi-shield-check";
+                    label = "Apoiada";
+                    break;
+            }
+            break;
+
+        case "outcome":
+            switch (val.ToLowerInvariant())
+            {
+                case "worked":
+                    cssClass = "tc-badge-worked";
+                    iconClass = "bi-check-lg";
+                    label = "Funcionou";
+                    break;
+                case "partiallyworked":
+                    cssClass = "tc-badge-partially";
+                    iconClass = "bi-dash-lg";
+                    label = "Parcial";
+                    break;
+                case "didnotwork":
+                    cssClass = "tc-badge-didnotwork";
+                    iconClass = "bi-x-lg";
+                    label = "Não Funcionou";
+                    break;
+                case "notapplicable":
+                    cssClass = "tc-badge-notapplicable";
+                    iconClass = "bi-slash-circle";
+                    label = "Não Aplicável";
+                    break;
+                default:
+                    cssClass = "tc-badge-inconclusive";
+                    iconClass = "bi-question-circle";
+                    label = "Inconclusivo";
+                    break;
+            }
+            break;
+
+        case "userstatus":
+            if (val.Equals("Active", StringComparison.OrdinalIgnoreCase))
+            {
+                cssClass = "tc-badge-active";
+                iconClass = "bi-check2-circle";
+                label = "Ativo";
+            }
+            else
+            {
+                cssClass = "tc-badge-inactive";
+                iconClass = "bi-dash-circle";
+                label = val.Equals("Suspended", StringComparison.OrdinalIgnoreCase) ? "Suspenso" : "Inativo";
+            }
+            break;
+    }
+}
+
+<span class="tc-badge @cssClass" role="status">
+    <i class="bi @iconClass" aria-hidden="true"></i>
+    <span>@label</span>
+</span>

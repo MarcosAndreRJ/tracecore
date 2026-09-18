@@ -1,0 +1,464 @@
+@page
+@model TraceCore.Web.Pages.Catalog.Components.IndexModel
+@{
+    ViewData["Title"] = "Componentes e Dependências - TraceCore";
+}
+
+<div class="tc-breadcrumb">
+    <span class="tc-breadcrumb-item"><a asp-page="/Index">Início</a></span>
+    <span class="tc-breadcrumb-item"><a asp-page="/Catalog/Products/Index">Catálogo</a></span>
+    <span class="tc-breadcrumb-item active">Componentes &amp; Dependências</span>
+</div>
+
+<div class="tc-page-header">
+    <div>
+        <h1 class="tc-page-header-title">
+            <i class="bi bi-diagram-3 text-primary" aria-hidden="true"></i>
+            <span>Componentes &amp; Dependências Técnicas</span>
+        </h1>
+        <p class="tc-page-header-subtitle">Catálogo de serviços, módulos, ownership por Departamento e topologia de dependências (Bloco 7.A.2)</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="tc-btn tc-btn-secondary" data-bs-toggle="modal" data-bs-target="#newDependencyModal">
+            <i class="bi bi-arrow-left-right me-1"></i>
+            <span>Nova Dependência</span>
+        </button>
+        <button type="button" class="tc-btn tc-btn-secondary" data-bs-toggle="modal" data-bs-target="#newOwnerModal">
+            <i class="bi bi-building me-1"></i>
+            <span>Vincular Departamento</span>
+        </button>
+        <button type="button" class="tc-btn tc-btn-primary" data-bs-toggle="modal" data-bs-target="#newComponentModal">
+            <i class="bi bi-plus-lg me-1"></i>
+            <span>Novo Componente</span>
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="tc-alert tc-alert-success mb-4" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@Model.SuccessMessage
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="tc-alert tc-alert-danger mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@Model.ErrorMessage
+    </div>
+}
+
+<!-- SEÇÃO 1: Matriz de Dependências Ativas (Topologia) -->
+<div class="tc-card mb-4">
+    <div class="tc-card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="tc-card-title mb-0">
+                <i class="bi bi-diagram-2 text-secondary me-2"></i>Cadeia de Dependências Técnicas
+            </h2>
+            <span class="tc-caption text-muted">@Model.DependenciesList.Count relacionamento(s) de dependência ativos no ecossistema</span>
+        </div>
+        <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#newDependencyModal">
+            <i class="bi bi-plus-lg me-1"></i>Adicionar Dependência
+        </button>
+    </div>
+    <div class="tc-card-body p-0">
+        @if (Model.DependenciesList.Count == 0)
+        {
+            <div class="p-4 text-center text-muted">
+                <i class="bi bi-diagram-2 display-6 d-block mb-2 text-secondary opacity-50"></i>
+                <div class="fw-semibold">Nenhuma dependência técnica cadastrada</div>
+                <p class="tc-caption text-secondary mb-2">Relacione componentes para alimentar a topologia de impacto e o grafo de dependências do Cockpit.</p>
+                <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#newDependencyModal">
+                    <i class="bi bi-plus-lg me-1"></i>Cadastrar Primeira Dependência
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="tc-table">
+                    <thead>
+                        <tr>
+                            <th>Componente Origem</th>
+                            <th class="text-center" style="width: 40px;"></th>
+                            <th>Componente Alvo</th>
+                            <th>Tipo</th>
+                            <th>Criticidade</th>
+                            <th>Descrição / Protocolo</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var dep in Model.DependenciesList)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold text-dark">@dep.SourceComponentName</div>
+                                    <span class="tc-caption text-muted">ID: #@dep.SourceComponentId</span>
+                                </td>
+                                <td class="text-center text-muted">
+                                    <i class="bi bi-arrow-right text-primary"></i>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-dark">@dep.TargetComponentName</div>
+                                    <span class="tc-caption text-muted">ID: #@dep.TargetComponentId</span>
+                                </td>
+                                <td>
+                                    <span class="tc-badge tc-badge-sm tc-badge-progress">@dep.DependencyType</span>
+                                </td>
+                                <td>
+                                    @switch (dep.Criticality?.ToUpperInvariant())
+                                    {
+                                        case "CRITICAL":
+                                            <span class="tc-badge tc-badge-danger">Crítica</span>
+                                            break;
+                                        case "HIGH":
+                                            <span class="tc-badge tc-badge-warning">Alta</span>
+                                            break;
+                                        case "LOW":
+                                            <span class="tc-badge tc-badge-sm tc-badge-closed">Baixa</span>
+                                            break;
+                                        default:
+                                            <span class="tc-badge tc-badge-open">Média</span>
+                                            break;
+                                    }
+                                </td>
+                                <td>
+                                    <span class="small text-secondary">@(string.IsNullOrWhiteSpace(dep.Description) ? "—" : dep.Description)</span>
+                                </td>
+                                <td class="text-end">
+                                    <form method="post" asp-page-handler="DeleteDependency" class="d-inline" onsubmit="return confirm('Deseja realmente remover esta dependência técnica?');">
+                                        <input type="hidden" name="dependencyId" value="@dep.Id" />
+                                        <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm text-danger" title="Remover Dependência">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- SEÇÃO 2: Componentes do Catálogo -->
+    <div class="col-lg-7">
+        <div class="tc-card">
+            <div class="tc-card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="tc-card-title mb-0">Componentes &amp; Módulos</h2>
+                    <span class="tc-caption text-muted">@Model.ComponentsList.Count componente(s) cadastrado(s)</span>
+                </div>
+            </div>
+            <div class="tc-card-body p-0">
+                @if (Model.ComponentsList.Count == 0)
+                {
+                    <div class="p-4 text-center text-muted">
+                        <i class="bi bi-cpu display-6 d-block mb-2 text-secondary opacity-50"></i>
+                        <p class="tc-caption text-secondary">Nenhum componente cadastrado.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="tc-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nome</th>
+                                    <th>Tipo</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in Model.ComponentsList)
+                                {
+                                    <tr>
+                                        <td><span class="font-monospace text-muted">@(c.Code ?? "-")</span></td>
+                                        <td>
+                                            <div class="fw-semibold text-dark">@c.Name</div>
+                                            <span class="tc-caption text-muted">ID: #@c.Id</span>
+                                        </td>
+                                        <td><span class="tc-badge tc-badge-sm tc-badge-progress">@c.ComponentType</span></td>
+                                        <td>
+                                            @if (c.Status == "Active")
+                                            {
+                                                <span class="tc-badge tc-badge-sm tc-badge-open">Ativo</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="tc-badge tc-badge-sm tc-badge-closed">Inativo</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- SEÇÃO 3: Ownership por Departamento -->
+    <div class="col-lg-5">
+        <div class="tc-card">
+            <div class="tc-card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="tc-card-title mb-0">
+                        <i class="bi bi-building text-secondary me-2"></i>Ownership Departamental
+                    </h2>
+                    <span class="tc-caption text-muted">Departamentos responsáveis oficiais</span>
+                </div>
+            </div>
+            <div class="tc-card-body p-0">
+                @if (Model.OwnersList.Count == 0)
+                {
+                    <div class="p-4 text-center text-muted">
+                        <i class="bi bi-building display-6 d-block mb-2 text-secondary opacity-50"></i>
+                        <p class="tc-caption text-secondary">Nenhum vínculo de departamento registrado.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="tc-table">
+                            <thead>
+                                <tr>
+                                    <th>Componente</th>
+                                    <th>Departamento</th>
+                                    <th>Papel</th>
+                                    <th class="text-end"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var o in Model.OwnersList)
+                                {
+                                    <tr>
+                                        <td><span class="fw-semibold text-dark">@o.ComponentName</span></td>
+                                        <td><span>@o.DepartmentName</span></td>
+                                        <td>
+                                            @switch (o.OwnershipRole)
+                                            {
+                                                case "Primary":
+                                                    <span class="tc-badge tc-badge-sm tc-badge-verified">Primário</span>
+                                                    break;
+                                                case "Secondary":
+                                                    <span class="tc-badge tc-badge-sm tc-badge-progress">Secundário</span>
+                                                    break;
+                                                case "Escalation":
+                                                    <span class="tc-badge tc-badge-sm tc-badge-warning">Escalação</span>
+                                                    break;
+                                                default:
+                                                    <span class="tc-badge tc-badge-sm tc-badge-closed">@o.OwnershipRole</span>
+                                                    break;
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <form method="post" asp-page-handler="DeleteOwner" class="d-inline" onsubmit="return confirm('Deseja remover a responsabilidade deste departamento?');">
+                                                <input type="hidden" name="ownerId" value="@o.Id" />
+                                                <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm text-danger" title="Remover Vínculo">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Novo Componente -->
+<div class="modal fade" id="newComponentModal" tabindex="-1" aria-labelledby="newComponentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="CreateComponent">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newComponentModalLabel">
+                        <i class="bi bi-cpu me-2 text-primary"></i>Novo Componente
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="newCompName">Nome do Componente <span class="text-danger">*</span></label>
+                        <input type="text" id="newCompName" class="tc-input" asp-for="NewComponent.Name" placeholder="Ex.: Identity Provider API" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="newCompType">Tipo de Componente <span class="text-danger">*</span></label>
+                        <select id="newCompType" class="tc-select" asp-for="NewComponent.ComponentType" required>
+                            <option value="Service">Serviço / Backend API</option>
+                            <option value="Frontend">Frontend / Interface Web</option>
+                            <option value="Database">Banco de Dados / Persistência</option>
+                            <option value="Worker">Worker / Fila de Processamento</option>
+                            <option value="Gateway">API Gateway / Proxy</option>
+                            <option value="Integration">Conector / Integração Externa</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="newCompProduct">Produto Associado</label>
+                        <select id="newCompProduct" class="tc-select" asp-for="NewComponent.ProductId">
+                            <option value="">-- Sem produto específico --</option>
+                            @foreach (var prod in Model.ProductsList)
+                            {
+                                <option value="@prod.Id">@prod.Name @(prod.IsExternal ? "(Externo)" : "")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="newCompCode">Código / Sigla</label>
+                        <input type="text" id="newCompCode" class="tc-input" asp-for="NewComponent.Code" placeholder="Ex.: CMP-AUTH-01" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="newCompDept">Departamento Responsável Principal</label>
+                        <select id="newCompDept" class="tc-select" asp-for="NewComponent.OwnerDepartmentId">
+                            <option value="">-- Não atribuído --</option>
+                            @foreach (var dept in Model.DepartmentsList)
+                            {
+                                <option value="@dept.Id">@dept.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="newCompDesc">Descrição</label>
+                        <textarea id="newCompDesc" class="tc-textarea" asp-for="NewComponent.Description" rows="2" placeholder="Responsabilidades deste componente..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">
+                        <i class="bi bi-check-lg me-1"></i>Cadastrar Componente
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Nova Dependência -->
+<div class="modal fade" id="newDependencyModal" tabindex="-1" aria-labelledby="newDependencyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="CreateDependency">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newDependencyModalLabel">
+                        <i class="bi bi-diagram-2 me-2 text-primary"></i>Nova Dependência Técnica
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="depSource">Componente Origem (Quem depende) <span class="text-danger">*</span></label>
+                        <select id="depSource" class="tc-select" asp-for="NewDependency.SourceComponentId" required>
+                            <option value="">-- Selecione o componente de origem --</option>
+                            @foreach (var comp in Model.ComponentsList)
+                            {
+                                <option value="@comp.Id">@comp.Name (@comp.ComponentType)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="depTarget">Componente Alvo (De quem depende) <span class="text-danger">*</span></label>
+                        <select id="depTarget" class="tc-select" asp-for="NewDependency.TargetComponentId" required>
+                            <option value="">-- Selecione o componente de destino --</option>
+                            @foreach (var comp in Model.ComponentsList)
+                            {
+                                <option value="@comp.Id">@comp.Name (@comp.ComponentType)</option>
+                            }
+                        </select>
+                        <span class="tc-caption text-muted">Aviso: Origem e Destino não podem ser o mesmo componente.</span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="depType">Tipo de Comunicação / Dependência <span class="text-danger">*</span></label>
+                        <select id="depType" class="tc-select" asp-for="NewDependency.DependencyType" required>
+                            <option value="Synchronous">Síncrona (REST / gRPC / HTTP)</option>
+                            <option value="Asynchronous">Assíncrona (Mensageria / RabbitMQ / Kafka)</option>
+                            <option value="Database">Acesso a Banco de Dados / SQL</option>
+                            <option value="External">API Externa / Fornecedor</option>
+                            <option value="SharedResource">Arquivo / Cache Compartilhado</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="depCrit">Criticidade <span class="text-danger">*</span></label>
+                        <select id="depCrit" class="tc-select" asp-for="NewDependency.Criticality" required>
+                            <option value="Critical">Crítica (Falha paralisa a origem)</option>
+                            <option value="High">Alta (Degradação severa de funcionalidade)</option>
+                            <option value="Medium" selected>Média (Degradação parcial / recurso secundário)</option>
+                            <option value="Low">Baixa (Recurso opcional / fallback disponível)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="depDesc">Descrição / Contrato</label>
+                        <textarea id="depDesc" class="tc-textarea" asp-for="NewDependency.Description" rows="2" placeholder="Ex.: Autenticação de tokens JWT via OAuth 2.0"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">
+                        <i class="bi bi-check-lg me-1"></i>Registrar Dependência
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Vincular Departamento -->
+<div class="modal fade" id="newOwnerModal" tabindex="-1" aria-labelledby="newOwnerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="CreateOwner">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newOwnerModalLabel">
+                        <i class="bi bi-building me-2 text-primary"></i>Vincular Departamento Responsável
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="ownComp">Componente <span class="text-danger">*</span></label>
+                        <select id="ownComp" class="tc-select" asp-for="NewOwner.ComponentId" required>
+                            <option value="">-- Selecione o componente --</option>
+                            @foreach (var comp in Model.ComponentsList)
+                            {
+                                <option value="@comp.Id">@comp.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="ownDept">Departamento <span class="text-danger">*</span></label>
+                        <select id="ownDept" class="tc-select" asp-for="NewOwner.DepartmentId" required>
+                            <option value="">-- Selecione o departamento oficial --</option>
+                            @foreach (var dept in Model.DepartmentsList)
+                            {
+                                <option value="@dept.Id">@dept.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="ownRole">Papel de Responsabilidade <span class="text-danger">*</span></label>
+                        <select id="ownRole" class="tc-select" asp-for="NewOwner.OwnershipRole" required>
+                            <option value="Primary" selected>Primário (Desenvolvimento e sustentação direta)</option>
+                            <option value="Secondary">Secundário (Apoio operacional / interface)</option>
+                            <option value="Escalation">Escalação (Plantão técnico / arquitetura)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">
+                        <i class="bi bi-check-lg me-1"></i>Salvar Vínculo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

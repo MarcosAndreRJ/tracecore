@@ -11,7 +11,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\TraceCore.Domain\TraceCore.Domain.csproj" />
     <ProjectReference Include="..\TraceCore.Application\TraceCore.Application.csproj" />
+    <ProjectReference Include="..\TraceCore.Infrastructure\TraceCore.Infrastructure.csproj" />
     <ProjectReference Include="..\TraceCore.Contracts\TraceCore.Contracts.csproj" />
   </ItemGroup>
 

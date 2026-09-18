@@ -1,0 +1,139 @@
+/* ==========================================================================
+   TRACECORE — ALERTS & TOASTS
+   Alertas operacionais e notificações do sistema.
+   REGRA CRÍTICA: Alertas de erros/riscos NÃO possuem auto-dismiss global.
+   Toasts são apenas para confirmações transitórias leves (ex: "Salvo com sucesso").
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------
+   Alertas Em Linha / Banners de Informação Operacional
+   ------------------------------------------------------------------------- */
+.tc-alert {
+    position: relative;
+    padding: 0.85rem 1.15rem;
+    margin-bottom: var(--tc-space-4);
+    border: 1px solid transparent;
+    border-radius: var(--tc-radius-sm);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tc-space-3);
+    font-size: var(--tc-text-sm);
+    line-height: var(--tc-leading-normal);
+}
+
+.tc-alert-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+}
+
+.tc-alert-content {
+    flex-grow: 1;
+}
+
+.tc-alert-title {
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-semibold);
+    margin: 0 0 0.25rem 0;
+}
+
+.tc-alert-close {
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    padding: 0;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: opacity var(--tc-transition-fast);
+    flex-shrink: 0;
+}
+
+.tc-alert-close:hover {
+    opacity: 1;
+}
+
+/* Variantes Semânticas de Alerta */
+.tc-alert-info {
+    background-color: var(--tc-info-subtle);
+    border-color: var(--tc-info-border);
+    color: var(--tc-info-text);
+}
+.tc-alert-info .tc-alert-icon { color: var(--tc-info); }
+
+.tc-alert-success {
+    background-color: var(--tc-success-subtle);
+    border-color: var(--tc-success-border);
+    color: var(--tc-success-text);
+}
+.tc-alert-success .tc-alert-icon { color: var(--tc-success); }
+
+.tc-alert-warning {
+    background-color: var(--tc-warning-subtle);
+    border-color: var(--tc-warning-border);
+    color: var(--tc-warning-text);
+}
+.tc-alert-warning .tc-alert-icon { color: var(--tc-warning); }
+
+.tc-alert-danger {
+    background-color: var(--tc-danger-subtle);
+    border-color: var(--tc-danger-border);
+    color: var(--tc-danger-text);
+}
+.tc-alert-danger .tc-alert-icon { color: var(--tc-danger); }
+
+/* -------------------------------------------------------------------------
+   Toasts Transitórios (Notificações Flutuantes Não Bloqueantes)
+   ------------------------------------------------------------------------- */
+.tc-toast-container {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: var(--tc-z-toast);
+    display: flex;
+    flex-direction: column;
+    gap: var(--tc-space-2);
+    pointer-events: none;
+    max-width: 380px;
+    width: 100%;
+}
+
+.tc-toast {
+    pointer-events: auto;
+    background-color: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-left: 4px solid var(--tc-primary);
+    border-radius: var(--tc-radius-sm);
+    box-shadow: var(--tc-shadow-lg);
+    padding: 0.85rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tc-space-3);
+    font-size: var(--tc-text-sm);
+    color: var(--tc-text-body);
+    animation: tc-toast-enter 0.25s ease-out forwards;
+}
+
+.tc-toast.is-success {
+    border-left-color: var(--tc-success);
+}
+
+.tc-toast.is-danger {
+    border-left-color: var(--tc-danger);
+}
+
+.tc-toast.is-warning {
+    border-left-color: var(--tc-warning);
+}
+
+@keyframes tc-toast-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}

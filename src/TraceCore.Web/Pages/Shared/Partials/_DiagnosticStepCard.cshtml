@@ -1,0 +1,90 @@
+@using TraceCore.Application.DTOs
+@model DiagnosticStepDto
+
+@{
+    var step = Model;
+    if (step == null) return;
+
+    var outcomeNormalized = (step.Outcome ?? "").ToLowerInvariant();
+    var outcomeBadge = outcomeNormalized switch
+    {
+        "worked" => "tc-badge-worked",
+        "partiallyworked" => "tc-badge-partially",
+        "didnotwork" => "tc-badge-didnotwork",
+        "notapplicable" => "tc-badge-notapplicable",
+        _ => "tc-badge-inconclusive"
+    };
+
+    var outcomeText = outcomeNormalized switch
+    {
+        "worked" => "Funcionou",
+        "partiallyworked" => "Parcialmente",
+        "didnotwork" => "Não Funcionou",
+        "notapplicable" => "Não Aplicável",
+        _ => "Inconclusivo"
+    };
+
+    var outcomeIcon = outcomeNormalized switch
+    {
+        "worked" => "bi-check-lg",
+        "partiallyworked" => "bi-dash-lg",
+        "didnotwork" => "bi-x-lg",
+        "notapplicable" => "bi-slash-circle",
+        _ => "bi-question-circle"
+    };
+}
+
+<div class="tc-diagnostic-step-card" id="step-@step.Id">
+    <div class="tc-step-header">
+        <div class="d-flex align-items-center gap-2">
+            <span class="tc-step-seq">#@step.SequenceNo</span>
+            <h5 class="tc-step-title">@step.Title</h5>
+            @if (!string.IsNullOrEmpty(step.HypothesisTitle))
+            {
+                <span class="tc-source-chip" title="Hipótese vinculada">
+                    <i class="bi bi-lightbulb"></i>
+                    <span>@step.HypothesisTitle</span>
+                </span>
+            }
+        </div>
+        <span class="tc-badge @outcomeBadge">
+            <i class="bi @outcomeIcon" aria-hidden="true"></i>
+            <span>@outcomeText</span>
+        </span>
+    </div>
+
+    <div class="tc-step-details">
+        @if (!string.IsNullOrWhiteSpace(step.Objective))
+        {
+            <div class="tc-step-field">
+                <span class="tc-step-field-label">Objetivo</span>
+                <span class="tc-step-field-value">@step.Objective</span>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(step.InputEvidenceSummary))
+        {
+            <div class="tc-step-field">
+                <span class="tc-step-field-label">Evidência Prévia</span>
+                <span class="tc-step-field-value">@step.InputEvidenceSummary</span>
+            </div>
+        }
+        <div class="tc-step-field">
+            <span class="tc-step-field-label">Resultado Observado</span>
+            <span class="tc-step-field-value fw-semibold">@step.ResultSummary</span>
+        </div>
+    </div>
+
+    <div class="tc-step-footer">
+        <span>
+            @if (!string.IsNullOrEmpty(step.PerformedByName))
+            {
+                <i class="bi bi-person me-1"></i>@step.PerformedByName
+            }
+            @if (step.DurationSeconds.HasValue && step.DurationSeconds.Value > 0)
+            {
+                <span class="ms-2"><i class="bi bi-stopwatch me-1"></i>@(step.DurationSeconds.Value)s</span>
+            }
+        </span>
+        <span><i class="bi bi-clock me-1"></i>@step.PerformedAt.ToString("dd/MM/yyyy HH:mm")</span>
+    </div>
+</div>

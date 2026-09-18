@@ -1,0 +1,79 @@
+/* ==========================================================================
+   TRACECORE DOMAIN — SYSTEM DEPENDENCY GRAPH
+   Visualização estrutural de dependências do ecossistema:
+   Sistema -> API -> Serviço -> Banco de Dados (Fase 2 / M03 / M10).
+   ========================================================================== */
+
+.tc-dep-graph {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--tc-space-2);
+    padding: 1.25rem;
+    background-color: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    margin: var(--tc-space-4) 0;
+}
+
+.tc-dep-node {
+    flex: 1 1 140px;
+    min-width: 130px;
+    background-color: var(--tc-bg-muted);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-sm);
+    padding: 0.75rem 0.85rem;
+    text-align: center;
+    position: relative;
+    transition: border-color var(--tc-transition-fast), transform var(--tc-transition-fast);
+}
+
+.tc-dep-node:hover {
+    border-color: var(--tc-primary);
+    transform: translateY(-2px);
+}
+
+.tc-dep-node-type {
+    font-size: 0.65rem;
+    font-weight: var(--tc-font-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--tc-text-muted);
+    margin-bottom: 0.2rem;
+}
+
+.tc-dep-node-name {
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-primary);
+    line-height: var(--tc-leading-tight);
+}
+
+.tc-dep-node-status {
+    margin-top: 0.35rem;
+    font-size: 0.7rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.tc-dep-arrow {
+    color: var(--tc-border-strong);
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+@media (max-width: 767.98px) {
+    .tc-dep-graph {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .tc-dep-arrow {
+        transform: rotate(90deg);
+        padding: var(--tc-space-1) 0;
+    }
+}

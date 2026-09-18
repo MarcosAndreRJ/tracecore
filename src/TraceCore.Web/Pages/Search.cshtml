@@ -1,0 +1,442 @@
+@page
+@model TraceCore.Web.Pages.SearchModel
+@{
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.Q) ? "Pesquisa Global e Similaridade" : $"Busca: \"{Model.Q}\"";
+}
+
+<div class="tc-container-fluid py-3">
+    <!-- BREADCRUMB -->
+    <nav class="tc-breadcrumb mb-3" aria-label="Navegação">
+        <a asp-page="/Index" class="tc-breadcrumb-item">
+            <i class="bi bi-house-door me-1"></i>Início
+        </a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="tc-breadcrumb-item active" aria-current="page">Pesquisa e Similaridade</span>
+    </nav>
+
+    <!-- BARRA DE BUSCA PRINCIPAL (M06) -->
+    <div class="tc-card p-4 mb-4">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-lg-10 col-md-9">
+                <div class="tc-input-search">
+                    <i class="bi bi-search fs-5 text-primary"></i>
+                    <input type="search" asp-for="Q" class="tc-input fs-6"
+                           placeholder="Buscar por termos técnicos, sintomas, códigos de erro, componentes ou soluções..."
+                           autocomplete="off" autofocus />
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 d-flex gap-2">
+                <button type="submit" class="tc-btn tc-btn-primary flex-grow-1 justify-content-center">
+                    <i class="bi bi-search"></i>
+                    <span>Pesquisar</span>
+                </button>
+                @if (!string.IsNullOrWhiteSpace(Model.Q) || Model.Results.ActiveFilterChips.Any())
+                {
+                    <a asp-page="/Search" class="tc-btn tc-btn-secondary" title="Limpar busca">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                }
+            </div>
+
+            <!-- Manter filtros ativos no submit da barra de pesquisa -->
+            <input type="hidden" asp-for="ProductId" />
+            <input type="hidden" asp-for="ComponentId" />
+            <input type="hidden" asp-for="ErrorCode" />
+            <input type="hidden" asp-for="RootCauseId" />
+            <input type="hidden" asp-for="Status" />
+            <input type="hidden" asp-for="Environment" />
+            <input type="hidden" asp-for="ContextCaseId" />
+            <input type="hidden" asp-for="SelectedType" />
+        </form>
+
+        <!-- BARRA DE CHIPS DE FILTROS ATIVOS (BR-063: Chips Removíveis) -->
+        @if (Model.Results.ActiveFilterChips.Any())
+        {
+            <div class="d-flex align-items-center gap-2 mt-3 pt-3 border-top flex-wrap">
+                <span class="tc-caption fw-semibold text-muted text-uppercase">
+                    <i class="bi bi-funnel-fill text-primary me-1"></i>Filtros Aplicados:
+                </span>
+                @foreach (var chip in Model.Results.ActiveFilterChips)
+                {
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-2 px-3 rounded-pill d-inline-flex align-items-center gap-2">
+                        <span>@chip.Label</span>
+                        <button type="button" class="btn-close btn-close-white" style="font-size: 0.65rem;"
+                                onclick="removeFilter('@chip.FilterKey')" aria-label="Remover filtro @chip.Label"></button>
+                    </span>
+                }
+                <a href="@Url.Page("/Search", new { q = Model.Q, selectedType = Model.SelectedType })"
+                   class="tc-link small ms-2 text-danger text-decoration-none">
+                    <i class="bi bi-trash3 me-1"></i>Limpar Filtros
+                </a>
+            </div>
+        }
+    </div>
+
+    <!-- TABS DE NAVEGAÇÃO POR TIPO DE RESULTADO -->
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <ul class="nav nav-pills tc-nav-pills gap-2" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a href="@Url.Page("/Search", GetFilterRouteValues("All"))"
+                   class="nav-link py-1 px-3 @(Model.SelectedType == "All" || string.IsNullOrEmpty(Model.SelectedType) ? "active" : "")">
+                    <span>Todos</span>
+                    <span class="badge bg-secondary-subtle text-dark ms-1">@Model.Results.CountByType["All"]</span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="@Url.Page("/Search", GetFilterRouteValues("Solution"))"
+                   class="nav-link py-1 px-3 @(Model.SelectedType == "Solution" ? "active" : "")">
+                    <i class="bi bi-shield-check me-1 text-success"></i>
+                    <span>Soluções</span>
+                    <span class="badge bg-secondary-subtle text-dark ms-1">@Model.Results.CountByType["Solution"]</span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="@Url.Page("/Search", GetFilterRouteValues("Case"))"
+                   class="nav-link py-1 px-3 @(Model.SelectedType == "Case" ? "active" : "")">
+                    <i class="bi bi-folder2-open me-1 text-primary"></i>
+                    <span>Casos</span>
+                    <span class="badge bg-secondary-subtle text-dark ms-1">@Model.Results.CountByType["Case"]</span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="@Url.Page("/Search", GetFilterRouteValues("System"))"
+                   class="nav-link py-1 px-3 @(Model.SelectedType == "System" ? "active" : "")">
+                    <i class="bi bi-cpu me-1 text-info"></i>
+                    <span>Sistemas</span>
+                    <span class="badge bg-secondary-subtle text-dark ms-1">@Model.Results.CountByType["System"]</span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="@Url.Page("/Search", GetFilterRouteValues("Component"))"
+                   class="nav-link py-1 px-3 @(Model.SelectedType == "Component" ? "active" : "")">
+                    <i class="bi bi-box-seam me-1 text-secondary"></i>
+                    <span>Componentes</span>
+                    <span class="badge bg-secondary-subtle text-dark ms-1">@Model.Results.CountByType["Component"]</span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="@Url.Page("/Search", GetFilterRouteValues("RootCause"))"
+                   class="nav-link py-1 px-3 @(Model.SelectedType == "RootCause" ? "active" : "")">
+                    <i class="bi bi-diagram-2 me-1 text-warning"></i>
+                    <span>Causas Raiz</span>
+                    <span class="badge bg-secondary-subtle text-dark ms-1">@Model.Results.CountByType["RootCause"]</span>
+                </a>
+            </li>
+        </ul>
+
+        <!-- TELEMETRIA DE TEMPO E TOTAL (BR-064) -->
+        <span class="tc-caption text-muted">
+            <i class="bi bi-lightning-charge text-warning me-1"></i>
+            @Model.Results.TotalCount resultados em @Model.Results.DurationMs ms
+        </span>
+    </div>
+
+    <!-- CORPO PRINCIPAL EM DUAS COLUNAS (8 cols resultados + 4 cols filtros) -->
+    <div class="row g-4">
+        <!-- COLUNA PRINCIPAL: LISTAGEM DE RESULTADOS -->
+        <div class="col-lg-8">
+            @if (!Model.Results.Items.Any())
+            {
+                <!-- EMPTY STATE ELEGANTE (BR-065: Registro de Lacuna) -->
+                <div class="tc-card p-5 text-center">
+                    @await Html.PartialAsync("Partials/_EmptyState", (
+                        Title: "Nenhum resultado encontrado",
+                        Description: string.IsNullOrWhiteSpace(Model.Q)
+                            ? "Utilize a barra de pesquisa acima ou selecione filtros ao lado para explorar o conhecimento técnico corporativo."
+                            : $"Não foram encontrados registros para o termo '{Model.Q}' com os filtros atuais. A consulta foi registrada na base de telemetria para identificação de lacunas de conhecimento (BR-065).",
+                        Icon: "bi-search",
+                        ActionText: "Limpar todos os filtros",
+                        ActionUrl: "/Search"
+                    ))
+                </div>
+            }
+            else
+            {
+                @if (Model.Results.ExactMatches != null && Model.Results.ExactMatches.Any())
+                {
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-primary px-2 py-1"><i class="bi bi-bullseye me-1"></i> Correspondência Exata</span>
+                            <span class="tc-caption text-muted">Identificador técnico localizado com precisão absoluta</span>
+                        </div>
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var exact in Model.Results.ExactMatches)
+                            {
+                                <div class="tc-card p-3 shadow-sm border border-primary bg-primary bg-opacity-10">
+                                    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="tc-badge tc-badge-active"><i class="bi bi-check2-circle me-1"></i> Exato</span>
+                                            <a href="@exact.Url" class="text-decoration-none fw-bold text-primary fs-6">@exact.Title</a>
+                                            <span class="tc-caption text-muted font-monospace">@exact.Code</span>
+                                        </div>
+                                        <a href="@exact.Url" class="tc-btn tc-btn-primary tc-btn-sm">
+                                            <span>Acessar Registro</span>
+                                            <i class="bi bi-arrow-right"></i>
+                                        </a>
+                                    </div>
+                                    <p class="tc-body-sm text-secondary mb-2">@exact.Snippet</p>
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                                        @foreach (var factor in exact.MatchedFactors)
+                                        {
+                                            <span class="tc-badge tc-badge-verified tc-badge-sm">@factor</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var item in Model.Results.Items)
+                    {
+                        var borderClass = item.Type switch
+                        {
+                            "Solution" => "border-success",
+                            "Case" => "border-primary",
+                            "System" => "border-info",
+                            "Component" => "border-secondary",
+                            "RootCause" => "border-warning",
+                            _ => "border-secondary"
+                        };
+
+                        var typeBadge = item.Type switch
+                        {
+                            "Solution" => ("tc-badge-verified", "bi-shield-check", "Solução"),
+                            "Case" => ("tc-badge-active", "bi-folder2-open", "Caso"),
+                            "System" => ("tc-badge-stale", "bi-cpu", "Sistema"),
+                            "Component" => ("tc-badge-neutral", "bi-box-seam", "Componente"),
+                            "RootCause" => ("tc-badge-warning", "bi-diagram-2", "Causa Raiz"),
+                            _ => ("tc-badge-neutral", "bi-file-text", item.Type)
+                        };
+
+                        <div class="tc-card p-3 shadow-sm border-0 border-start border-4 @borderClass">
+                            <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="tc-code-inline fw-bold text-primary">@item.Code</span>
+                                    <span class="tc-badge @typeBadge.Item1 d-inline-flex align-items-center gap-1">
+                                        <i class="bi @typeBadge.Item2"></i> @typeBadge.Item3
+                                    </span>
+                                    @if (!string.IsNullOrEmpty(item.Status))
+                                    {
+                                        <span class="badge bg-light text-dark border">@item.Status</span>
+                                    }
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="tc-badge tc-badge-neutral font-monospace small" title="Score de relevância ponderado (Bloco 7.3)">
+                                        <i class="bi bi-star-fill text-warning me-1"></i>@item.Score
+                                    </span>
+                                </div>
+                            </div>
+
+                            <h4 class="tc-card-title mb-1">
+                                <a href="@item.Url" class="text-decoration-none text-dark hover-primary"
+                                   onclick="recordInteraction(@Model.Results.QueryId, '@item.Type', @item.Id, @item.Position)">
+                                    @item.Title
+                                </a>
+                            </h4>
+
+                            <div class="tc-caption text-muted mb-2">
+                                @item.Subtitle
+                            </div>
+
+                            <p class="tc-body small text-secondary mb-3">
+                                @item.Snippet
+                            </p>
+
+                            <!-- FATORES DE CORRESPONDÊNCIA / EXPLICABILIDADE (BR-061) -->
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2 border-top">
+                                <div class="d-flex align-items-center gap-1 flex-wrap">
+                                    <span class="tc-caption text-muted me-1"><i class="bi bi-info-circle me-1"></i>Correspondência:</span>
+                                    @foreach (var factor in item.MatchedFactors)
+                                    {
+                                        <span class="badge bg-light text-primary border border-primary-subtle py-1 px-2 small">
+                                            @factor
+                                        </span>
+                                    }
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(item.SuccessRate))
+                                {
+                                    <!-- EFICÁCIA HISTÓRICA COM AMOSTRA (BR-048) -->
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2" title="Eficácia comprovada em produção">
+                                        <i class="bi bi-check2-circle me-1"></i>Eficácia: <strong>@item.SuccessRate</strong> <span class="small">@item.SuccessSample</span>
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- COLUNA LATERAL: REFINAMENTO DE FILTROS (Bloco 7.2) -->
+        <div class="col-lg-4">
+            <div class="tc-card p-3 sticky-top" style="top: 80px;">
+                <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                    <h3 class="tc-title-section mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-sliders text-primary"></i>
+                        <span>Refinar Busca</span>
+                    </h3>
+                    <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="document.getElementById('formFilters').submit();">
+                        <i class="bi bi-funnel"></i>
+                        <span>Aplicar</span>
+                    </button>
+                </div>
+
+                <form method="get" id="formFilters" class="d-flex flex-column gap-3">
+                    <input type="hidden" name="q" value="@Model.Q" />
+                    <input type="hidden" name="selectedType" value="@Model.SelectedType" />
+                    @if (Model.ContextCaseId.HasValue)
+                    {
+                        <input type="hidden" name="contextCaseId" value="@Model.ContextCaseId" />
+                    }
+
+                    <!-- 1. Sistema / Produto -->
+                    <div>
+                        <label for="filterProduct" class="tc-form-label">Sistema / Produto</label>
+                        <select id="filterProduct" name="productId" class="tc-select">
+                            <option value="">Todos os Sistemas</option>
+                            @foreach (var p in Model.AvailableProducts)
+                            {
+                                <option value="@p.Id" selected="@(Model.ProductId == p.Id)">@p.Name (@p.Code)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- 2. Módulo / Componente -->
+                    <div>
+                        <label for="filterComponent" class="tc-form-label">Módulo / Componente</label>
+                        <select id="filterComponent" name="componentId" class="tc-select">
+                            <option value="">Todos os Módulos</option>
+                            @foreach (var c in Model.AvailableComponents)
+                            {
+                                <option value="@c.Id" selected="@(Model.ComponentId == c.Id)">@c.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- 3. Código de Erro -->
+                    <div>
+                        <label for="filterErrorCode" class="tc-form-label">Código de Erro</label>
+                        <input type="text" id="filterErrorCode" name="errorCode" class="tc-input"
+                               placeholder="Ex: ERR-502, TIMEOUT" value="@Model.ErrorCode" />
+                    </div>
+
+                    <!-- 4. Causa Raiz Corporativa -->
+                    <div>
+                        <label for="filterRootCause" class="tc-form-label">Causa Raiz</label>
+                        <select id="filterRootCause" name="rootCauseId" class="tc-select">
+                            <option value="">Todas as Causas</option>
+                            @foreach (var rc in Model.AvailableRootCauses)
+                            {
+                                <option value="@rc.Id" selected="@(Model.RootCauseId == rc.Id)">@rc.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- 5. Cliente e Unidade (Bloco 7.A.6) -->
+                    <div>
+                        <label for="filterClient" class="tc-form-label">Cliente</label>
+                        <select id="filterClient" name="clientId" class="tc-select">
+                            <option value="">Todos os Clientes</option>
+                            @foreach (var cl in Model.AvailableClients)
+                            {
+                                <option value="@cl.Id" selected="@(Model.ClientId == cl.Id)">@cl.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    @if (Model.AvailableClientUnits.Any())
+                    {
+                        <div>
+                            <label for="filterClientUnit" class="tc-form-label">Unidade do Cliente</label>
+                            <select id="filterClientUnit" name="clientUnitId" class="tc-select">
+                                <option value="">Todas as Unidades</option>
+                                @foreach (var cu in Model.AvailableClientUnits)
+                                {
+                                    <option value="@cu.Id" selected="@(Model.ClientUnitId == cu.Id)">@cu.Name (@cu.Code)</option>
+                                }
+                            </select>
+                        </div>
+                    }
+
+                    <!-- 6. Departamento Responsável -->
+                    <div>
+                        <label for="filterDepartment" class="tc-form-label">Departamento</label>
+                        <select id="filterDepartment" name="departmentId" class="tc-select">
+                            <option value="">Todos os Departamentos</option>
+                            @foreach (var d in Model.AvailableDepartments)
+                            {
+                                <option value="@d.Id" selected="@(Model.DepartmentId == d.Id)">@d.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- 7. Status -->
+                    <div>
+                        <label for="filterStatus" class="tc-form-label">Status</label>
+                        <select id="filterStatus" name="status" class="tc-select">
+                            <option value="">Qualquer Status</option>
+                            <option value="Resolved" selected="@(Model.Status == "Resolved")">Casos: Resolvido</option>
+                            <option value="Investigating" selected="@(Model.Status == "Investigating")">Casos: Em Investigação</option>
+                            <option value="Published" selected="@(Model.Status == "Published")">Soluções: Publicado</option>
+                            <option value="Review" selected="@(Model.Status == "Review")">Soluções: Em Revisão</option>
+                        </select>
+                    </div>
+
+                    <div class="d-grid pt-2">
+                        <button type="submit" class="tc-btn tc-btn-primary justify-content-center">
+                            <i class="bi bi-filter"></i>
+                            <span>Filtrar Resultados</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function removeFilter(key) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete(key);
+            window.location.href = url.toString();
+        }
+
+        function recordInteraction(queryId, type, id, position) {
+            if (!queryId || queryId <= 0) return;
+            navigator.sendBeacon('/Search?handler=RecordInteraction', JSON.stringify({
+                queryId: queryId,
+                resultType: type,
+                resultId: id,
+                position: position
+            }));
+        }
+    </script>
+}
+
+@functions {
+    object GetFilterRouteValues(string type)
+    {
+        var dict = new Dictionary<string, object?>
+        {
+            ["q"] = Model.Q,
+            ["selectedType"] = type,
+            ["productId"] = Model.ProductId,
+            ["componentId"] = Model.ComponentId,
+            ["productVersionId"] = Model.ProductVersionId,
+            ["clientId"] = Model.ClientId,
+            ["clientUnitId"] = Model.ClientUnitId,
+            ["departmentId"] = Model.DepartmentId,
+            ["technologyId"] = Model.TechnologyId,
+            ["errorCode"] = Model.ErrorCode,
+            ["rootCauseId"] = Model.RootCauseId,
+            ["status"] = Model.Status,
+            ["environment"] = Model.Environment,
+            ["contextCaseId"] = Model.ContextCaseId
+        };
+        return dict;
+    }
+}

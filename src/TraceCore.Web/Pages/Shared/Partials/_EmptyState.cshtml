@@ -1,0 +1,17 @@
+@model (string Title, string Description, string Icon, string? ActionText, string? ActionUrl)
+
+<div class="tc-empty-state">
+    <div class="tc-empty-icon" aria-hidden="true">
+        <i class="bi @Model.Icon"></i>
+    </div>
+    <h3 class="tc-empty-title">@Model.Title</h3>
+    <p class="tc-empty-description">@Model.Description</p>
+    @if (!string.IsNullOrWhiteSpace(Model.ActionText) && !string.IsNullOrWhiteSpace(Model.ActionUrl))
+    {
+        <div>
+            <a href="@Model.ActionUrl" class="tc-btn tc-btn-primary tc-btn-sm">
+                @Model.ActionText
+            </a>
+        </div>
+    }
+</div>

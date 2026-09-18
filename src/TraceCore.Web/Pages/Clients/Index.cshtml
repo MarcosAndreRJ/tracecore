@@ -1,0 +1,490 @@
+@page
+@model TraceCore.Web.Pages.Clients.IndexModel
+@{
+    ViewData["Title"] = "Gestão de Clientes e Contextos Técnicos";
+}
+
+<div class="tc-container-fluid py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="tc-title-page mb-1">
+                <i class="bi bi-buildings text-primary me-2"></i>Clientes & Contextos Técnicos
+            </h1>
+            <p class="tc-subtitle text-muted mb-0">Gestão operacional de clientes, unidades corporativas e vínculos com catálogo de sistemas e versões.</p>
+        </div>
+        <div>
+            <button type="button" class="tc-btn tc-btn-primary" data-bs-toggle="modal" data-bs-target="#modalCreateClient">
+                <i class="bi bi-plus-lg me-1"></i>Novo Cliente
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="tc-alert tc-alert-success mb-3" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@Model.SuccessMessage
+            <button type="button" class="tc-alert-close" data-bs-dismiss="alert" aria-label="Close">&times;</button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="tc-alert tc-alert-danger mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@Model.ErrorMessage
+            <button type="button" class="tc-alert-close" data-bs-dismiss="alert" aria-label="Close">&times;</button>
+        </div>
+    }
+
+    <!-- Main Content: Two Columns -->
+    <div class="row g-4">
+        <!-- Left: Client List -->
+        <div class="col-lg-4">
+            <div class="tc-card p-0">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-secondary">
+                        <i class="bi bi-list-ul me-1"></i>Carteira de Clientes (@Model.ClientsList.Count)
+                    </span>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 650px; overflow-y: auto;">
+                    @if (Model.ClientsList.Count == 0)
+                    {
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
+                            Nenhum cliente cadastrado.
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var c in Model.ClientsList)
+                        {
+                            var isSelected = Model.SelectedClient?.Id == c.Id;
+                            <a href="@Url.Page("/Clients/Index", new { selectedId = c.Id })" 
+                               class="list-group-item list-group-item-action p-3 @(isSelected ? "border-start border-4 border-primary bg-light" : "")">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h6 class="fw-bold text-dark mb-0">@c.Name</h6>
+                                    <span class="badge @(c.Status == "Active" ? "bg-success" : "bg-secondary")">@c.Status</span>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    @if (!string.IsNullOrEmpty(c.Code))
+                                    {
+                                        <span class="badge bg-light text-dark border me-1"><i class="bi bi-tag me-1"></i>@c.Code</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(c.ExternalCrmId))
+                                    {
+                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle me-1">
+                                            <i class="bi bi-link-45deg me-1"></i>CRM: @c.ExternalCrmId
+                                        </span>
+                                    }
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-light text-secondary border">
+                                        <i class="bi bi-geo-alt me-1"></i>@c.UnitsCount Unidades
+                                    </span>
+                                    <span class="badge bg-light text-secondary border">
+                                        <i class="bi bi-cpu me-1"></i>@c.TechnicalContextsCount Sistemas
+                                    </span>
+                                </div>
+                            </a>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Details & Technical Contexts -->
+        <div class="col-lg-8">
+            @if (Model.SelectedClient == null)
+            {
+                <div class="tc-card p-5 text-center text-muted">
+                    <i class="bi bi-arrow-left-circle fs-1 text-primary mb-3"></i>
+                    <h5>Selecione um cliente para visualizar os detalhes</h5>
+                    <p class="text-secondary">Visualize unidades operacionais e mapeie sistemas e ambientes utilizados.</p>
+                </div>
+            }
+            else
+            {
+                var client = Model.SelectedClient;
+
+                <!-- Client Info Card -->
+                <div class="tc-card p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <span class="tc-badge tc-badge-primary mb-1">
+                                Cliente #@client.Id
+                            </span>
+                            <h2 class="tc-title-page mb-1">@client.Name</h2>
+                            <div class="text-muted small">
+                                <span class="me-3"><i class="bi bi-calendar-event me-1"></i>Cadastrado em: @client.CreatedAt.ToString("dd/MM/yyyy")</span>
+                                @if (!string.IsNullOrEmpty(client.Code))
+                                {
+                                    <span class="me-3"><i class="bi bi-upc-scan me-1"></i>Código: <strong>@client.Code</strong></span>
+                                }
+                                @if (!string.IsNullOrEmpty(client.ExternalCrmId))
+                                {
+                                    <span><i class="bi bi-link-45deg me-1"></i>CRM ID: <strong>@client.ExternalCrmId</strong></span>
+                                }
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <span class="tc-badge @(client.Status == "Active" ? "tc-badge-success" : "tc-badge-secondary") align-self-center">
+                                @client.Status
+                            </span>
+                            <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" 
+                                    data-bs-toggle="modal" data-bs-target="#modalEditClient"
+                                    onclick="fillEditModal('@client.Id', '@client.Name', '@(client.Code ?? "")', '@client.Status', '@(client.ExternalCrmId ?? "")', '@(client.Notes ?? "")')">
+                                <i class="bi bi-pencil me-1"></i>Editar
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(client.Notes))
+                    {
+                        <div class="bg-light p-3 rounded-2 border small text-secondary">
+                            <i class="bi bi-info-circle text-primary me-1"></i><strong>Observações:</strong> @client.Notes
+                        </div>
+                    }
+                </div>
+
+                <!-- Units Section -->
+                <div class="tc-card p-0 mb-4">
+                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h6 class="tc-card-title mb-0">
+                            <i class="bi bi-geo-alt text-primary me-2"></i>Unidades Operacionais (@client.Units.Count)
+                        </h6>
+                        <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddUnit">
+                            <i class="bi bi-plus-lg me-1"></i>Adicionar Unidade
+                        </button>
+                    </div>
+                    <div class="p-0">
+                        @if (client.Units.Count == 0)
+                        {
+                            <div class="p-4 text-center text-muted small">
+                                Nenhuma unidade cadastrada para este cliente. As unidades são opcionais para segmentação de plantas ou filiais.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="tc-table-responsive">
+                                <table class="tc-table mb-0">
+                                    <thead class="small">
+                                        <tr>
+                                            <th>Código</th>
+                                            <th>Nome da Unidade</th>
+                                            <th>CRM / Ref.</th>
+                                            <th>Status</th>
+                                            <th>Cadastrado em</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var u in client.Units)
+                                        {
+                                            <tr>
+                                                <td class="fw-bold"><span class="badge bg-light text-dark border">@u.Code</span></td>
+                                                <td>@u.Name</td>
+                                                <td>@(u.ExternalCrmId ?? "—")</td>
+                                                <td><span class="badge @(u.Status == "Active" ? "bg-success" : "bg-secondary")">@u.Status</span></td>
+                                                <td class="small text-muted">@u.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Technical Contexts Section -->
+                <div class="tc-card p-0">
+                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h6 class="tc-card-title mb-0">
+                            <i class="bi bi-cpu text-primary me-2"></i>Contextos Técnicos & Sistemas Vinculados (@client.TechnicalContexts.Count)
+                        </h6>
+                        <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddContext">
+                            <i class="bi bi-plus-lg me-1"></i>Vincular Sistema / Ambiente
+                        </button>
+                    </div>
+                    <div class="p-0">
+                        @if (client.TechnicalContexts.Count == 0)
+                        {
+                            <div class="p-4 text-center text-muted small">
+                                Nenhum sistema vinculado a este cliente. Vincule produtos e versões de catálogo para habilitar diagnósticos contextualizados.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="tc-table-responsive">
+                                <table class="tc-table mb-0">
+                                    <thead class="small">
+                                        <tr>
+                                            <th>Produto / Sistema</th>
+                                            <th>Versão</th>
+                                            <th>Ambiente</th>
+                                            <th>Unidade</th>
+                                            <th>Status</th>
+                                            <th>Período de Vigência</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var ctx in client.TechnicalContexts)
+                                        {
+                                            <tr>
+                                                <td class="fw-bold text-primary">
+                                                    <i class="bi bi-box me-1"></i>@ctx.ProductName
+                                                </td>
+                                                <td>
+                                                    @if (!string.IsNullOrEmpty(ctx.VersionLabel))
+                                                    {
+                                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">v@ctx.VersionLabel</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">Todas / Geral</span>
+                                                    }
+                                                </td>
+                                                <td>@(ctx.EnvironmentName ?? "Geral / Padrão")</td>
+                                                <td>@(ctx.UnitName ?? "Cliente Global")</td>
+                                                <td><span class="badge @(ctx.Status == "Active" ? "bg-success" : "bg-secondary")">@ctx.Status</span></td>
+                                                <td class="small text-muted">
+                                                    De @ctx.EffectiveFrom.ToString("dd/MM/yyyy")
+                                                    @if (ctx.EffectiveTo.HasValue)
+                                                    {
+                                                        <span> até @ctx.EffectiveTo.Value.ToString("dd/MM/yyyy")</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Novo Cliente -->
+<div class="modal fade" id="modalCreateClient" tabindex="-1" aria-labelledby="modalCreateClientLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="CreateClient">
+                <div class="modal-header">
+                    <h5 class="modal-title tc-modal-title" id="modalCreateClientLabel"><i class="bi bi-building-add me-2 text-primary"></i>Novo Cliente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="tc-form-label">Nome da Organização / Cliente <span class="text-danger">*</span></label>
+                        <input type="text" asp-for="CreateInput.Name" class="tc-input" placeholder="Ex: Hospital São Lucas" required />
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="tc-form-label">Código Interno</label>
+                            <input type="text" asp-for="CreateInput.Code" class="tc-input" placeholder="Ex: CLI-010" />
+                        </div>
+                        <div class="col-6">
+                            <label class="tc-form-label">ID no CRM</label>
+                            <input type="text" asp-for="CreateInput.ExternalCrmId" class="tc-input" placeholder="Ex: CRM-9842" />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="tc-form-label">Observações / Notas</label>
+                        <textarea asp-for="CreateInput.Notes" class="tc-textarea" rows="3" placeholder="Contexto operacional do cliente..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">Cadastrar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Cliente -->
+<div class="modal fade" id="modalEditClient" tabindex="-1" aria-labelledby="modalEditClientLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="UpdateClient">
+                <input type="hidden" asp-for="EditClientId" id="editClientId" />
+                <div class="modal-header">
+                    <h5 class="modal-title tc-modal-title" id="modalEditClientLabel"><i class="bi bi-pencil-square me-2 text-primary"></i>Editar Cliente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="tc-form-label">Nome do Cliente <span class="text-danger">*</span></label>
+                        <input type="text" asp-for="UpdateInput.Name" id="editClientName" class="tc-input" required />
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="tc-form-label">Código</label>
+                            <input type="text" asp-for="UpdateInput.Code" id="editClientCode" class="tc-input" />
+                        </div>
+                        <div class="col-6">
+                            <label class="tc-form-label">Status</label>
+                            <select asp-for="UpdateInput.Status" id="editClientStatus" class="tc-select">
+                                <option value="Active">Ativo</option>
+                                <option value="Inactive">Inativo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="tc-form-label">ID no CRM</label>
+                        <input type="text" asp-for="UpdateInput.ExternalCrmId" id="editClientCrm" class="tc-input" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="tc-form-label">Observações / Notas</label>
+                        <textarea asp-for="UpdateInput.Notes" id="editClientNotes" class="tc-textarea" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@if (Model.SelectedClient != null)
+{
+    <!-- Modal: Adicionar Unidade -->
+    <div class="modal fade" id="modalAddUnit" tabindex="-1" aria-labelledby="modalAddUnitLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="AddUnit">
+                    <input type="hidden" asp-for="UnitClientId" value="@Model.SelectedClient.Id" />
+                    <div class="modal-header">
+                        <h5 class="modal-title tc-modal-title" id="modalAddUnitLabel"><i class="bi bi-geo-alt-fill me-2 text-primary"></i>Nova Unidade Operacional</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="tc-form-label">Código da Unidade <span class="text-danger">*</span></label>
+                            <input type="text" asp-for="UnitInput.Code" class="tc-input" placeholder="Ex: FILIAL-SP" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="tc-form-label">Nome da Unidade <span class="text-danger">*</span></label>
+                            <input type="text" asp-for="UnitInput.Name" class="tc-input" placeholder="Ex: Fábrica São Bernardo" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="tc-form-label">ID de CRM da Unidade</label>
+                            <input type="text" asp-for="UnitInput.ExternalCrmId" class="tc-input" placeholder="Ex: CRM-UNIT-984" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary">Adicionar Unidade</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Vincular Contexto Técnico -->
+    <div class="modal fade" id="modalAddContext" tabindex="-1" aria-labelledby="modalAddContextLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="AddContext">
+                    <input type="hidden" asp-for="ContextClientId" value="@Model.SelectedClient.Id" />
+                    <div class="modal-header">
+                        <h5 class="modal-title tc-modal-title" id="modalAddContextLabel"><i class="bi bi-link-45deg me-2 text-primary"></i>Vincular Sistema / Contexto Técnico</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="tc-form-label">Produto / Sistema <span class="text-danger">*</span></label>
+                            <select asp-for="ContextInput.ProductId" id="contextProductId" class="tc-select" required onchange="loadProductVersions(this.value)">
+                                <option value="">Selecione um produto...</option>
+                                @foreach (var p in Model.AvailableProducts)
+                                {
+                                    <option value="@p.Id">@p.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="tc-form-label">Versão Específica</label>
+                            <select asp-for="ContextInput.ProductVersionId" id="contextVersionId" class="tc-select">
+                                <option value="">Todas / Versão Geral</option>
+                            </select>
+                            <span class="tc-help-text">Validação estrita: a versão selecionada deve pertencer ao produto escolhido.</span>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="tc-form-label">Ambiente</label>
+                                <select asp-for="ContextInput.EnvironmentId" class="tc-select">
+                                    <option value="">Geral / Padrão</option>
+                                    @foreach (var e in Model.AvailableEnvironments)
+                                    {
+                                        <option value="@e.Id">@e.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="tc-form-label">Unidade Aplicável</label>
+                                <select asp-for="ContextInput.ClientUnitId" class="tc-select">
+                                    <option value="">Cliente Global (Todas)</option>
+                                    @foreach (var u in Model.SelectedClient.Units)
+                                    {
+                                        <option value="@u.Id">@u.Name (@u.Code)</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="tc-form-label">Vigência Início</label>
+                                <input type="date" asp-for="ContextInput.EffectiveFrom" class="tc-input" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <div class="col-6">
+                                <label class="tc-form-label">Vigência Fim (Opcional)</label>
+                                <input type="date" asp-for="ContextInput.EffectiveTo" class="tc-input" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary">Vincular Contexto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        function fillEditModal(id, name, code, status, crm, notes) {
+            document.getElementById('editClientId').value = id;
+            document.getElementById('editClientName').value = name;
+            document.getElementById('editClientCode').value = code;
+            document.getElementById('editClientStatus').value = status;
+            document.getElementById('editClientCrm').value = crm;
+            document.getElementById('editClientNotes').value = notes;
+        }
+
+        async function loadProductVersions(productId) {
+            const versionSelect = document.getElementById('contextVersionId');
+            versionSelect.innerHTML = '<option value="">Todas / Versão Geral</option>';
+            if (!productId) return;
+
+            try {
+                const response = await fetch(`?handler=ProductVersions&productId=${productId}`);
+                if (response.ok) {
+                    const versions = await response.json();
+                    versions.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.textContent = `v${v.versionLabel}`;
+                        versionSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error('Erro ao buscar versões do produto:', err);
+            }
+        }
+    </script>
+}

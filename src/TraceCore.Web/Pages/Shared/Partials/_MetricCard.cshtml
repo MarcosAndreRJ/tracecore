@@ -1,0 +1,82 @@
+@model (string Title, string Value, string? Subtitle, string? Icon, string? Url, bool IsActive, bool IsPlaceholder, decimal? TrendPercent, string? TrendDirection)
+
+@{
+    var isDrilldown = Model.IsActive && !string.IsNullOrEmpty(Model.Url) && !Model.IsPlaceholder;
+    var displayValue = Model.IsPlaceholder ? "—" : Model.Value;
+    var iconName = Model.Icon ?? "bi-bar-chart";
+    var iconClass = "primary";
+
+    if (Model.Title.Contains("Crítico", StringComparison.OrdinalIgnoreCase) || Model.Title.Contains("Bloqueado", StringComparison.OrdinalIgnoreCase))
+    {
+        iconClass = "danger";
+    }
+    else if (Model.Title.Contains("Investigação", StringComparison.OrdinalIgnoreCase) || Model.Title.Contains("Atenção", StringComparison.OrdinalIgnoreCase))
+    {
+        iconClass = "warning";
+    }
+    else if (Model.Title.Contains("Resolvido", StringComparison.OrdinalIgnoreCase) || Model.Title.Contains("Ativo", StringComparison.OrdinalIgnoreCase))
+    {
+        iconClass = "success";
+    }
+}
+
+@if (isDrilldown)
+{
+    <a href="@Model.Url" class="tc-metric-card has-drilldown" title="Clique para visualizar registros filtrados de @Model.Title">
+        <div>
+            <div class="tc-stat-header">
+                <span class="tc-stat-title">@Model.Title</span>
+                <div class="tc-stat-icon @iconClass">
+                    <i class="bi @iconName" aria-hidden="true"></i>
+                </div>
+            </div>
+            <div class="tc-stat-value">@displayValue</div>
+            @if (Model.TrendPercent.HasValue)
+            {
+                <div class="mb-2">
+                    @await Html.PartialAsync("Partials/_TrendIndicator", (Model.TrendPercent, Model.TrendDirection ?? "Neutral"))
+                </div>
+            }
+        </div>
+        <div class="tc-stat-footer">
+            <span class="tc-drilldown-cue">
+                <span>@(Model.Subtitle ?? "Ver listagem filtrada")</span>
+                <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </span>
+        </div>
+    </a>
+}
+else
+{
+    <div class="tc-metric-card @(Model.IsPlaceholder ? "placeholder-card" : "") is-preparing">
+        <div>
+            <div class="tc-stat-header">
+                <span class="tc-stat-title">@Model.Title</span>
+                <div class="tc-stat-icon @iconClass">
+                    <i class="bi @iconName" aria-hidden="true"></i>
+                </div>
+            </div>
+            <div class="tc-stat-value">@displayValue</div>
+            @if (Model.TrendPercent.HasValue && !Model.IsPlaceholder)
+            {
+                <div class="mb-2">
+                    @await Html.PartialAsync("Partials/_TrendIndicator", (Model.TrendPercent, Model.TrendDirection ?? "Neutral"))
+                </div>
+            }
+        </div>
+        <div class="tc-stat-footer">
+            @if (Model.IsPlaceholder)
+            {
+                <span class="tc-drilldown-disabled-cue text-muted">
+                    <i class="bi bi-info-circle me-1"></i>Dado ainda não disponível
+                </span>
+            }
+            else
+            {
+                <span class="tc-drilldown-disabled-cue text-muted">
+                    @(Model.Subtitle ?? "Métrica operacional consolidada")
+                </span>
+            }
+        </div>
+    </div>
+}

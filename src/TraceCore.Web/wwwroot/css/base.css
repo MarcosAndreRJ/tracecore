@@ -1,0 +1,271 @@
+/* ==========================================================================
+   TRACECORE — BASE
+   Reset seletivo, box model, tipografia base, scrollbar discreta,
+   acessibilidade (WCAG 2.2 AA, NFR-007), escala tipográfica semântica.
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------
+   BOX MODEL — Reset mínimo não destrutivo
+   ------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* -------------------------------------------------------------------------
+   DOCUMENTO
+   ------------------------------------------------------------------------- */
+html {
+    font-size: 15px;
+    font-family: var(--tc-font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--tc-bg-canvas);
+    color: var(--tc-text-body);
+    font-family: var(--tc-font-sans);
+    font-size: var(--tc-text-base);
+    line-height: var(--tc-leading-normal);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* -------------------------------------------------------------------------
+   SCROLLBAR DISCRETA
+   Fina, thumb arredondado, contraste baixo, hover suave.
+   Aplicada globalmente; override específico para sidebar mais abaixo.
+   ------------------------------------------------------------------------- */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: var(--tc-radius-full);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+/* Sidebar — fundo escuro requer thumb mais discreto */
+#tc-sidebar *::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+#tc-sidebar *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+#tc-sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* -------------------------------------------------------------------------
+   ACESSIBILIDADE — WCAG 2.2 AA (NFR-007)
+   ------------------------------------------------------------------------- */
+
+/* Skip navigation link */
+.skip-link {
+    position: absolute;
+    top: -50px;
+    left: 1rem;
+    background: var(--tc-primary);
+    color: var(--tc-text-inverse);
+    padding: 0.5rem 1rem;
+    z-index: var(--tc-z-toast);
+    border-radius: var(--tc-radius-sm);
+    font-weight: var(--tc-font-semibold);
+    font-size: var(--tc-text-sm);
+    text-decoration: none;
+    transition: top var(--tc-transition-base);
+}
+
+.skip-link:focus {
+    top: 1rem;
+    outline: 3px solid #ffffff;
+    outline-offset: 2px;
+}
+
+/* Focus visible — contraste mínimo WCAG AA em todas as interações */
+:focus-visible {
+    outline: 2px solid var(--tc-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--tc-primary);
+    outline-offset: 2px;
+}
+
+/* Visually hidden — conteúdo para screen readers */
+.visually-hidden,
+.tc-visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* -------------------------------------------------------------------------
+   PREFERS-REDUCED-MOTION — WCAG 2.2 (NFR-007)
+   Respeitar preferência do usuário. Desabilitar decorações; manter
+   transições funcionais com duração mínima (sidebar, modal).
+   ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   LINKS BASE
+   ------------------------------------------------------------------------- */
+a {
+    color: var(--tc-text-link);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--tc-text-link-hover);
+    text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------
+   CÓDIGO & PRÉ-FORMATADO
+   ------------------------------------------------------------------------- */
+code,
+kbd,
+samp {
+    font-family: var(--tc-font-mono);
+    font-size: 0.875em;
+}
+
+pre {
+    font-family: var(--tc-font-mono);
+    font-size: var(--tc-text-sm);
+    overflow-x: auto;
+}
+
+/* Código inline */
+:not(pre) > code {
+    background-color: var(--tc-bg-muted);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-xs);
+    padding: 0.1em 0.4em;
+    color: var(--tc-text-body);
+}
+
+/* -------------------------------------------------------------------------
+   MÍDIA
+   ------------------------------------------------------------------------- */
+img,
+video {
+    max-width: 100%;
+    height: auto;
+}
+
+/* -------------------------------------------------------------------------
+   ESCALA TIPOGRÁFICA SEMÂNTICA DO TRACECORE
+   Classes nomeadas por papel, não por tamanho.
+   Use estas classes ao invés de h1/h2/fw-bold ad-hoc.
+   Não usar negrito indiscriminadamente.
+   ------------------------------------------------------------------------- */
+
+/* Título de página — h1, topo da hierarquia, único por página */
+.tc-title-page {
+    font-size: var(--tc-text-2xl);
+    font-weight: var(--tc-font-bold);
+    color: var(--tc-text-primary);
+    letter-spacing: -0.02em;
+    line-height: var(--tc-leading-tight);
+    margin: 0;
+}
+
+/* Título de seção — área temática dentro da página */
+.tc-title-section {
+    font-size: var(--tc-text-lg);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-primary);
+    line-height: var(--tc-leading-snug);
+    margin: 0;
+}
+
+/* Título de card ou componente */
+.tc-title-card {
+    font-size: var(--tc-text-md);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-primary);
+    line-height: var(--tc-leading-snug);
+    margin: 0;
+}
+
+/* Corpo de texto padrão */
+.tc-body {
+    font-size: var(--tc-text-base);
+    font-weight: var(--tc-font-normal);
+    color: var(--tc-text-body);
+    line-height: var(--tc-leading-normal);
+}
+
+/* Texto secundário / auxiliar */
+.tc-secondary {
+    font-size: var(--tc-text-base);
+    color: var(--tc-text-secondary);
+    line-height: var(--tc-leading-normal);
+}
+
+/* Rótulo de campo */
+.tc-label {
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-medium);
+    color: var(--tc-text-body);
+    line-height: var(--tc-leading-snug);
+}
+
+/* Legenda e texto de apoio */
+.tc-caption {
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-secondary);
+    line-height: var(--tc-leading-normal);
+}
+
+/* Metadado técnico — timestamps, IDs, versões, hashes */
+.tc-meta {
+    font-size: var(--tc-text-xs);
+    font-family: var(--tc-font-mono);
+    color: var(--tc-text-muted);
+    line-height: var(--tc-leading-normal);
+}

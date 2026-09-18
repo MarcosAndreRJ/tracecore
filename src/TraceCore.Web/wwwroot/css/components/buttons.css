@@ -1,0 +1,221 @@
+/* ==========================================================================
+   TRACECORE — BUTTONS
+   Estilos de botões do Design System TraceCore.
+   Coexistência limpa com Bootstrap (.btn).
+   Acessibilidade: WCAG 2.2 AA (foco visível, contraste adequado).
+   ========================================================================== */
+
+.tc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tc-space-2);
+    padding: 0.45rem 0.9rem;
+    font-family: var(--tc-font-sans);
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-medium);
+    line-height: var(--tc-leading-normal);
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    border-radius: var(--tc-radius-sm);
+    background-color: transparent;
+    color: var(--tc-text-body);
+    transition: background-color var(--tc-transition-fast),
+                border-color var(--tc-transition-fast),
+                color var(--tc-transition-fast),
+                box-shadow var(--tc-transition-fast);
+    white-space: nowrap;
+}
+
+.tc-btn:hover {
+    text-decoration: none;
+}
+
+.tc-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--tc-shadow-focus);
+}
+
+.tc-btn:disabled,
+.tc-btn[disabled],
+.tc-btn.disabled {
+    opacity: 0.55;
+    pointer-events: none;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* -------------------------------------------------------------------------
+   Variantes Semânticas
+   ------------------------------------------------------------------------- */
+/* Primário */
+.tc-btn-primary {
+    background-color: var(--tc-primary);
+    border-color: var(--tc-primary);
+    color: var(--tc-text-inverse);
+}
+
+.tc-btn-primary:hover {
+    background-color: var(--tc-primary-hover);
+    border-color: var(--tc-primary-hover);
+    color: var(--tc-text-inverse);
+}
+
+.tc-btn-primary:active {
+    background-color: var(--tc-primary-active);
+    border-color: var(--tc-primary-active);
+    color: var(--tc-text-inverse);
+}
+
+/* Secundário / Outline sutil */
+.tc-btn-secondary {
+    background-color: var(--tc-bg-surface);
+    border-color: var(--tc-border);
+    color: var(--tc-text-body);
+}
+
+.tc-btn-secondary:hover {
+    background-color: var(--tc-bg-muted);
+    border-color: var(--tc-border-strong);
+    color: var(--tc-text-primary);
+}
+
+.tc-btn-secondary:active {
+    background-color: var(--tc-bg-muted);
+    border-color: var(--tc-secondary);
+}
+
+/* Outline primário */
+.tc-btn-outline {
+    background-color: transparent;
+    border-color: var(--tc-border-strong);
+    color: var(--tc-text-body);
+}
+
+.tc-btn-outline:hover {
+    background-color: var(--tc-primary-subtle);
+    border-color: var(--tc-primary);
+    color: var(--tc-primary-text);
+}
+
+/* Ghost / Transparente */
+.tc-btn-ghost {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--tc-text-secondary);
+}
+
+.tc-btn-ghost:hover {
+    background-color: var(--tc-bg-muted);
+    color: var(--tc-text-primary);
+}
+
+.tc-btn-ghost:active {
+    background-color: var(--tc-border-subtle);
+}
+
+/* Danger / Ação destrutiva */
+.tc-btn-danger {
+    background-color: var(--tc-danger);
+    border-color: var(--tc-danger);
+    color: var(--tc-text-inverse);
+}
+
+.tc-btn-danger:hover {
+    background-color: var(--tc-danger-hover);
+    border-color: var(--tc-danger-hover);
+    color: var(--tc-text-inverse);
+}
+
+.tc-btn-danger-outline {
+    background-color: transparent;
+    border-color: var(--tc-danger-border);
+    color: var(--tc-danger-text);
+}
+
+.tc-btn-danger-outline:hover {
+    background-color: var(--tc-danger-subtle);
+    border-color: var(--tc-danger);
+    color: var(--tc-danger);
+}
+
+/* -------------------------------------------------------------------------
+   Tamanhos
+   ------------------------------------------------------------------------- */
+.tc-btn-sm {
+    padding: 0.25rem 0.6rem;
+    font-size: var(--tc-text-xs);
+    border-radius: var(--tc-radius-xs);
+    gap: var(--tc-space-1);
+}
+
+.tc-btn-lg {
+    padding: 0.65rem 1.25rem;
+    font-size: var(--tc-text-base);
+    border-radius: var(--tc-radius-md);
+    gap: var(--tc-space-3);
+}
+
+/* -------------------------------------------------------------------------
+   Botão Ícone (Quadrado)
+   ------------------------------------------------------------------------- */
+.tc-btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--tc-radius-sm);
+    color: var(--tc-text-secondary);
+}
+
+.tc-btn-icon.tc-btn-sm {
+    width: 26px;
+    height: 26px;
+    font-size: 0.8rem;
+}
+
+.tc-btn-icon.tc-btn-lg {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+}
+
+/* -------------------------------------------------------------------------
+   Estado de Carregamento
+   ------------------------------------------------------------------------- */
+.tc-btn-loading {
+    position: relative;
+    pointer-events: none;
+    color: transparent !important;
+}
+
+.tc-btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 1rem;
+    height: 1rem;
+    top: 50%;
+    left: 50%;
+    margin-top: -0.5rem;
+    margin-left: -0.5rem;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: tc-btn-spin 0.6s linear infinite;
+}
+
+.tc-btn-primary.tc-btn-loading::after,
+.tc-btn-danger.tc-btn-loading::after {
+    border-color: var(--tc-text-inverse);
+    border-right-color: transparent;
+}
+
+@keyframes tc-btn-spin {
+    to { transform: rotate(360deg); }
+}

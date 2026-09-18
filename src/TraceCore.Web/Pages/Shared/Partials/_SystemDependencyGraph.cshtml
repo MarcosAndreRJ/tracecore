@@ -1,0 +1,58 @@
+@model IReadOnlyList<TraceCore.Domain.Entities.ComponentDependency>?
+
+@if (Model == null || Model.Count == 0)
+{
+    <div class="p-4 text-center text-muted">
+        <i class="bi bi-diagram-2 display-6 d-block mb-2 text-secondary opacity-50"></i>
+        <div class="fw-semibold">Nenhuma dependência técnica cadastrada no ecossistema</div>
+        <p class="tc-caption text-secondary mb-3">Relacione componentes e integrações no Catálogo Técnico para visualizar o grafo de dependências e análise de impacto.</p>
+        @if (User.HasClaim("permission", "catalogo.gerenciar"))
+        {
+            <a asp-page="/Catalog/Components/Index" class="tc-btn tc-btn-secondary tc-btn-sm">
+                <i class="bi bi-diagram-3 me-1"></i>Gerenciar Dependências
+            </a>
+        }
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column gap-2">
+        @foreach (var dep in Model)
+        {
+            <div class="tc-dep-graph d-flex align-items-center flex-wrap gap-2 p-2 px-3 border rounded bg-white shadow-sm">
+                <div class="tc-dep-node">
+                    <div class="tc-dep-node-type"><i class="bi bi-cpu me-1"></i>Origem</div>
+                    <div class="tc-dep-node-name fw-bold">@dep.SourceComponentName</div>
+                </div>
+
+                <div class="tc-dep-arrow text-primary px-2" aria-hidden="true">
+                    <i class="bi bi-arrow-right fs-5"></i>
+                </div>
+
+                <div class="tc-dep-node">
+                    <div class="tc-dep-node-type"><i class="bi bi-gear-wide-connected me-1"></i>Destino</div>
+                    <div class="tc-dep-node-name fw-bold">@dep.TargetComponentName</div>
+                </div>
+
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <span class="tc-badge tc-badge-sm tc-badge-progress">@dep.DependencyType</span>
+                    @switch (dep.Criticality?.ToUpperInvariant())
+                    {
+                        case "CRITICAL":
+                            <span class="tc-badge tc-badge-sm tc-badge-danger">Crítica</span>
+                            break;
+                        case "HIGH":
+                            <span class="tc-badge tc-badge-sm tc-badge-warning">Alta</span>
+                            break;
+                        case "LOW":
+                            <span class="tc-badge tc-badge-sm tc-badge-closed">Baixa</span>
+                            break;
+                        default:
+                            <span class="tc-badge tc-badge-sm tc-badge-open">Média</span>
+                            break;
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}

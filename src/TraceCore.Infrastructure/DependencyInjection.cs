@@ -1,0 +1,108 @@
+using System.Reflection;
+using FluentMigrator.Runner;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using TraceCore.Domain.Repositories;
+using TraceCore.Domain.Services;
+using TraceCore.Infrastructure.Migrations;
+using TraceCore.Infrastructure.Persistence;
+using TraceCore.Infrastructure.Persistence.InMemory;
+using TraceCore.Infrastructure.Persistence.Repositories;
+using TraceCore.Infrastructure.Services;
+
+namespace TraceCore.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
+        services.AddSingleton<IFileStorage, LocalFileStorage>();
+
+        // Bloco 7.A.0 (ADR — Persistência): MySQL é o provider operacional padrão.
+        // InMemory NUNCA é selecionado silenciosamente — só quando explicitamente
+        // configurado (ex.: TraceCoreTestApplicationFactory define "InMemory" de propósito
+        // para testes isolados/rápidos). Provider ausente/inválido falha explicitamente
+        // no startup em vez de mascarar o problema caindo para InMemory.
+        var provider = configuration["Persistence:Provider"];
+        var connectionString = configuration.GetConnectionString("TraceCoreDb");
+
+        if (string.IsNullOrWhiteSpace(provider))
+        {
+            throw new InvalidOperationException(
+                "Configuração ausente: 'Persistence:Provider' não foi definido. " +
+                "Defina explicitamente 'MySql' (operacional, requer ConnectionStrings:TraceCoreDb) " +
+                "ou 'InMemory' (somente para testes/cenários isolados explicitamente configurados). " +
+                "A aplicação não usa mais InMemory como fallback silencioso (ADR — Persistência, Fase 7.A).");
+        }
+
+        if (provider.Equals("MySql", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "Configuração inválida: 'Persistence:Provider' está definido como 'MySql', mas " +
+                    "'ConnectionStrings:TraceCoreDb' não foi fornecida (appsettings, User Secrets ou " +
+                    "variável de ambiente). A aplicação não pode iniciar sem uma connection string válida.");
+            }
+
+            services.AddSingleton<IDbConnectionFactory, MySqlDbConnectionFactory>();
+
+            services.AddScoped<IUserRepository, MySqlUserRepository>();
+            services.AddScoped<IDepartmentRepository, MySqlDepartmentRepository>();
+            services.AddScoped<IRoleRepository, MySqlRoleRepository>();
+            services.AddScoped<IPermissionRepository, MySqlPermissionRepository>();
+            services.AddScoped<IUserSessionRepository, MySqlUserSessionRepository>();
+            services.AddScoped<IPasswordResetTokenRepository, MySqlPasswordResetTokenRepository>();
+            services.AddScoped<IAuditEventRepository, MySqlAuditEventRepository>();
+            services.AddScoped<IClientRepository, MySqlClientRepository>();
+            services.AddScoped<ICatalogRepository, MySqlCatalogRepository>();
+            services.AddScoped<IAttachmentRepository, MySqlAttachmentRepository>();
+            services.AddScoped<ICaseRepository, MySqlCaseRepository>();
+            services.AddScoped<IDiagnosticRepository, MySqlDiagnosticRepository>();
+            services.AddScoped<ICaseResolutionRepository, MySqlCaseResolutionRepository>();
+            services.AddScoped<IKnowledgeRepository, MySqlKnowledgeRepository>();
+            services.AddScoped<ISearchRepository, MySqlSearchRepository>();
+            services.AddScoped<ICaseRelationRepository, MySqlCaseRelationRepository>();
+
+            // FluentMigrator setup
+            services.AddFluentMigratorCore()
+                .ConfigureRunner(rb => rb
+                    .AddMySql5() // MySql connector runner
+                    .WithGlobalConnectionString(connectionString)
+                    .ScanIn(Assembly.GetExecutingAssembly()).For.Migrations());
+
+            services.AddScoped<DatabaseMigrationRunner>();
+        }
+        else if (provider.Equals("InMemory", System.StringComparison.OrdinalIgnoreCase))
+        {
+            // Permitido somente quando explicitamente configurado (testes de integração
+            // isolados, TraceCoreTestApplicationFactory) — nunca como default silencioso.
+            services.AddSingleton<InMemoryDataStore>();
+            services.AddScoped<IUserRepository, InMemoryUserRepository>();
+            services.AddScoped<IDepartmentRepository, InMemoryDepartmentRepository>();
+            services.AddScoped<IRoleRepository, InMemoryRoleRepository>();
+            services.AddScoped<IPermissionRepository, InMemoryPermissionRepository>();
+            services.AddScoped<IUserSessionRepository, InMemoryUserSessionRepository>();
+            services.AddScoped<IPasswordResetTokenRepository, InMemoryPasswordResetTokenRepository>();
+            services.AddScoped<IAuditEventRepository, InMemoryAuditEventRepository>();
+            services.AddScoped<IClientRepository, InMemoryClientRepository>();
+            services.AddScoped<ICatalogRepository, InMemoryCatalogRepository>();
+            services.AddScoped<IAttachmentRepository, InMemoryAttachmentRepository>();
+            services.AddScoped<ICaseRepository, InMemoryCaseRepository>();
+            services.AddScoped<IDiagnosticRepository, InMemoryDiagnosticRepository>();
+            services.AddScoped<ICaseResolutionRepository, InMemoryCaseResolutionRepository>();
+            services.AddScoped<IKnowledgeRepository, InMemoryKnowledgeRepository>();
+            services.AddScoped<ISearchRepository, InMemorySearchRepository>();
+            services.AddScoped<ICaseRelationRepository, InMemoryCaseRelationRepository>();
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                $"Configuração inválida: 'Persistence:Provider' = '{provider}' não é reconhecido. " +
+                "Valores aceitos: 'MySql' ou 'InMemory'.");
+        }
+
+        return services;
+    }
+}

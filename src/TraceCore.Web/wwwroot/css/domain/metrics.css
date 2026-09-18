@@ -1,0 +1,135 @@
+/* ==========================================================================
+   TRACECORE DOMAIN — METRICS, AUDIT & TRENDS
+   Extensões para cards de KPI com drill-down, indicadores de tendência e auditoria.
+   REGRA DE KPI: Indicadores importantes devem ser clicáveis para listagens filtradas
+   ou exibir explicitamente estado desabilitado / em preparação.
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------
+   Metric Card com Drill-down
+   ------------------------------------------------------------------------- */
+.tc-metric-card {
+    background: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    padding: 1.25rem;
+    box-shadow: var(--tc-shadow-xs);
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow var(--tc-transition-base), border-color var(--tc-transition-base), transform var(--tc-transition-fast);
+}
+
+.tc-metric-card:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Card Clicável com Drill-down ativo */
+.tc-metric-card.has-drilldown {
+    cursor: pointer;
+}
+
+.tc-metric-card.has-drilldown:hover {
+    border-color: var(--tc-primary);
+    box-shadow: var(--tc-shadow-md);
+    transform: translateY(-2px);
+}
+
+.tc-metric-card.has-drilldown:focus-visible {
+    outline: none;
+    box-shadow: var(--tc-shadow-focus);
+}
+
+/* Card sem drill-down / em preparação */
+.tc-metric-card.is-preparing {
+    cursor: default;
+    background-color: #fafafa;
+}
+
+.tc-metric-card.is-preparing:hover {
+    box-shadow: var(--tc-shadow-xs);
+    transform: none;
+    border-color: var(--tc-border);
+}
+
+.tc-drilldown-cue {
+    font-size: 0.7rem;
+    color: var(--tc-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: var(--tc-font-medium);
+}
+
+.tc-drilldown-disabled-cue {
+    font-size: 0.7rem;
+    color: var(--tc-text-muted);
+    font-style: italic;
+}
+
+/* -------------------------------------------------------------------------
+   Indicador de Tendência (Variação Percentual)
+   ------------------------------------------------------------------------- */
+.tc-trend-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: var(--tc-text-xs);
+    font-weight: var(--tc-font-semibold);
+    padding: 0.1rem 0.35rem;
+    border-radius: var(--tc-radius-xs);
+    line-height: 1;
+}
+
+.tc-trend-indicator.trend-up {
+    color: var(--tc-danger-text);
+    background-color: var(--tc-danger-subtle);
+}
+
+.tc-trend-indicator.trend-down {
+    color: var(--tc-success-text);
+    background-color: var(--tc-success-subtle);
+}
+
+.tc-trend-indicator.trend-neutral {
+    color: var(--tc-secondary-text);
+    background-color: var(--tc-secondary-subtle);
+}
+
+/* -------------------------------------------------------------------------
+   Linhas de Auditoria (Trilha de Rastreabilidade)
+   ------------------------------------------------------------------------- */
+.tc-audit-row {
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid var(--tc-border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tc-space-3);
+    font-size: var(--tc-text-xs);
+}
+
+.tc-audit-row:hover {
+    background-color: var(--tc-bg-subtle);
+}
+
+.tc-audit-user {
+    font-weight: var(--tc-font-medium);
+    color: var(--tc-text-primary);
+}
+
+.tc-audit-action {
+    color: var(--tc-text-body);
+}
+
+.tc-audit-time {
+    color: var(--tc-text-muted);
+    font-family: var(--tc-font-mono);
+    white-space: nowrap;
+}

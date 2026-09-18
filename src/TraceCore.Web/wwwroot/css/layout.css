@@ -1,0 +1,519 @@
+/* ==========================================================================
+   TRACECORE — LAYOUT (App Shell)
+   Sidebar lateral, topbar, conteúdo principal, rodapé, breadcrumb,
+   cabeçalho de página. Estados collapse e mobile.
+   Referência: 24_UX_E_NAVEGACAO.md, ADR-0004
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------
+   APP SHELL — Container raiz
+   ------------------------------------------------------------------------- */
+#tc-app-layout {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* =========================================================================
+   SIDEBAR
+   ========================================================================= */
+#tc-sidebar {
+    width: var(--tc-sidebar-width);
+    min-height: 100vh;
+    background-color: var(--tc-sidebar-bg);
+    border-right: 1px solid var(--tc-sidebar-border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--tc-z-sidebar);
+    transition: width var(--tc-transition-sidebar), transform var(--tc-transition-sidebar);
+}
+
+/* -------------------------------------------------------------------------
+   Marca / Logo
+   ------------------------------------------------------------------------- */
+.tc-sidebar-brand {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--tc-space-5);
+    border-bottom: 1px solid var(--tc-sidebar-border);
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.tc-sidebar-brand:hover {
+    text-decoration: none;
+}
+
+/* tc-sidebar-brand-text: classe legada mantida para compatibilidade com _Layout.cshtml */
+.tc-sidebar-brand-text {
+    font-size: 1rem;
+    font-weight: var(--tc-font-bold);
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+    white-space: nowrap;
+}
+
+/* Span colorido da marca (ex.: "Core" em azul) */
+.tc-sidebar-brand-text span > span {
+    color: var(--tc-sidebar-icon-active);
+}
+
+/* -------------------------------------------------------------------------
+   Área de navegação
+   ------------------------------------------------------------------------- */
+.tc-sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--tc-space-4) var(--tc-space-3);
+}
+
+/* -------------------------------------------------------------------------
+   Grupos de navegação
+   ------------------------------------------------------------------------- */
+.tc-sidebar-group {
+    margin-bottom: var(--tc-space-5);
+}
+
+.tc-sidebar-group:last-child {
+    margin-bottom: 0;
+}
+
+.tc-sidebar-group-title {
+    font-size: 0.6875rem;
+    font-weight: var(--tc-font-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--tc-sidebar-group-title);
+    padding: 0 var(--tc-space-3) var(--tc-space-2);
+    user-select: none;
+    white-space: nowrap;
+}
+
+.tc-sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.tc-sidebar-item {
+    margin-bottom: 1px;
+}
+
+/* -------------------------------------------------------------------------
+   Links de navegação
+   ------------------------------------------------------------------------- */
+.tc-sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-3);
+    padding: 0.5rem var(--tc-space-3);
+    border-radius: var(--tc-radius-sm);
+    color: var(--tc-sidebar-text);
+    text-decoration: none;
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-medium);
+    line-height: var(--tc-leading-snug);
+    transition: color var(--tc-transition-fast), background-color var(--tc-transition-fast);
+    white-space: nowrap;
+    position: relative;
+}
+
+.tc-sidebar-link i {
+    font-size: 1rem;
+    min-width: 1.125rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--tc-sidebar-text);
+    transition: color var(--tc-transition-fast);
+}
+
+.tc-sidebar-link:hover {
+    color: var(--tc-sidebar-text-hover);
+    background-color: var(--tc-sidebar-hover);
+    text-decoration: none;
+}
+
+.tc-sidebar-link:hover i {
+    color: var(--tc-sidebar-text-hover);
+}
+
+/* Estado ativo — linha lateral indicadora + fundo tênue (não retângulo saturado) */
+.tc-sidebar-link.active {
+    color: var(--tc-sidebar-text-active);
+    background-color: var(--tc-sidebar-active-bg);
+    font-weight: var(--tc-font-semibold);
+}
+
+.tc-sidebar-link.active i {
+    color: var(--tc-sidebar-icon-active);
+}
+
+/* Indicador lateral: linha de 3px à esquerda */
+.tc-sidebar-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 5px;
+    bottom: 5px;
+    width: 3px;
+    background-color: var(--tc-sidebar-active-indicator);
+    border-radius: 0 2px 2px 0;
+}
+
+/* -------------------------------------------------------------------------
+   Badge de navegação (ex.: fase, contagem)
+   ------------------------------------------------------------------------- */
+.tc-sidebar-badge {
+    margin-left: auto;
+    font-size: 0.65rem;
+    font-weight: var(--tc-font-semibold);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--tc-radius-full);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--tc-sidebar-text);
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Rodapé da sidebar
+   ------------------------------------------------------------------------- */
+.tc-sidebar-footer {
+    padding: var(--tc-space-3) var(--tc-space-5);
+    border-top: 1px solid var(--tc-sidebar-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tc-space-2);
+    font-size: var(--tc-text-xs);
+    color: var(--tc-sidebar-text);
+    flex-shrink: 0;
+}
+
+/* =========================================================================
+   MAIN WRAPPER
+   ========================================================================= */
+#tc-main-wrapper {
+    flex: 1;
+    margin-left: var(--tc-sidebar-width);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    transition: margin-left var(--tc-transition-sidebar);
+}
+
+/* =========================================================================
+   TOPBAR
+   ========================================================================= */
+#tc-topbar {
+    height: 60px;
+    background-color: var(--tc-bg-surface);
+    border-bottom: 1px solid var(--tc-border);
+    position: sticky;
+    top: 0;
+    z-index: var(--tc-z-topbar);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--tc-space-6);
+    gap: var(--tc-space-4);
+}
+
+/* -------------------------------------------------------------------------
+   Busca global
+   Preparada visualmente para futura busca unificada (M06):
+   casos, sintomas, erros, soluções, documentação, sistemas, componentes.
+   Atalho: Ctrl+K (implementado em site.js)
+   ------------------------------------------------------------------------- */
+.tc-search-box {
+    position: relative;
+    max-width: 480px;
+    width: 100%;
+}
+
+.tc-search-box i {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tc-text-muted);
+    pointer-events: none;
+    font-size: 0.875rem;
+}
+
+.tc-search-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 2.5rem 0 2.25rem;
+    font-size: var(--tc-text-sm);
+    font-family: var(--tc-font-sans);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    background-color: var(--tc-bg-muted);
+    color: var(--tc-text-primary);
+    transition: background-color var(--tc-transition-fast),
+                border-color var(--tc-transition-fast),
+                box-shadow var(--tc-transition-fast);
+}
+
+.tc-search-input::placeholder {
+    color: var(--tc-text-muted);
+}
+
+.tc-search-input:focus {
+    outline: none;
+    background-color: var(--tc-bg-surface);
+    border-color: var(--tc-primary);
+    box-shadow: var(--tc-shadow-focus);
+}
+
+.tc-search-shortcut {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.65rem;
+    color: var(--tc-text-muted);
+    background: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    padding: 0.1rem 0.35rem;
+    border-radius: var(--tc-radius-xs);
+    pointer-events: none;
+    line-height: 1.4;
+    font-family: var(--tc-font-mono);
+}
+
+/* -------------------------------------------------------------------------
+   Avatar, usuário e menu de perfil corporativo
+   ------------------------------------------------------------------------- */
+.tc-user-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--tc-radius-md);
+    cursor: pointer;
+    transition: background-color var(--tc-transition-fast), border-color var(--tc-transition-fast);
+}
+
+.tc-user-btn:hover {
+    background-color: var(--tc-bg-muted);
+    border-color: var(--tc-border-subtle);
+}
+
+.tc-user-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--tc-shadow-focus);
+}
+
+.tc-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--tc-primary-subtle);
+    color: var(--tc-primary-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--tc-font-semibold);
+    font-size: 0.75rem;
+    border: 1.5px solid rgba(2, 132, 199, 0.25);
+    flex-shrink: 0;
+    user-select: none;
+}
+
+/* Menu Dropdown de Perfil */
+.tc-dropdown-menu {
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    box-shadow: var(--tc-shadow-lg);
+    padding: var(--tc-space-2) 0;
+    min-width: 220px;
+    background-color: var(--tc-bg-surface);
+}
+
+.tc-dropdown-menu .dropdown-item {
+    padding: 0.5rem 1rem;
+    color: var(--tc-text-body);
+    font-size: var(--tc-text-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+    transition: background-color var(--tc-transition-fast), color var(--tc-transition-fast);
+}
+
+.tc-dropdown-menu .dropdown-item:hover,
+.tc-dropdown-menu .dropdown-item:focus {
+    background-color: var(--tc-bg-muted);
+    color: var(--tc-text-primary);
+}
+
+.tc-dropdown-menu .dropdown-item.text-danger:hover {
+    background-color: var(--tc-danger-subtle);
+    color: var(--tc-danger);
+}
+
+.tc-dropdown-menu .dropdown-divider {
+    border-top-color: var(--tc-border-subtle);
+    margin: var(--tc-space-1) 0;
+}
+
+.tc-notification-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--tc-primary);
+    border: 2px solid var(--tc-bg-surface);
+}
+
+/* =========================================================================
+   CONTEÚDO PRINCIPAL
+   ========================================================================= */
+#main-content,
+#tc-main {
+    flex: 1;
+    padding: var(--tc-space-6);
+    min-width: 0;
+}
+
+/* =========================================================================
+   RODAPÉ
+   ========================================================================= */
+#tc-footer-bar {
+    border-top: 1px solid var(--tc-border);
+    padding: var(--tc-space-3) var(--tc-space-6);
+    background-color: var(--tc-bg-surface);
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--tc-space-2);
+}
+
+/* =========================================================================
+   SIDEBAR COLLAPSE — Desktop
+   ========================================================================= */
+body.sidebar-collapsed #tc-sidebar {
+    width: var(--tc-sidebar-collapsed-width);
+}
+
+body.sidebar-collapsed #tc-main-wrapper {
+    margin-left: var(--tc-sidebar-collapsed-width);
+}
+
+body.sidebar-collapsed .tc-sidebar-brand-text span:last-child,
+body.sidebar-collapsed .tc-sidebar-group-title,
+body.sidebar-collapsed .tc-sidebar-link span,
+body.sidebar-collapsed .tc-sidebar-badge,
+body.sidebar-collapsed .tc-sidebar-footer span {
+    display: none;
+}
+
+body.sidebar-collapsed .tc-sidebar-link {
+    justify-content: center;
+    padding: 0.6rem 0;
+}
+
+/* Ocultar indicador lateral no estado collapsed */
+body.sidebar-collapsed .tc-sidebar-link.active::before {
+    display: none;
+}
+
+body.sidebar-collapsed .tc-sidebar-brand {
+    justify-content: center;
+    padding: 0;
+}
+
+body.sidebar-collapsed .tc-sidebar-footer {
+    justify-content: center;
+    padding: var(--tc-space-3) 0;
+}
+
+/* =========================================================================
+   SIDEBAR MOBILE
+   ========================================================================= */
+@media (max-width: 991.98px) {
+    #tc-sidebar {
+        transform: translateX(-100%);
+    }
+
+    #tc-main-wrapper {
+        margin-left: 0 !important;
+    }
+
+    body.sidebar-mobile-open #tc-sidebar {
+        transform: translateX(0);
+        box-shadow: var(--tc-shadow-lg);
+    }
+
+    #tc-sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        z-index: calc(var(--tc-z-sidebar) - 5);
+    }
+
+    body.sidebar-mobile-open #tc-sidebar-backdrop {
+        display: block;
+    }
+
+    #main-content,
+    #tc-main {
+        padding: var(--tc-space-4);
+    }
+}
+
+/* =========================================================================
+   PAGE HEADER — Cabeçalho padrão de página (usado via _PageHeader partial)
+   ========================================================================= */
+.tc-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--tc-space-4);
+    margin-bottom: var(--tc-space-5);
+    padding-bottom: var(--tc-space-4);
+    border-bottom: 1px solid var(--tc-border-subtle);
+}
+
+.tc-page-header-title {
+    font-size: var(--tc-text-2xl);
+    font-weight: var(--tc-font-bold);
+    color: var(--tc-text-primary);
+    letter-spacing: -0.02em;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+    line-height: var(--tc-leading-tight);
+}
+
+.tc-page-header-subtitle {
+    font-size: var(--tc-text-sm);
+    color: var(--tc-text-secondary);
+    margin: var(--tc-space-1) 0 0 0;
+    line-height: var(--tc-leading-normal);
+}
+

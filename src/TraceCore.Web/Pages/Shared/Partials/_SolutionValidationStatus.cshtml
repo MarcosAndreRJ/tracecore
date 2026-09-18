@@ -1,0 +1,47 @@
+@model string
+
+@{
+    var status = Model ?? "Draft";
+    string badgeClass;
+    string iconClass;
+    string label;
+
+    switch (status.ToLowerInvariant())
+    {
+        case "validated":
+        case "validada":
+            badgeClass = "tc-badge-published";
+            iconClass = "bi-patch-check-fill";
+            label = "Validada";
+            break;
+        case "inreview":
+        case "emrevisao":
+        case "em revisão":
+            badgeClass = "tc-badge-proposed";
+            iconClass = "bi-eye";
+            label = "Em Revisão";
+            break;
+        case "stale":
+        case "obsoleta":
+            badgeClass = "tc-badge-stale";
+            iconClass = "bi-hourglass-bottom";
+            label = "Obsoleta";
+            break;
+        case "deprecated":
+        case "depreciada":
+            badgeClass = "tc-badge-deprecated";
+            iconClass = "bi-slash-circle";
+            label = "Depreciada";
+            break;
+        default:
+            badgeClass = "tc-badge-draft";
+            iconClass = "bi-pencil";
+            label = "Rascunho";
+            break;
+    }
+}
+
+<span class="tc-badge @badgeClass" role="status" title="Status de Validação da Solução: @label">
+    <i class="bi @iconClass" aria-hidden="true"></i>
+    <span>@label</span>
+</span>

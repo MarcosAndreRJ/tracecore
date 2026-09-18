@@ -1,0 +1,373 @@
+@page
+@model TraceCore.Web.Pages.Cases.IndexModel
+@{
+    ViewData["Title"] = "Casos e Ocorrências - TraceCore";
+
+    var hasActiveFilters = !string.IsNullOrWhiteSpace(Model.Search) ||
+                           !string.IsNullOrWhiteSpace(Model.Status) ||
+                           !string.IsNullOrWhiteSpace(Model.Severity) ||
+                           (Model.ClientId.HasValue && Model.ClientId > 0) ||
+                           (Model.ProductId.HasValue && Model.ProductId > 0) ||
+                           (Model.DepartmentId.HasValue && Model.DepartmentId > 0) ||
+                           (Model.Period != "all" && !string.IsNullOrEmpty(Model.Period));
+}
+
+<div class="tc-breadcrumb">
+    <span class="tc-breadcrumb-item"><a asp-page="/Index">Início</a></span>
+    <span class="tc-breadcrumb-item active">Casos e Ocorrências</span>
+</div>
+
+<!-- Cabeçalho da Página -->
+<div class="tc-page-header">
+    <div>
+        <h1 class="tc-page-header-title">
+            <i class="bi bi-folder2-open text-primary" aria-hidden="true"></i>
+            <span>Casos e Ocorrências</span>
+        </h1>
+        <p class="tc-page-header-subtitle">Gestão factual de incidentes, histórico operacional e triagem investigativa</p>
+    </div>
+
+    @if (User.HasClaim("permission", "caso.criar"))
+    {
+        <div>
+            <a asp-page="/Cases/Create" class="tc-btn tc-btn-primary">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                <span>Abrir Novo Caso</span>
+            </a>
+        </div>
+    }
+</div>
+
+<!-- KPIs no Topo (Regra de KPI: Drill-down ativo) -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        @await Html.PartialAsync("Partials/_MetricCard", (
+            "Casos em Aberto",
+            Model.MetricTotalOpen.ToString(),
+            "Aguardando resolução",
+            "bi-folder-check",
+            "/Cases/Index?status=Open",
+            true,
+            false,
+            (decimal?)null,
+            "Neutral"
+        ))
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        @await Html.PartialAsync("Partials/_MetricCard", (
+            "Severidade Crítica",
+            Model.MetricCritical.ToString(),
+            "Impacto operacional alto",
+            "bi-exclamation-octagon",
+            "/Cases/Index?status=Open&severity=Critical",
+            true,
+            false,
+            (decimal?)null,
+            "Neutral"
+        ))
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        @await Html.PartialAsync("Partials/_MetricCard", (
+            "Severidade Alta",
+            Model.MetricHigh.ToString(),
+            "Investigação prioritária",
+            "bi-exclamation-triangle",
+            "/Cases/Index?status=Open&severity=High",
+            true,
+            false,
+            (decimal?)null,
+            "Neutral"
+        ))
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        @await Html.PartialAsync("Partials/_MetricCard", (
+            "Casos Concluídos",
+            Model.MetricClosed.ToString(),
+            "Histórico resolvido",
+            "bi-check2-circle",
+            "/Cases/Index?status=Closed",
+            true,
+            false,
+            (decimal?)null,
+            "Neutral"
+        ))
+    </div>
+</div>
+
+<!-- Barra de Filtros Operacionais Reutilizável -->
+<div class="tc-filter-bar">
+    <form method="get" class="tc-filter-form">
+        <!-- Busca Textual -->
+        <div class="tc-filter-item tc-filter-item-search">
+            <label class="tc-form-label" for="search-input">Pesquisa Textual</label>
+            <div class="tc-input-group">
+                <span class="tc-input-group-icon"><i class="bi bi-search"></i></span>
+                <input type="search" id="search-input" name="Search" value="@Model.Search"
+                       class="tc-input has-icon-left" placeholder="Número (#1001), resumo, erro, sintoma..." />
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="tc-filter-item">
+            <label class="tc-form-label" for="status-select">Status</label>
+            <select id="status-select" name="Status" class="tc-select">
+                <option value="">Todos os Status</option>
+                <option value="Open" selected="@(Model.Status == "Open")">Aberto</option>
+                <option value="Closed" selected="@(Model.Status == "Closed")">Fechado</option>
+            </select>
+        </div>
+
+        <!-- Severidade -->
+        <div class="tc-filter-item">
+            <label class="tc-form-label" for="severity-select">Severidade</label>
+            <select id="severity-select" name="Severity" class="tc-select">
+                <option value="">Todas as Severidades</option>
+                <option value="Critical" selected="@(Model.Severity == "Critical")">Crítica</option>
+                <option value="High" selected="@(Model.Severity == "High")">Alta</option>
+                <option value="Medium" selected="@(Model.Severity == "Medium")">Média</option>
+                <option value="Low" selected="@(Model.Severity == "Low")">Baixa</option>
+            </select>
+        </div>
+
+        <!-- Sistema / Produto -->
+        <div class="tc-filter-item">
+            <label class="tc-form-label" for="product-select">Sistema / Produto</label>
+            <select id="product-select" name="ProductId" class="tc-select">
+                <option value="">Todos os Sistemas</option>
+                @foreach (var p in Model.Products)
+                {
+                    <option value="@p.Id" selected="@(Model.ProductId == p.Id)">@p.Name</option>
+                }
+            </select>
+        </div>
+
+        <!-- Cliente -->
+        <div class="tc-filter-item">
+            <label class="tc-form-label" for="client-select">Cliente</label>
+            <select id="client-select" name="ClientId" class="tc-select">
+                <option value="">Todos os Clientes</option>
+                @foreach (var cl in Model.Clients)
+                {
+                    <option value="@cl.Id" selected="@(Model.ClientId == cl.Id)">@cl.Name</option>
+                }
+            </select>
+        </div>
+
+        <!-- Período -->
+        <div class="tc-filter-item">
+            <label class="tc-form-label" for="period-select">Período</label>
+            <select id="period-select" name="Period" class="tc-select">
+                <option value="all" selected="@(Model.Period == "all")">Todo o histórico</option>
+                <option value="today" selected="@(Model.Period == "today")">Hoje</option>
+                <option value="week" selected="@(Model.Period == "week")">Últimos 7 dias</option>
+                <option value="month" selected="@(Model.Period == "month")">Últimos 30 dias</option>
+            </select>
+        </div>
+
+        <!-- Ações do Filtro -->
+        <div class="tc-filter-actions">
+            <button type="submit" class="tc-btn tc-btn-primary">
+                <i class="bi bi-funnel"></i>
+                <span>Filtrar</span>
+            </button>
+            @if (hasActiveFilters)
+            {
+                <a asp-page="/Cases/Index" class="tc-btn tc-btn-ghost" title="Limpar filtros aplicados">
+                    <i class="bi bi-x-circle"></i>
+                    <span>Limpar</span>
+                </a>
+            }
+        </div>
+    </form>
+
+    <!-- Indicador de Filtros Ativos -->
+    @if (hasActiveFilters)
+    {
+        <div class="tc-active-filters">
+            <span>Filtros ativos:</span>
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <span class="tc-filter-tag">
+                    <span>Busca: "@Model.Search"</span>
+                </span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Status))
+            {
+                <span class="tc-filter-tag">
+                    <span>Status: @(Model.Status == "Open" ? "Aberto" : "Fechado")</span>
+                </span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Severity))
+            {
+                <span class="tc-filter-tag">
+                    <span>Severidade: @Model.Severity</span>
+                </span>
+            }
+            @if (Model.ProductId.HasValue && Model.Products.Any(p => p.Id == Model.ProductId.Value))
+            {
+                <span class="tc-filter-tag">
+                    <span>Sistema: @Model.Products.First(p => p.Id == Model.ProductId.Value).Name</span>
+                </span>
+            }
+            @if (Model.ClientId.HasValue && Model.Clients.Any(c => c.Id == Model.ClientId.Value))
+            {
+                <span class="tc-filter-tag">
+                    <span>Cliente: @Model.Clients.First(c => c.Id == Model.ClientId.Value).Name</span>
+                </span>
+            }
+            @if (Model.Period != "all" && !string.IsNullOrEmpty(Model.Period))
+            {
+                <span class="tc-filter-tag">
+                    <span>Período: @Model.Period</span>
+                </span>
+            }
+        </div>
+    }
+</div>
+
+<!-- Tabela Corporativa de Casos -->
+<div class="tc-card mb-4">
+    @if (Model.Cases.Count == 0)
+    {
+        <div class="p-4">
+            @await Html.PartialAsync("Partials/_EmptyState", (
+                "Nenhum caso encontrado",
+                hasActiveFilters
+                    ? "Nenhum incidente corresponde aos filtros selecionados. Tente ajustar os parâmetros de pesquisa."
+                    : "Nenhum caso registrado no sistema até o momento.",
+                "bi-search",
+                hasActiveFilters ? "Limpar Filtros" : "Abrir Novo Caso",
+                hasActiveFilters ? "/Cases/Index" : "/Cases/Create"
+            ))
+        </div>
+    }
+    else
+    {
+        <div class="tc-table-responsive border-0 rounded-0 shadow-none mb-0">
+            <table class="tc-table">
+                <thead>
+                    <tr>
+                        <th style="width: 105px;">Número</th>
+                        <th>Ocorrência / Resumo</th>
+                        <th style="width: 120px;">Severidade</th>
+                        <th style="width: 110px;">Status</th>
+                        <th style="width: 160px;">Sistema</th>
+                        <th style="width: 160px;">Cliente</th>
+                        <th style="width: 130px;">Abertura</th>
+                        <th class="tc-table-col-actions">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Cases)
+                    {
+                        var summaryText = !string.IsNullOrWhiteSpace(item.NormalizedSummary)
+                            ? item.NormalizedSummary
+                            : (!string.IsNullOrWhiteSpace(item.ObservedBehavior)
+                                ? item.ObservedBehavior
+                                : (!string.IsNullOrWhiteSpace(item.OriginalReport)
+                                    ? (item.OriginalReport.Length > 90 ? item.OriginalReport.Substring(0, 90) + "..." : item.OriginalReport)
+                                    : "Sem descrição cadastrada"));
+
+                        <tr>
+                            <td>
+                                <span class="tc-code-inline fw-bold text-primary">#@item.CaseNumber</span>
+                            </td>
+                            <td>
+                                <a asp-page="/Cases/Details" asp-route-id="@item.Id"
+                                   class="fw-semibold text-dark text-decoration-none hover-primary d-block tc-truncate"
+                                   style="max-width: 380px;" title="@summaryText">
+                                    @summaryText
+                                </a>
+                                @if (!string.IsNullOrWhiteSpace(item.ErrorCode))
+                                {
+                                    <span class="tc-caption text-danger">
+                                        <i class="bi bi-exclamation-circle me-1"></i>Código: @item.ErrorCode
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                @await Html.PartialAsync("Partials/_SeverityBadge", item.Severity)
+                            </td>
+                            <td>
+                                @await Html.PartialAsync("Partials/_CaseStatusBadge", item.Status)
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(item.ProductName))
+                                {
+                                    <span class="tc-source-chip">
+                                        <i class="bi bi-laptop"></i>
+                                        <span>@item.ProductName</span>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="small text-body">@(item.ClientName ?? "—")</span>
+                            </td>
+                            <td class="tc-caption text-muted">
+                                @item.OpenedAt.ToString("dd/MM/yyyy HH:mm")
+                            </td>
+                            <td class="tc-table-col-actions">
+                                <a asp-page="/Cases/Details" asp-route-id="@item.Id"
+                                   class="tc-btn tc-btn-ghost tc-btn-icon tc-btn-sm"
+                                   title="Visualizar detalhes do caso #@item.CaseNumber">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <!-- Paginação Corporativa -->
+    @if (Model.TotalItems > 0)
+    {
+        var startItem = ((Model.PageNumber - 1) * Model.PageSize) + 1;
+        var endItem = Math.Min(Model.PageNumber * Model.PageSize, Model.TotalItems);
+
+        <div class="tc-card-footer">
+            <div class="tc-pagination-info">
+                Mostrando <strong>@startItem</strong> a <strong>@endItem</strong> de <strong>@Model.TotalItems</strong> ocorrências
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <ul class="tc-pagination">
+                    <!-- Anterior -->
+                    <li class="tc-page-item @(Model.PageNumber <= 1 ? "disabled" : "")">
+                        <a class="tc-page-link" href="?PageNumber=@(Model.PageNumber - 1)&Search=@Model.Search&Status=@Model.Status&Severity=@Model.Severity&ProductId=@Model.ProductId&ClientId=@Model.ClientId&Period=@Model.Period"
+                           aria-label="Página anterior">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+
+                    @for (int p = 1; p <= Model.TotalPages; p++)
+                    {
+                        var isCurrent = p == Model.PageNumber;
+                        <li class="tc-page-item @(isCurrent ? "active" : "")">
+                            <a class="tc-page-link" href="?PageNumber=@p&Search=@Model.Search&Status=@Model.Status&Severity=@Model.Severity&ProductId=@Model.ProductId&ClientId=@Model.ClientId&Period=@Model.Period">
+                                @p
+                            </a>
+                        </li>
+                    }
+
+                    <!-- Próximo -->
+                    <li class="tc-page-item @(Model.PageNumber >= Model.TotalPages ? "disabled" : "")">
+                        <a class="tc-page-link" href="?PageNumber=@(Model.PageNumber + 1)&Search=@Model.Search&Status=@Model.Status&Severity=@Model.Severity&ProductId=@Model.ProductId&ClientId=@Model.ClientId&Period=@Model.Period"
+                           aria-label="Próxima página">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            }
+        </div>
+    }
+</div>

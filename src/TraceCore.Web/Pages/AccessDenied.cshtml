@@ -1,0 +1,37 @@
+@page "/acesso-negado"
+@{
+    ViewData["Title"] = "Acesso Negado — TraceCore";
+}
+
+<div class="row justify-content-center align-items-center py-5">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="tc-card p-5 text-center">
+            <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-circle bg-danger-subtle text-danger mb-3">
+                <i class="bi bi-shield-x fs-1"></i>
+            </div>
+            <h1 class="tc-title-page fs-3 text-danger mb-2">Acesso Bloqueado pelo Servidor (403)</h1>
+            <p class="tc-body text-muted mb-4">
+                Sua conta não possui a permissão de segurança necessária para executar ou visualizar esta operação.
+                O controle de acesso é validado de forma estrita no backend em conformidade com as regras corporativas (BR-102).
+            </p>
+
+            <div class="p-3 bg-light rounded border text-start small mb-4">
+                <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle text-primary me-1"></i>O que fazer?</div>
+                <div class="text-muted">
+                    Se você necessita acessar este módulo para suas atribuições diárias, solicite a atribuição do perfil de acesso correspondente ao administrador do sistema ou ao líder do seu departamento.
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap">
+                <a asp-page="/Index" class="tc-btn tc-btn-primary">
+                    <i class="bi bi-house-door me-1"></i>
+                    <span>Voltar ao Início</span>
+                </a>
+                <a asp-page="/Logout" class="tc-btn tc-btn-secondary">
+                    <i class="bi bi-box-arrow-right me-1"></i>
+                    <span>Alternar Usuário</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

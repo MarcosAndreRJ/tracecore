@@ -1,0 +1,186 @@
+/* ==========================================================================
+   TRACECORE — DESIGN TOKENS
+   Única fonte de verdade para todos os valores de design.
+   Conformidade: WCAG 2.2 AA (NFR-007)
+   Referência: 23_REQUISITOS_NAO_FUNCIONAIS.md, ADR-0004
+   ========================================================================== */
+
+:root {
+
+    /* -----------------------------------------------------------------------
+       SUPERFÍCIES & CANVAS
+       ----------------------------------------------------------------------- */
+    --tc-bg-canvas:  #f8fafc;
+    --tc-bg-surface: #ffffff;
+    --tc-bg-muted:   #f1f5f9;
+    --tc-bg-subtle:  #f8fafc;
+
+    /* -----------------------------------------------------------------------
+       BORDAS
+       ----------------------------------------------------------------------- */
+    --tc-border:        #e2e8f0;
+    --tc-border-subtle: #edf2f7;
+    --tc-border-strong: #cbd5e1;
+
+    /* -----------------------------------------------------------------------
+       CORES PRIMÁRIAS — Slate/Sky — Corporativo
+       ----------------------------------------------------------------------- */
+    --tc-primary:        #0284c7;
+    --tc-primary-hover:  #0369a1;
+    --tc-primary-active: #0c4a6e;
+    --tc-primary-subtle: #e0f2fe;
+    --tc-primary-text:   #0369a1;
+
+    /* -----------------------------------------------------------------------
+       SIDEBAR
+       ----------------------------------------------------------------------- */
+    --tc-sidebar-width:            260px;
+    --tc-sidebar-collapsed-width:   68px;
+    --tc-sidebar-bg:               #0f172a;
+    --tc-sidebar-surface:          #1e293b;
+    --tc-sidebar-hover:            rgba(255, 255, 255, 0.06);
+    --tc-sidebar-active:           #0284c7; /* legado — manter para compatibilidade */
+    --tc-sidebar-active-bg:        rgba(2, 132, 199, 0.15);
+    --tc-sidebar-active-indicator: #0284c7;
+    --tc-sidebar-border:           rgba(255, 255, 255, 0.07);
+    --tc-sidebar-text:             #94a3b8;
+    --tc-sidebar-text-hover:       #e2e8f0;
+    --tc-sidebar-text-active:      #ffffff;
+    --tc-sidebar-group-title:      #475569;
+    --tc-sidebar-icon-active:      #38bdf8;
+
+    /* -----------------------------------------------------------------------
+       CORES SEMÂNTICAS — Status operacional (WCAG compliant)
+       ----------------------------------------------------------------------- */
+    --tc-success:        #16a34a;
+    --tc-success-hover:  #15803d;
+    --tc-success-subtle: #dcfce7;
+    --tc-success-text:   #14532d;
+    --tc-success-border: #86efac;
+
+    --tc-warning:        #d97706;
+    --tc-warning-hover:  #b45309;
+    --tc-warning-subtle: #fef3c7;
+    --tc-warning-text:   #78350f;
+    --tc-warning-border: #fcd34d;
+
+    --tc-danger:        #dc2626;
+    --tc-danger-hover:  #b91c1c;
+    --tc-danger-subtle: #fee2e2;
+    --tc-danger-text:   #7f1d1d;
+    --tc-danger-border: #fca5a5;
+
+    --tc-info:        #0284c7;
+    --tc-info-hover:  #0369a1;
+    --tc-info-subtle: #e0f2fe;
+    --tc-info-text:   #075985;
+    --tc-info-border: #7dd3fc;
+
+    --tc-secondary:        #64748b;
+    --tc-secondary-subtle: #f1f5f9;
+    --tc-secondary-text:   #334155;
+    --tc-secondary-border: #cbd5e1;
+
+    /* -----------------------------------------------------------------------
+       TEXTO — Hierarquia de contraste
+       ----------------------------------------------------------------------- */
+    --tc-text-primary:   #0f172a;  /* Títulos, destaque máximo */
+    --tc-text-body:      #334155;  /* Corpo de texto padrão */
+    --tc-text-secondary: #64748b;  /* Texto auxiliar, labels */
+    --tc-text-muted:     #94a3b8;  /* Captions, metadados */
+    --tc-text-disabled:  #cbd5e1;  /* Desabilitado */
+    --tc-text-inverse:   #ffffff;  /* Sobre fundos escuros */
+    --tc-text-danger:    #b91c1c;  /* Erros, alertas críticos */
+    --tc-text-link:      #0284c7;
+    --tc-text-link-hover:#0369a1;
+
+    /* -----------------------------------------------------------------------
+       TIPOGRAFIA — Famílias
+       Prioridade: fonte do sistema Windows/Mac/Linux corporativo.
+       Sem dependência de CDN externo.
+       ----------------------------------------------------------------------- */
+    --tc-font-sans: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+                    "Helvetica Neue", Arial, sans-serif;
+    --tc-font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono",
+                    SFMono-Regular, Consolas, "Liberation Mono", monospace;
+
+    /* -----------------------------------------------------------------------
+       TIPOGRAFIA — Escala de tamanho (rem baseado em 15px no html)
+       ----------------------------------------------------------------------- */
+    --tc-text-xs:   0.75rem;    /* 11.25px — caption, meta técnico */
+    --tc-text-sm:   0.8125rem;  /* 12.19px — label, badge, sidebar */
+    --tc-text-base: 0.875rem;   /* 13.13px — corpo padrão */
+    --tc-text-md:   0.9375rem;  /* 14.06px — card title */
+    --tc-text-lg:   1rem;       /* 15px    — section title */
+    --tc-text-xl:   1.125rem;   /* 16.88px — subsection heading */
+    --tc-text-2xl:  1.375rem;   /* 20.63px — page title */
+    --tc-text-3xl:  1.75rem;    /* 26.25px — stat value */
+
+    /* -----------------------------------------------------------------------
+       TIPOGRAFIA — Pesos
+       ----------------------------------------------------------------------- */
+    --tc-font-normal:   400;
+    --tc-font-medium:   500;
+    --tc-font-semibold: 600;
+    --tc-font-bold:     700;
+
+    /* -----------------------------------------------------------------------
+       TIPOGRAFIA — Alturas de linha
+       ----------------------------------------------------------------------- */
+    --tc-leading-tight:   1.25;
+    --tc-leading-snug:    1.375;
+    --tc-leading-normal:  1.5;
+    --tc-leading-relaxed: 1.625;
+
+    /* -----------------------------------------------------------------------
+       ESPAÇAMENTO — Escala 4px
+       ----------------------------------------------------------------------- */
+    --tc-space-1:  0.25rem;   /*  3.75px */
+    --tc-space-2:  0.5rem;    /*  7.5px  */
+    --tc-space-3:  0.75rem;   /* 11.25px */
+    --tc-space-4:  1rem;      /* 15px    */
+    --tc-space-5:  1.25rem;   /* 18.75px */
+    --tc-space-6:  1.5rem;    /* 22.5px  */
+    --tc-space-8:  2rem;      /* 30px    */
+    --tc-space-10: 2.5rem;    /* 37.5px  */
+    --tc-space-12: 3rem;      /* 45px    */
+
+    /* -----------------------------------------------------------------------
+       BORDAS — Radius
+       ----------------------------------------------------------------------- */
+    --tc-radius-xs:   4px;
+    --tc-radius-sm:   6px;
+    --tc-radius-md:   10px;
+    --tc-radius-lg:   14px;
+    --tc-radius-xl:   20px;
+    --tc-radius-full: 9999px;
+
+    /* -----------------------------------------------------------------------
+       SOMBRAS — Sutis, sem opacidade excessiva
+       ----------------------------------------------------------------------- */
+    --tc-shadow-xs:    0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --tc-shadow-sm:    0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+    --tc-shadow-md:    0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    --tc-shadow-lg:    0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+    --tc-shadow-focus: 0 0 0 3px rgba(2, 132, 199, 0.2);
+
+    /* -----------------------------------------------------------------------
+       ANIMAÇÕES & TRANSIÇÕES
+       ----------------------------------------------------------------------- */
+    --tc-transition-fast:    150ms ease;
+    --tc-transition-base:    200ms ease;
+    --tc-transition-slow:    300ms ease;
+    --tc-transition-sidebar: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* -----------------------------------------------------------------------
+       Z-INDEX — Escala controlada. Não usar valores arbitrários fora desta escala.
+       ----------------------------------------------------------------------- */
+    --tc-z-base:    1;
+    --tc-z-sticky:  100;
+    --tc-z-topbar:  1030;
+    --tc-z-sidebar: 1040;
+    --tc-z-dropdown:1050;
+    --tc-z-modal:   1055;
+    --tc-z-toast:   1060;
+    --tc-z-tooltip: 1070;
+}

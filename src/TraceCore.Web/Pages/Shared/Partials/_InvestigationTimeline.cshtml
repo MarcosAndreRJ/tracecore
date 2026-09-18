@@ -1,0 +1,39 @@
+@using TraceCore.Application.DTOs
+@model IEnumerable<DiagnosticStepDto>
+
+@{
+    var steps = Model?.OrderBy(s => s.SequenceNo).ToList() ?? new List<DiagnosticStepDto>();
+}
+
+@if (steps.Count == 0)
+{
+    <div class="tc-empty-state tc-empty-state-compact">
+        <div class="tc-empty-icon">
+            <i class="bi bi-clock-history"></i>
+        </div>
+        <div class="tc-empty-title">Nenhum passo de diagnóstico registrado</div>
+        <p class="tc-empty-description">Os passos e verificações executadas durante a investigação cronológica aparecerão aqui.</p>
+    </div>
+}
+else
+{
+    <div class="tc-investigation-timeline">
+        @foreach (var step in steps)
+        {
+            var nodeClass = (step.Outcome ?? "").ToLowerInvariant() switch
+            {
+                "worked" => "node-worked",
+                "didnotwork" => "node-didnotwork",
+                "partiallyworked" => "node-partially",
+                _ => ""
+            };
+
+            <div class="tc-timeline-item">
+                <div class="tc-timeline-node @nodeClass">
+                    @step.SequenceNo
+                </div>
+                @await Html.PartialAsync("Partials/_DiagnosticStepCard", step)
+            </div>
+        }
+    </div>
+}

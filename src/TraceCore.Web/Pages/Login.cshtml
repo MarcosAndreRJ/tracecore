@@ -1,0 +1,83 @@
+@page "/login"
+@model TraceCore.Web.Pages.LoginModel
+@{
+    ViewData["Title"] = "Autenticação Corporativa — TraceCore";
+    Layout = "_Layout";
+}
+
+<div class="row justify-content-center align-items-center py-5">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
+        <div class="tc-card p-4 p-md-5 shadow-sm">
+            <!-- CABEÇALHO DO LOGIN -->
+            <div class="text-center mb-4">
+                <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-3 bg-primary-subtle text-primary mb-3">
+                    <i class="bi bi-diagram-3-fill fs-2"></i>
+                </div>
+                <h1 class="tc-title-page fs-4 mb-1">TraceCore Enterprise</h1>
+                <p class="tc-caption text-muted mb-0">
+                    Plataforma Corporativa de Conhecimento, Diagnóstico e Lições Aprendidas
+                </p>
+            </div>
+
+            <!-- MENSAGEM DE ERRO -->
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="tc-alert tc-alert-danger mb-4 d-flex align-items-center gap-2" role="alert">
+                    <i class="bi bi-exclamation-octagon-fill text-danger fs-5 flex-shrink-0"></i>
+                    <div class="small">@Model.ErrorMessage</div>
+                </div>
+            }
+
+            <!-- FORMULÁRIO DE AUTENTICAÇÃO -->
+            <form method="post">
+                <div class="mb-3">
+                    <label asp-for="Email" class="tc-form-label">E-mail Corporativo</label>
+                    <div class="tc-input-search">
+                        <i class="bi bi-envelope"></i>
+                        <input asp-for="Email" class="tc-input" placeholder="operador@empresa.com" autocomplete="username" required />
+                    </div>
+                    <span asp-validation-for="Email" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="Password" class="tc-form-label mb-1">Senha de Acesso</label>
+                    <div class="tc-input-search">
+                        <i class="bi bi-lock"></i>
+                        <input asp-for="Password" type="password" class="tc-input" placeholder="••••••••" autocomplete="current-password" required />
+                    </div>
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+
+                <div class="d-grid mb-4">
+                    <button type="submit" class="tc-btn tc-btn-primary tc-btn-lg justify-content-center">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>
+                        <span>Entrar na Plataforma</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- AVISO INSTITUCIONAL DE AUDITORIA E SEGURANÇA -->
+            <div class="p-3 bg-light rounded border text-center">
+                <div class="d-flex align-items-center justify-content-center gap-1 text-muted small fw-semibold mb-1">
+                    <i class="bi bi-shield-check text-success"></i>
+                    <span>Acesso Restrito & Auditado</span>
+                </div>
+                <div class="tc-caption text-muted">
+                    Todas as sessões e operações são registradas na trilha de auditoria em conformidade com as normas de segurança corporativa.
+                </div>
+            </div>
+
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+
+            <!-- AUXÍLIO AO DESENVOLVEDOR (SEM CREDENCIAIS EXPOSTAS - BR-101) -->
+            @if (Env.IsDevelopment())
+            {
+                <div class="text-center mt-3">
+                    <span class="tc-caption text-muted">
+                        Ambiente local: credenciais de homologação em <code class="tc-code-inline">Docs/DEV_CREDENTIALS.md</code>
+                    </span>
+                </div>
+            }
+        </div>
+    </div>
+</div>

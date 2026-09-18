@@ -1,0 +1,80 @@
+/* ==========================================================================
+   TRACECORE — PAGINATION
+   Controles de paginação de listagens e tabelas corporativas.
+   Acessibilidade: WCAG 2.2 AA (foco visível, contraste adequado).
+   ========================================================================== */
+
+.tc-pagination-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--tc-space-3);
+    margin-top: var(--tc-space-4);
+    padding: var(--tc-space-2) 0;
+}
+
+.tc-pagination-info {
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-secondary);
+}
+
+.tc-pagination {
+    display: flex;
+    padding-left: 0;
+    list-style: none;
+    margin: 0;
+    gap: var(--tc-space-1);
+}
+
+.tc-page-item {
+    margin: 0;
+}
+
+.tc-page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 0.5rem;
+    font-size: var(--tc-text-sm);
+    color: var(--tc-text-body);
+    background-color: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-sm);
+    text-decoration: none;
+    transition: background-color var(--tc-transition-fast),
+                border-color var(--tc-transition-fast),
+                color var(--tc-transition-fast);
+}
+
+.tc-page-link:hover {
+    background-color: var(--tc-bg-muted);
+    border-color: var(--tc-border-strong);
+    color: var(--tc-text-primary);
+    text-decoration: none;
+}
+
+.tc-page-link:focus-visible {
+    outline: none;
+    box-shadow: var(--tc-shadow-focus);
+}
+
+.tc-page-item.active .tc-page-link,
+.tc-page-link.active {
+    background-color: var(--tc-primary);
+    border-color: var(--tc-primary);
+    color: var(--tc-text-inverse);
+    font-weight: var(--tc-font-semibold);
+}
+
+.tc-page-item.disabled .tc-page-link,
+.tc-page-link:disabled,
+.tc-page-link.disabled {
+    color: var(--tc-text-muted);
+    pointer-events: none;
+    background-color: var(--tc-bg-muted);
+    border-color: var(--tc-border);
+    opacity: 0.6;
+}

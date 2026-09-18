@@ -1,0 +1,32 @@
+@page
+@model TraceCore.Web.Pages.PlaceholderModel
+@{
+    ViewData["Title"] = $"{Model.Module} (Em Construção)";
+}
+
+<div class="container-fluid py-2">
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb small">
+                <li class="breadcrumb-item"><a asp-page="/Index">Início</a></li>
+                <li class="breadcrumb-item active" aria-current="page">@Model.Module</li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="tc-card p-4">
+                @await Html.PartialAsync("Partials/_EmptyState", (
+                    Title: $"Módulo de {Model.Module} em Construção",
+                    Description: string.IsNullOrWhiteSpace(Model.Q)
+                        ? $"A funcionalidade de {Model.Module} faz parte do roadmap oficial das fases futuras do TraceCore (M05 a M10). A interface e os serviços deste módulo serão disponibilizados nos próximos lançamentos."
+                        : $"A busca global por '{Model.Q}' faz parte do módulo de Pesquisa Semântica (M06) e estará disponível nas fases subsequentes.",
+                    Icon: "bi-cone-striped",
+                    ActionText: "Voltar para o Dashboard",
+                    ActionUrl: "/Index"
+                ))
+            </div>
+        </div>
+    </div>
+</div>

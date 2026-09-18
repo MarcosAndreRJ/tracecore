@@ -1,0 +1,27 @@
+@model (string Title, string Value, string? Subtitle, string Icon, string Color, bool IsPlaceholder, string? PlaceholderText)
+
+<div class="tc-stat-card @(Model.IsPlaceholder ? "placeholder-card" : "")">
+    <div class="tc-stat-header">
+        <span class="tc-stat-title">@Model.Title</span>
+        <div class="tc-stat-icon @Model.Color" aria-hidden="true">
+            <i class="bi @Model.Icon"></i>
+        </div>
+    </div>
+    <div>
+        <div class="tc-stat-value">
+            @(Model.IsPlaceholder ? "—" : Model.Value)
+        </div>
+        <div class="tc-stat-footer">
+            @if (Model.IsPlaceholder)
+            {
+                <span class="badge bg-light text-muted border py-1">
+                    <i class="bi bi-clock-history me-1"></i>@(Model.PlaceholderText ?? "Em breve")
+                </span>
+            }
+            else if (!string.IsNullOrWhiteSpace(Model.Subtitle))
+            {
+                <span>@Model.Subtitle</span>
+            }
+        </div>
+    </div>
+</div>

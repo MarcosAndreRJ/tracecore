@@ -1,0 +1,205 @@
+/* ==========================================================================
+   TRACECORE — FORMS
+   Campos de formulário, labels, validações e controles de entrada.
+   Acessibilidade: WCAG 2.2 AA (foco visível, rótulos legíveis, estados claros).
+   ========================================================================== */
+
+.tc-form-group {
+    margin-bottom: var(--tc-space-4);
+}
+
+.tc-form-label {
+    display: inline-block;
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-medium);
+    color: var(--tc-text-primary);
+    margin-bottom: var(--tc-space-2);
+}
+
+.tc-form-label.required::after {
+    content: " *";
+    color: var(--tc-danger);
+    font-weight: var(--tc-font-bold);
+}
+
+.tc-input,
+.tc-select,
+.tc-textarea {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--tc-font-sans);
+    font-size: var(--tc-text-base);
+    font-weight: var(--tc-font-normal);
+    line-height: var(--tc-leading-normal);
+    color: var(--tc-text-primary);
+    background-color: var(--tc-bg-surface);
+    background-clip: padding-box;
+    border: 1px solid var(--tc-border-strong);
+    border-radius: var(--tc-radius-sm);
+    transition: border-color var(--tc-transition-fast), box-shadow var(--tc-transition-fast);
+}
+
+.tc-input::placeholder,
+.tc-textarea::placeholder {
+    color: var(--tc-text-muted);
+    opacity: 1;
+}
+
+.tc-input:hover,
+.tc-select:hover,
+.tc-textarea:hover {
+    border-color: #94a3b8;
+}
+
+.tc-input:focus,
+.tc-select:focus,
+.tc-textarea:focus {
+    color: var(--tc-text-primary);
+    background-color: var(--tc-bg-surface);
+    border-color: var(--tc-primary);
+    outline: 0;
+    box-shadow: var(--tc-shadow-focus);
+}
+
+.tc-input:disabled,
+.tc-select:disabled,
+.tc-textarea:disabled {
+    background-color: var(--tc-bg-muted);
+    border-color: var(--tc-border);
+    color: var(--tc-text-muted);
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.tc-input[readonly],
+.tc-textarea[readonly] {
+    background-color: var(--tc-bg-subtle);
+    border-color: var(--tc-border);
+    cursor: default;
+}
+
+.tc-textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+/* -------------------------------------------------------------------------
+   Tamanhos de Campos
+   ------------------------------------------------------------------------- */
+.tc-input-sm,
+.tc-select-sm {
+    padding: 0.3rem 0.55rem;
+    font-size: var(--tc-text-xs);
+    border-radius: var(--tc-radius-xs);
+}
+
+.tc-input-lg,
+.tc-select-lg {
+    padding: 0.65rem 1rem;
+    font-size: var(--tc-text-md);
+    border-radius: var(--tc-radius-md);
+}
+
+/* -------------------------------------------------------------------------
+   Textos de Apoio e Validação
+   ------------------------------------------------------------------------- */
+.tc-help-text {
+    display: block;
+    margin-top: var(--tc-space-1);
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-secondary);
+    line-height: var(--tc-leading-normal);
+}
+
+.tc-feedback-invalid {
+    display: block;
+    width: 100%;
+    margin-top: var(--tc-space-1);
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-danger);
+    font-weight: var(--tc-font-medium);
+}
+
+/* Estados de validação nos campos */
+.tc-input.is-invalid,
+.tc-select.is-invalid,
+.tc-textarea.is-invalid {
+    border-color: var(--tc-danger);
+}
+
+.tc-input.is-invalid:focus,
+.tc-select.is-invalid:focus,
+.tc-textarea.is-invalid:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
+/* -------------------------------------------------------------------------
+   Grupo de Entrada com Ícone de Contexto (Busca, Código, etc.)
+   ------------------------------------------------------------------------- */
+.tc-input-group {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    width: 100%;
+}
+
+.tc-input-group-icon {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 0.75rem;
+    color: var(--tc-text-muted);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.tc-input-group .tc-input.has-icon-left {
+    padding-left: 2.25rem;
+}
+
+.tc-input-addon {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-normal);
+    line-height: var(--tc-leading-normal);
+    color: var(--tc-text-secondary);
+    text-align: center;
+    white-space: nowrap;
+    background-color: var(--tc-bg-muted);
+    border: 1px solid var(--tc-border-strong);
+    border-radius: var(--tc-radius-sm);
+}
+
+/* -------------------------------------------------------------------------
+   Checkboxes e Radios Customizados
+   ------------------------------------------------------------------------- */
+.tc-check-group {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tc-space-2);
+    margin-bottom: var(--tc-space-2);
+}
+
+.tc-check-input {
+    width: 16px;
+    height: 16px;
+    margin-top: 0.2rem;
+    border: 1px solid var(--tc-border-strong);
+    border-radius: var(--tc-radius-xs);
+    cursor: pointer;
+    accent-color: var(--tc-primary);
+}
+
+.tc-check-label {
+    font-size: var(--tc-text-sm);
+    color: var(--tc-text-body);
+    cursor: pointer;
+    user-select: none;
+}

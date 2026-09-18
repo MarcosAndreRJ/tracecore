@@ -1,50 +1,411 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+@using System.Security.Claims
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - TraceCore.Web</title>
-    <script type="importmap"></script>
+    <title>@ViewData["Title"] - TraceCore</title>
+    
+    <!-- Bootstrap 5 (Local) -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- Bootstrap Icons (Local - 12_SEGURANCA §8) -->
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <!-- TraceCore Design System — carregar na ordem: tokens → base → layout → componentes -->
+    <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/base.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+    <!-- Componentes Gerais -->
+    <link rel="stylesheet" href="~/css/components/buttons.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/forms.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/badges.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/cards.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/tables.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/modals.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/alerts.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/empty-state.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/loading.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/tabs.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/filters.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/breadcrumb.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components/pagination.css" asp-append-version="true" />
+    <!-- Componentes de Domínio TraceCore -->
+    <link rel="stylesheet" href="~/css/domain/hypothesis.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/domain/investigation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/domain/evidence.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/domain/knowledge.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/domain/metrics.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/domain/dependency-graph.css" asp-append-version="true" />
+    <!-- Ajustes específicos de site -->
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/TraceCore.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">TraceCore.Web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privacy</a>
-                        </li>
-                    </ul>
+    <!-- Acessibilidade WCAG 2.2 AA (NFR-007): Link para saltar navegação -->
+    <a href="#main-content" class="skip-link">Saltar para o conteúdo principal</a>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        var currentPath = ViewContext.HttpContext.Request.Path.Value ?? "";
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userName = User.Identity.Name ?? "Usuário";
+        var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "";
+        var userInitials = string.Join("", userName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2).Select(s => s[0])).ToUpperInvariant();
+
+        <div id="tc-app-layout">
+            <!-- SIDEBAR LATERAL RETRÁTIL (24_UX_E_NAVEGACAO.md) -->
+            <aside id="tc-sidebar" aria-label="Navegação Principal do Sistema">
+                <!-- Marca / Logo -->
+                <a class="tc-sidebar-brand" asp-page="/Index" title="Ir para o Dashboard do TraceCore">
+                    <div class="tc-sidebar-brand-text">
+                        <i class="bi bi-shield-check" style="color: var(--tc-sidebar-icon-active);"></i>
+                        <span>Trace<span>Core</span></span>
+                    </div>
+                </a>
+
+                <!-- Navegação Estruturada por Grupos -->
+                <div class="tc-sidebar-content">
+                    <!-- GRUPO: VISÃO GERAL -->
+                    <div class="tc-sidebar-group">
+                        <div class="tc-sidebar-group-title">Visão Geral</div>
+                        <ul class="tc-sidebar-nav">
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link @(currentPath == "/" || currentPath.Equals("/Index", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                   asp-page="/Index">
+                                    <i class="bi bi-speedometer2"></i>
+                                    <span>Dashboard</span>
+                                </a>
+                            </li>
+                            @if (!string.IsNullOrEmpty(currentUserId))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Users/Details", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Users/Details" asp-route-id="@currentUserId">
+                                        <i class="bi bi-person-badge"></i>
+                                        <span>Minha Área</span>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+
+                    <!-- GRUPO: OPERAÇÃO -->
+                    <div class="tc-sidebar-group">
+                        <div class="tc-sidebar-group-title">Operação</div>
+                        <ul class="tc-sidebar-nav">
+                            @if (User.HasClaim("permission", "caso.visualizar") || User.HasClaim("permission", "caso.criar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Cases", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Cases/Index">
+                                        <i class="bi bi-folder2-open"></i>
+                                        <span>Casos</span>
+                                    </a>
+                                </li>
+                            }
+                            @if (User.HasClaim("permission", "caso.diagnosticar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Diagnosis", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Diagnosis/Index">
+                                        <i class="bi bi-diagram-3"></i>
+                                        <span>Diagnóstico</span>
+                                        <span class="tc-sidebar-badge">M04/M07</span>
+                                    </a>
+                                </li>
+                            }
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link @(currentPath.Contains("module=Pesquisa", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                   asp-page="/Placeholder" asp-route-module="Pesquisa">
+                                    <i class="bi bi-search"></i>
+                                    <span>Pesquisa</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- GRUPO: CONHECIMENTO (M05) -->
+                    <div class="tc-sidebar-group">
+                        <div class="tc-sidebar-group-title">Conhecimento</div>
+                        <ul class="tc-sidebar-nav">
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link @(currentPath.StartsWith("/Knowledge", StringComparison.OrdinalIgnoreCase) && !Context.Request.Query.ContainsKey("category") ? "active" : "")"
+                                   asp-page="/Knowledge/Index">
+                                    <i class="bi bi-journal-check"></i>
+                                    <span>Soluções</span>
+                                    <span class="tc-sidebar-badge">M05</span>
+                                </a>
+                            </li>
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link @(currentPath.StartsWith("/Knowledge", StringComparison.OrdinalIgnoreCase) && Context.Request.Query["category"] == "lessons" ? "active" : "")"
+                                   asp-page="/Knowledge/Index" asp-route-category="lessons">
+                                    <i class="bi bi-lightbulb"></i>
+                                    <span>Lições Aprendidas</span>
+                                </a>
+                            </li>
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Documentação">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                    <span>Documentação</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- GRUPO: ECOSSISTEMA (Fase 2 / M03 / M10) -->
+                    <div class="tc-sidebar-group">
+                        <div class="tc-sidebar-group-title">Ecossistema</div>
+                        <ul class="tc-sidebar-nav">
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Sistemas">
+                                    <i class="bi bi-laptop"></i>
+                                    <span>Sistemas</span>
+                                </a>
+                            </li>
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Componentes">
+                                    <i class="bi bi-cpu"></i>
+                                    <span>Componentes</span>
+                                </a>
+                            </li>
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Dependências">
+                                    <i class="bi bi-bezier2"></i>
+                                    <span>Dependências</span>
+                                </a>
+                            </li>
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Integrações">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                    <span>Integrações</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- GRUPO: INTELIGÊNCIA (M08) -->
+                    <div class="tc-sidebar-group">
+                        <div class="tc-sidebar-group-title">Inteligência</div>
+                        <ul class="tc-sidebar-nav">
+                            @if (User.HasClaim("permission", "analytics.visualizar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Analytics">
+                                        <i class="bi bi-graph-up"></i>
+                                        <span>Analytics</span>
+                                    </a>
+                                </li>
+                            }
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Recorrências">
+                                    <i class="bi bi-repeat"></i>
+                                    <span>Recorrências</span>
+                                </a>
+                            </li>
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Tendências">
+                                    <i class="bi bi-activity"></i>
+                                    <span>Tendências</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- GRUPO: GESTÃO -->
+                    <div class="tc-sidebar-group">
+                        <div class="tc-sidebar-group-title">Gestão</div>
+                        <ul class="tc-sidebar-nav">
+                            @if (User.HasClaim("permission", "usuario.gerenciar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Users", StringComparison.OrdinalIgnoreCase) && !currentPath.StartsWith("/Users/Details", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Users/Index">
+                                        <i class="bi bi-people"></i>
+                                        <span>Usuários</span>
+                                    </a>
+                                </li>
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Departments", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Departments/Index">
+                                        <i class="bi bi-building"></i>
+                                        <span>Departamentos</span>
+                                    </a>
+                                </li>
+                            }
+                            @if (User.HasClaim("permission", "cliente.gerenciar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Clients", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Clients/Index">
+                                        <i class="bi bi-buildings"></i>
+                                        <span>Clientes</span>
+                                    </a>
+                                </li>
+                            }
+                            @if (User.HasClaim("permission", "catalogo.gerenciar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Products", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Catalog/Products/Index">
+                                        <i class="bi bi-box-seam"></i>
+                                        <span>Produtos</span>
+                                    </a>
+                                </li>
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Components", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Catalog/Components/Index">
+                                        <i class="bi bi-diagram-3"></i>
+                                        <span>Componentes</span>
+                                    </a>
+                                </li>
+                            }
+                            @if (User.HasClaim("permission", "permissao.gerenciar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Perfis e Permissões">
+                                        <i class="bi bi-shield-lock"></i>
+                                        <span>Perfis e Permissões</span>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+
+                    <!-- GRUPO: ADMINISTRAÇÃO -->
+                    <div class="tc-sidebar-group">
+                        <div class="tc-sidebar-group-title">Administração</div>
+                        <ul class="tc-sidebar-nav">
+                            @if (User.HasClaim("permission", "auditoria.visualizar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Auditoria">
+                                        <i class="bi bi-journal-text"></i>
+                                        <span>Auditoria</span>
+                                    </a>
+                                </li>
+                            }
+                            <li class="tc-sidebar-item">
+                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Configurações">
+                                    <i class="bi bi-gear"></i>
+                                    <span>Configurações</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
+
+                <!-- Rodapé da Sidebar -->
+                <div class="tc-sidebar-footer">
+                    <span>TraceCore v1.0</span>
+                    <span class="tc-badge tc-badge-sm tc-badge-closed">Enterprise</span>
+                </div>
+            </aside>
+
+            <!-- Backdrop para Mobile -->
+            <div id="tc-sidebar-backdrop" tabindex="-1" aria-hidden="true"></div>
+
+            <!-- CONTAINER PRINCIPAL (Topbar + Conteúdo) -->
+            <div id="tc-main-wrapper">
+                <!-- TOPBAR CORPORATIVA -->
+                <header id="tc-topbar">
+                    <div class="d-flex align-items-center gap-3">
+                        <!-- Botão Toggle Desktop -->
+                        <button type="button" class="tc-btn tc-btn-icon tc-btn-ghost d-none d-lg-flex"
+                                id="tc-sidebar-toggle" title="Recolher/Expandir Sidebar" aria-label="Recolher ou expandir menu lateral">
+                            <i class="bi bi-list fs-5"></i>
+                        </button>
+                        <!-- Botão Toggle Mobile -->
+                        <button type="button" class="tc-btn tc-btn-icon tc-btn-ghost d-lg-none d-flex"
+                                id="tc-mobile-sidebar-toggle" title="Abrir Menu" aria-label="Abrir menu de navegação">
+                            <i class="bi bi-list fs-5"></i>
+                        </button>
+
+                        <!-- Busca Global (M06) -->
+                        <form method="get" asp-page="/Search" class="tc-search-box flex-grow-1" role="search">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input type="search" name="q" class="tc-search-input" id="tc-global-search"
+                                   placeholder="Buscar casos, erros, componentes ou soluções..."
+                                   aria-label="Busca global no sistema (pressione Enter para pesquisar)" />
+                            <span class="tc-search-shortcut" title="Atalho de teclado (Ctrl+K)">Ctrl+K</span>
+                        </form>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <!-- Atalho Rápido para Criar Caso (se autorizado) -->
+                        @if (User.HasClaim("permission", "caso.criar"))
+                        {
+                            <a asp-page="/Cases/Create" class="tc-btn tc-btn-primary tc-btn-sm d-none d-md-inline-flex">
+                                <i class="bi bi-plus-lg"></i>
+                                <span>Novo Caso</span>
+                            </a>
+                        }
+
+                        <!-- Notificações Futuras (M09 - Preparado) -->
+                        <button type="button" class="tc-btn tc-btn-icon tc-btn-ghost position-relative"
+                                title="Notificações operacionais" aria-label="Notificações do sistema">
+                            <i class="bi bi-bell"></i>
+                            <span class="tc-notification-badge" aria-hidden="true"></span>
+                            <span class="visually-hidden">Novas notificações</span>
+                        </button>
+
+                        <!-- Usuário Logado & Menu Dropdown -->
+                        <div class="dropdown">
+                            <button class="tc-user-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="tc-avatar" aria-hidden="true">@userInitials</div>
+                                <div class="d-none d-md-flex flex-column text-start">
+                                    <span class="fw-semibold small line-clamp-1" style="color: var(--tc-text-primary);">@userName</span>
+                                    <span style="font-size: 0.72rem; color: var(--tc-text-secondary);">@userEmail</span>
+                                </div>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end tc-dropdown-menu">
+                                <li class="px-3 py-2 border-bottom">
+                                    <div class="fw-semibold small" style="color: var(--tc-text-primary);">@userName</div>
+                                    <div class="text-break" style="font-size: 0.75rem; color: var(--tc-text-secondary);">@userEmail</div>
+                                </li>
+                                @if (!string.IsNullOrEmpty(currentUserId))
+                                {
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-page="/Users/Details" asp-route-id="@currentUserId">
+                                            <i class="bi bi-person"></i> Meu Perfil
+                                        </a>
+                                    </li>
+                                }
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <a class="dropdown-item py-2 text-danger" asp-page="/Logout">
+                                        <i class="bi bi-box-arrow-right"></i> Sair do Sistema
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- CONTEÚDO PRINCIPAL -->
+                <main id="main-content" role="main" tabindex="-1">
+                    @RenderBody()
+                </main>
+
+                <!-- RODAPÉ CORPORATIVO -->
+                <footer id="tc-footer-bar">
+                    <span>&copy; 2026 TraceCore — Plataforma Corporativa de Conhecimento, Diagnóstico e Lições Aprendidas</span>
+                    <span>WCAG 2.2 AA (NFR-007)</span>
+                </footer>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+        </div>
+    }
+    else
+    {
+        <!-- Layout Limpo para Usuário Não Autenticado (ex.: /Login) -->
+        <main id="main-content" role="main" tabindex="-1">
             @RenderBody()
         </main>
-    </div>
+    }
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - TraceCore.Web - <a asp-area="" asp-page="/Privacy">Privacy</a>
-        </div>
-    </footer>
-
+    <!-- Scripts Locais (Sem Dependência de CDN) -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/chart.js/dist/chart.umd.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)

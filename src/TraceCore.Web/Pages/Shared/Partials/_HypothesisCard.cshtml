@@ -1,0 +1,145 @@
+@using TraceCore.Application.DTOs
+@model (CaseHypothesisDto Hypothesis, bool CanDiagnose)
+
+@{
+    var hyp = Model.Hypothesis;
+    var canDiagnose = Model.CanDiagnose;
+    if (hyp == null) return;
+
+    var statusNormalized = (hyp.Status ?? "Proposed").ToLowerInvariant();
+    var statusClass = statusNormalized switch
+    {
+        "supported" => "status-supported",
+        "discarded" => "status-discarded",
+        _ => "status-proposed"
+    };
+
+    var statusBadgeClass = statusNormalized switch
+    {
+        "supported" => "tc-badge-supported",
+        "discarded" => "tc-badge-discarded",
+        _ => "tc-badge-proposed"
+    };
+
+    var statusLabel = statusNormalized switch
+    {
+        "supported" => "Apoiada",
+        "discarded" => "Descartada",
+        _ => "Proposta"
+    };
+
+    var statusIcon = statusNormalized switch
+    {
+        "supported" => "bi-shield-check",
+        "discarded" => "bi-x-circle",
+        _ => "bi-lightbulb"
+    };
+}
+
+<div class="tc-hypothesis-card @statusClass" id="hyp-@hyp.Id">
+    <div class="tc-hypothesis-header">
+        <div class="tc-hypothesis-title-group">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="tc-badge @statusBadgeClass" role="status">
+                    <i class="bi @statusIcon" aria-hidden="true"></i>
+                    <span>@statusLabel</span>
+                </span>
+                <h4 class="tc-hypothesis-title">@hyp.Title</h4>
+            </div>
+            <div class="tc-hypothesis-meta">
+                @if (!string.IsNullOrEmpty(hyp.ComponentName))
+                {
+                    <span class="tc-source-chip">
+                        <i class="bi bi-cpu" aria-hidden="true"></i>
+                        <span>Componente: @hyp.ComponentName</span>
+                    </span>
+                }
+                @if (!string.IsNullOrEmpty(hyp.CreatedByName))
+                {
+                    <span><i class="bi bi-person me-1"></i>@hyp.CreatedByName</span>
+                }
+                <span><i class="bi bi-clock me-1"></i>@hyp.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+            </div>
+        </div>
+
+        @if (canDiagnose && hyp.Status == "Proposed")
+        {
+            <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm"
+                    onclick="if(typeof openEvaluateModal === 'function') openEvaluateModal(@hyp.Id, '@hyp.Title');">
+                <i class="bi bi-check2-circle"></i>
+                <span>Avaliar Hipótese</span>
+            </button>
+        }
+    </div>
+
+    <div class="tc-hypothesis-body">
+        @if (!string.IsNullOrWhiteSpace(hyp.Description))
+        {
+            <p class="tc-hypothesis-desc">@hyp.Description</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(hyp.Justification))
+        {
+            <div class="tc-hypothesis-justification">
+                <strong>Conclusão / Justificativa:</strong> @hyp.Justification
+            </div>
+        }
+
+        @if (hyp.Steps != null && hyp.Steps.Count > 0)
+        {
+            <div class="tc-hypothesis-steps-section">
+                <div class="tc-hypothesis-steps-title">
+                    <i class="bi bi-list-check"></i>
+                    <span>Testes e Verificações Vinculadas (@hyp.Steps.Count)</span>
+                </div>
+                <div class="tc-table-responsive">
+                    <table class="tc-table tc-table-compact">
+                        <thead>
+                            <tr>
+                                <th style="width: 45px;">#</th>
+                                <th>Ação / Teste (BR-025)</th>
+                                <th>Objetivo</th>
+                                <th>Resultado Observado</th>
+                                <th style="width: 140px;">Classificação</th>
+                                <th style="width: 130px;">Data/Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var step in hyp.Steps)
+                            {
+                                <tr>
+                                    <td class="text-center font-monospace small">#@step.SequenceNo</td>
+                                    <td class="fw-semibold">@step.Title</td>
+                                    <td>@(step.Objective ?? "—")</td>
+                                    <td>@step.ResultSummary</td>
+                                    <td>
+                                        @{
+                                            var outcomeClass = (step.Outcome ?? "").ToLowerInvariant() switch
+                                            {
+                                                "worked" => "tc-badge-worked",
+                                                "partiallyworked" => "tc-badge-partially",
+                                                "didnotwork" => "tc-badge-didnotwork",
+                                                "notapplicable" => "tc-badge-notapplicable",
+                                                _ => "tc-badge-inconclusive"
+                                            };
+                                            var outcomeLabel = (step.Outcome ?? "").ToLowerInvariant() switch
+                                            {
+                                                "worked" => "Funcionou",
+                                                "partiallyworked" => "Parcial",
+                                                "didnotwork" => "Não Funcionou",
+                                                "notapplicable" => "Não Aplicável",
+                                                _ => "Inconclusivo"
+                                            };
+                                        }
+                                        <span class="tc-badge @outcomeClass">@outcomeLabel</span>
+                                    </td>
+                                    <td class="text-muted small">@step.PerformedAt.ToString("dd/MM HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</div>

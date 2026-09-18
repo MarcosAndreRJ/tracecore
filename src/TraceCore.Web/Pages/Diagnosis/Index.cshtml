@@ -1,0 +1,350 @@
+@page
+@model TraceCore.Web.Pages.Diagnosis.IndexModel
+@{
+    ViewData["Title"] = "Diagnóstico Guiado e Adaptativo (M04 / M07)";
+}
+
+<div class="tc-container-fluid py-3">
+    <!-- BREADCRUMB -->
+    <nav class="tc-breadcrumb mb-3" aria-label="Navegação">
+        <a asp-page="/Index" class="tc-breadcrumb-item">
+            <i class="bi bi-house-door me-1"></i>Início
+        </a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="tc-breadcrumb-item active" aria-current="page">Diagnóstico Guiado</span>
+    </nav>
+
+    <!-- CABEÇALHO DA CENTRAL DE DIAGNÓSTICO -->
+    <div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h1 class="tc-title-page mb-0">Central de Diagnóstico Guiado</h1>
+                <span class="tc-badge tc-badge-primary">Motor Adaptativo M04 / M07</span>
+                <span class="tc-badge tc-badge-success">Sessão Operacional</span>
+            </div>
+            <p class="tc-subtitle text-muted mb-0">
+                Raciocínio probabilístico, priorização de verificações não destrutivas e discriminação orientada de hipóteses técnicas (BR-070 a BR-076).
+            </p>
+        </div>
+
+        <!-- SELETOR DE CASO PARA DIAGNOSTICAR -->
+        <div class="d-flex align-items-center gap-2">
+            <form method="get" class="d-flex align-items-center gap-2">
+                <label for="selectCaseId" class="tc-caption fw-semibold text-muted text-nowrap mb-0">Caso em Análise:</label>
+                <select id="selectCaseId" name="CaseId" class="tc-select" onchange="this.form.submit();" style="min-width: 260px;">
+                    @foreach (var cs in Model.OpenCases)
+                    {
+                        var displayTitle = !string.IsNullOrEmpty(cs.NormalizedSummary) ? cs.NormalizedSummary : cs.OriginalReport;
+                        if (displayTitle.Length > 32) displayTitle = displayTitle.Substring(0, 32) + "...";
+                        <option value="@cs.Id" selected="@(Model.CaseId == cs.Id)">
+                            #@cs.Id — @displayTitle
+                        </option>
+                    }
+                </select>
+            </form>
+            @if (Model.CurrentCase != null)
+            {
+                <a asp-page="/Cases/Details" asp-route-id="@Model.CurrentCase.Id" asp-route-tab="diagnosis"
+                   class="tc-btn tc-btn-secondary tc-btn-sm" title="Abrir dossiê completo">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                    <span>Dossiê do Caso</span>
+                </a>
+            }
+        </div>
+    </div>
+
+    <!-- BANNER DE DIRETRIZES DO MOTOR (BR-070 a BR-076) -->
+    <div class="tc-alert tc-alert-info mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="tc-alert-icon">
+                <i class="bi bi-diagram-3-fill fs-4 text-info"></i>
+            </div>
+            <div>
+                <div class="fw-semibold text-dark mb-1">Princípios do Diagnóstico Adaptativo (Políticas BR-070 a BR-076)</div>
+                <div class="small text-muted">
+                    O diagnóstico começa estritamente pelo sintoma e contexto factual. O motor prioriza checagens com alta capacidade de separar hipóteses, baixo custo e risco zero (não destrutivo em produção). Nenhuma recomendação é imposta: você pode registrar resultados ou ignorar com justificativa técnica.
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge bg-light text-dark border"><i class="bi bi-shield-check text-success me-1"></i>Não Destrutivo (BR-076)</span>
+            <span class="badge bg-light text-dark border"><i class="bi bi-shuffle text-primary me-1"></i>Perguntas Adaptativas (BR-071)</span>
+        </div>
+    </div>
+
+    @if (Model.CurrentCase == null)
+    {
+        <div class="tc-card p-5">
+            @await Html.PartialAsync("Partials/_EmptyState", (
+                Title: "Nenhum caso selecionado para diagnóstico",
+                Description: "Selecione um caso aberto na fila superior ou crie um novo caso para iniciar a sessão guiada.",
+                Icon: "bi-diagram-3",
+                ActionText: "Ver Lista de Casos",
+                ActionUrl: "/Cases/Index"
+            ))
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <!-- COLUNA DA ESQUERDA: RECOMENDAÇÃO ATIVA DO MOTOR E TIMELINE (7 COLS) -->
+            <div class="col-lg-7">
+                <!-- 1. RECOMENDAÇÃO ATIVA DO MOTOR ADAPTATIVO -->
+                <div class="tc-card p-4 mb-4 border-primary">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary px-2 py-1">Próxima Verificação</span>
+                            <span class="tc-code-inline fw-bold text-primary">@Model.CurrentRecommendation.QuestionId</span>
+                        </div>
+                        <span class="tc-badge tc-badge-success">
+                            <i class="bi bi-graph-up-arrow me-1"></i>@Model.CurrentRecommendation.ConfidenceImpact
+                        </span>
+                    </div>
+
+                    <h3 class="tc-title-section mb-2 text-dark">
+                        @Model.CurrentRecommendation.Title
+                    </h3>
+
+                    <p class="tc-body small text-muted mb-3">
+                        @Model.CurrentRecommendation.ContextPrompt
+                    </p>
+
+                    <!-- JUSTIFICATIVA ALGORÍTMICA (BR-074) -->
+                    <div class="p-3 bg-light rounded border mb-3 small">
+                        <div class="fw-semibold text-primary mb-1">
+                            <i class="bi bi-info-circle me-1"></i>Por que esta verificação foi recomendada pelo motor? (BR-074)
+                        </div>
+                        <div class="text-dark">
+                            @Model.CurrentRecommendation.Justification
+                        </div>
+                    </div>
+
+                    <!-- COMANDO DE CHECAGEM SUGERIDO -->
+                    <div class="bg-dark text-light p-3 rounded font-monospace small mb-3">
+                        <div class="text-secondary small mb-1"><i class="bi bi-terminal me-1"></i>Instrução de Coleta Objetiva (BR-073):</div>
+                        <div class="text-success">$ @Model.CurrentRecommendation.SuggestedCheck</div>
+                    </div>
+
+                    <!-- FORMULÁRIO DE REGISTRO DO RESULTADO -->
+                    <form method="post" asp-page-handler="RecordAnswer" class="border-top pt-3">
+                        <input type="hidden" name="caseId" value="@Model.CurrentCase.Id" />
+                        <input type="hidden" name="questionId" value="@Model.CurrentRecommendation.QuestionId" />
+
+                        <label for="evidenceObs" class="tc-form-label mb-1">Resultado Observado / Evidência Coletada:</label>
+                        <input type="text" id="evidenceObs" name="evidenceText" class="tc-input mb-3"
+                               placeholder="Ex: Pool atingiu 98% com 48 threads em estado starvation..." />
+
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="submit" name="answer" value="yes" class="tc-btn tc-btn-primary">
+                                    <i class="bi bi-check-lg"></i>
+                                    <span>Sim / Confirmado</span>
+                                </button>
+                                <button type="submit" name="answer" value="no" class="tc-btn tc-btn-secondary">
+                                    <i class="bi bi-x-lg"></i>
+                                    <span>Não / Rejeitado</span>
+                                </button>
+                                <button type="submit" name="answer" value="inconclusive" class="tc-btn tc-btn-secondary">
+                                    <i class="bi bi-question-lg"></i>
+                                    <span>Inconclusivo</span>
+                                </button>
+                            </div>
+                            <div>
+                                <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm text-danger"
+                                        data-bs-toggle="modal" data-bs-target="#modalIgnoreRecommendation">
+                                    <i class="bi bi-skip-forward"></i>
+                                    <span>Ignorar (BR-075)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 2. TIMELINE CRONOLÓGICA DE PASSOS DIAGNÓSTICOS DA SESSÃO -->
+                <div class="tc-card p-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-clock-history text-primary fs-5"></i>
+                            <h3 class="tc-title-section mb-0">Rastreabilidade da Sessão de Diagnóstico</h3>
+                        </div>
+                        <span class="tc-caption text-muted">
+                            @(Model.Timeline?.Steps.Count ?? 0) passos registrados
+                        </span>
+                    </div>
+
+                    @if (Model.Timeline?.Steps.Count == 0)
+                    {
+                        <div class="tc-card p-4 text-center text-muted small bg-light">
+                            <i class="bi bi-play-circle fs-3 d-block mb-2 text-primary"></i>
+                            Nenhum teste registrado para esta sessão ainda. Responda à recomendação acima para registrar a primeira evidência factual.
+                        </div>
+                    }
+                    else
+                    {
+                        @await Html.PartialAsync("Partials/_InvestigationTimeline", Model.Timeline!.Steps)
+                    }
+                </div>
+            </div>
+
+            <!-- COLUNA DA DIREITA: CONTEXTO DO CASO E HIPÓTESES RANQUEADAS (5 COLS) -->
+            <div class="col-lg-5">
+                <!-- CARD: CONTEXTO FACTUAL DO CASO (BR-070) -->
+                <div class="tc-card p-3 mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h4 class="tc-title-section mb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-card-heading text-primary"></i>
+                            <span>Contexto Operacional</span>
+                        </h4>
+                        @await Html.PartialAsync("Partials/_SeverityBadge", Model.CurrentCase.Severity)
+                    </div>
+
+                    <div class="fw-semibold text-dark mb-2">
+                        #@Model.CurrentCase.Id — @(Model.CurrentCase.NormalizedSummary ?? Model.CurrentCase.OriginalReport)
+                    </div>
+
+                    <div class="d-flex flex-column gap-2 small">
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Status do Caso:</span>
+                            @await Html.PartialAsync("Partials/_CaseStatusBadge", Model.CurrentCase.Status)
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Cliente / Conta:</span>
+                            <span class="fw-semibold text-dark">@(Model.CurrentCase.ClientName ?? "Geral")</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Aberto em:</span>
+                            <span class="text-dark">@Model.CurrentCase.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="text-muted small fw-semibold mb-1">Sintomas Reportados:</div>
+                        @if (Model.CurrentCase.Symptoms.Count == 0)
+                        {
+                            <div class="small text-muted fst-italic">Sem sintomas estruturados informados.</div>
+                        }
+                        else
+                        {
+                            <ul class="list-unstyled mb-0 small">
+                                @foreach (var sym in Model.CurrentCase.Symptoms)
+                                {
+                                    <li class="py-1 border-bottom d-flex align-items-center gap-2">
+                                        <i class="bi bi-dot text-danger fs-4"></i>
+                                        <span class="text-dark">@(string.IsNullOrEmpty(sym.SymptomCode) ? sym.SymptomText : $"[{sym.SymptomCode}] {sym.SymptomText}")</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+
+                <!-- CARD: HIPÓTESES RANQUEADAS E PROBABILIDADE CALCULADA -->
+                <div class="tc-card p-3 mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h4 class="tc-title-section mb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-lightbulb text-warning"></i>
+                            <span>Hipóteses sob Análise</span>
+                        </h4>
+                        <span class="tc-caption text-muted">@Model.RankedHypotheses.Count hipóteses ativas</span>
+                    </div>
+                    <p class="tc-caption text-muted mb-3">
+                        Ordenadas pelo grau de probabilidade calculado a partir das evidências factuais coletadas.
+                    </p>
+
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var hyp in Model.RankedHypotheses)
+                        {
+                            <div class="p-3 border rounded @(hyp.Status == "Discarded" ? "bg-light opacity-75" : "bg-white")">
+                                <div class="d-flex align-items-start justify-content-between mb-2 gap-2">
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                            @await Html.PartialAsync("Partials/_InvestigationStatusBadge", hyp.Status)
+                                            <span class="tc-caption text-muted">@hyp.AssociatedComponent</span>
+                                        </div>
+                                        <h5 class="tc-card-title mb-0 fs-6">@hyp.Title</h5>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fw-bold @(hyp.ProbabilityScore > 50 ? "text-success" : (hyp.ProbabilityScore < 10 ? "text-muted" : "text-primary"))">
+                                            @hyp.ProbabilityScore%
+                                        </div>
+                                        <span class="tc-caption text-muted">Probabilidade</span>
+                                    </div>
+                                </div>
+
+                                <!-- BARRA DE PROBABILIDADE -->
+                                <div class="progress mb-2" style="height: 6px;">
+                                    <div class="progress-bar @(hyp.ProbabilityScore > 50 ? "bg-success" : (hyp.ProbabilityScore < 10 ? "bg-secondary" : "bg-primary"))"
+                                         role="progressbar" style="width: @hyp.ProbabilityScore%;"
+                                         aria-valuenow="@hyp.ProbabilityScore" aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+
+                                <p class="small text-muted mb-0">
+                                    @hyp.DiscriminatorSummary
+                                </p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- CARD: AÇÕES RÁPIDAS E CATÁLOGO DE SOLUÇÕES -->
+                <div class="tc-card p-3">
+                    <h4 class="tc-title-section mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-compass text-primary"></i>
+                        <span>Desfechos e Resolução</span>
+                    </h4>
+                    <div class="d-flex flex-column gap-2">
+                        <a asp-page="/Knowledge/Index" class="tc-btn tc-btn-secondary w-100 justify-content-center">
+                            <i class="bi bi-journal-check me-2"></i>
+                            <span>Consultar Catálogo de Soluções (M05)</span>
+                        </a>
+                        <a asp-page="/Cases/Details" asp-route-id="@Model.CurrentCase.Id" class="tc-btn tc-btn-secondary w-100 justify-content-center">
+                            <i class="bi bi-folder2-open me-2"></i>
+                            <span>Retornar ao Dossiê do Caso</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- MODAL: IGNORAR RECOMENDAÇÃO COM JUSTIFICATIVA (BR-075) -->
+<div class="modal fade" id="modalIgnoreRecommendation" tabindex="-1" aria-labelledby="modalIgnoreRecommendationLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content tc-modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title tc-modal-title" id="modalIgnoreRecommendationLabel">
+                        <i class="bi bi-skip-forward me-2 text-warning"></i>Ignorar Recomendação do Motor (BR-075)
+                    </h5>
+                    <p class="tc-caption text-muted mb-0">A política BR-075 exige que a desconsideração seja justificada para auditoria</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" asp-page-handler="IgnoreRecommendation">
+                <input type="hidden" name="caseId" value="@(Model.CurrentCase?.Id ?? 0)" />
+                <input type="hidden" name="questionId" value="@Model.CurrentRecommendation.QuestionId" />
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="ignoreReason" class="tc-form-label">Motivo Técnico para Ignorar a Verificação *</label>
+                        <textarea id="ignoreReason" name="reason" rows="3" class="tc-textarea"
+                                  placeholder="Ex: Acesso temporariamente indisponível ao cluster ou verificação já realizada manualmente em outro console..." required></textarea>
+                    </div>
+                    <div class="tc-alert tc-alert-warning small mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Esta justificativa será salva na linha do tempo diagnóstica do caso e preservará a rastreabilidade da decisão técnica.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">
+                        <i class="bi bi-check2 me-1"></i>
+                        <span>Confirmar e Pular Passo</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

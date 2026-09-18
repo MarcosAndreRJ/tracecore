@@ -1,0 +1,111 @@
+/* ==========================================================================
+   TRACECORE — MODALS
+   Diálogos e modais corporativos. Design sóbrio, sem gradientes distrativos.
+   Acessibilidade: WCAG 2.2 AA (foco, contraste de cabeçalho, contraste de botões).
+   ========================================================================== */
+
+.modal-content.tc-modal-content,
+.tc-modal-content {
+    background-color: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-lg);
+    box-shadow: var(--tc-shadow-lg);
+    overflow: hidden;
+}
+
+.modal-header.tc-modal-header,
+.tc-modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--tc-border-subtle);
+    background-color: var(--tc-bg-surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tc-space-3);
+}
+
+.modal-title.tc-modal-title,
+.tc-modal-title {
+    font-size: var(--tc-text-lg);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+}
+
+.tc-modal-header .btn-close,
+.tc-modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.1rem;
+    color: var(--tc-text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    border-radius: var(--tc-radius-xs);
+    transition: color var(--tc-transition-fast), background-color var(--tc-transition-fast);
+}
+
+.tc-modal-header .btn-close:hover,
+.tc-modal-close:hover {
+    color: var(--tc-text-primary);
+    background-color: var(--tc-bg-muted);
+}
+
+.tc-modal-header .btn-close:focus-visible,
+.tc-modal-close:focus-visible {
+    outline: none;
+    box-shadow: var(--tc-shadow-focus);
+}
+
+.modal-body.tc-modal-body,
+.tc-modal-body {
+    padding: 1.5rem;
+    color: var(--tc-text-body);
+    font-size: var(--tc-text-base);
+    line-height: var(--tc-leading-normal);
+}
+
+.modal-footer.tc-modal-footer,
+.tc-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--tc-border-subtle);
+    background-color: var(--tc-bg-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tc-space-3);
+}
+
+/* -------------------------------------------------------------------------
+   Tamanhos Customizados de Diálogo
+   ------------------------------------------------------------------------- */
+.tc-modal-sm {
+    max-width: 420px;
+}
+
+.tc-modal-md {
+    max-width: 600px;
+}
+
+.tc-modal-lg {
+    max-width: 840px;
+}
+
+.tc-modal-xl {
+    max-width: 1080px;
+}
+
+/* -------------------------------------------------------------------------
+   Modais Destrutivos / Confirmações Críticas
+   ------------------------------------------------------------------------- */
+.tc-modal-danger .tc-modal-header {
+    border-bottom-color: var(--tc-danger-border);
+    background-color: var(--tc-danger-subtle);
+}
+
+.tc-modal-danger .tc-modal-title {
+    color: var(--tc-danger-text);
+}

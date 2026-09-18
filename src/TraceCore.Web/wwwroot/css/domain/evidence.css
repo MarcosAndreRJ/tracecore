@@ -1,0 +1,65 @@
+/* ==========================================================================
+   TRACECORE DOMAIN — EVIDENCE & ARTIFACTS
+   Cartões de evidência, anexos técnicos e logs comprobatórios.
+   ========================================================================== */
+
+.tc-evidence-card {
+    background-color: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-sm);
+    padding: 0.85rem 1rem;
+    box-shadow: var(--tc-shadow-xs);
+    margin-bottom: var(--tc-space-3);
+    transition: border-color var(--tc-transition-fast);
+}
+
+.tc-evidence-card:hover {
+    border-color: var(--tc-border-strong);
+}
+
+.tc-evidence-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tc-space-2);
+    margin-bottom: var(--tc-space-2);
+}
+
+.tc-evidence-type {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tc-space-1);
+    font-size: var(--tc-text-xs);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-secondary);
+}
+
+.tc-evidence-title {
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-primary);
+    margin: 0 0 var(--tc-space-1) 0;
+}
+
+.tc-evidence-content {
+    font-family: var(--tc-font-mono);
+    font-size: 0.75rem;
+    background-color: var(--tc-bg-muted);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-xs);
+    padding: 0.65rem 0.85rem;
+    color: var(--tc-text-body);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.tc-evidence-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--tc-space-2);
+    font-size: 0.7rem;
+    color: var(--tc-text-muted);
+}

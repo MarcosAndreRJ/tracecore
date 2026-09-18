@@ -1,0 +1,34 @@
+@model (string SourceType, string? ReferenceId, string? Author)
+
+@{
+    var icon = (Model.SourceType ?? "").ToLowerInvariant() switch
+    {
+        "ai" => "bi-robot",
+        "case" => "bi-folder2-open",
+        "diagnostic" => "bi-diagram-3",
+        "documentation" => "bi-file-earmark-text",
+        _ => "bi-person-check"
+    };
+
+    var label = (Model.SourceType ?? "").ToLowerInvariant() switch
+    {
+        "ai" => "Gerado por IA (RAG)",
+        "case" => "Derivado de Caso Real",
+        "diagnostic" => "Sessão de Diagnóstico",
+        "documentation" => "Documentação Oficial",
+        _ => "Origem Humana Curada"
+    };
+}
+
+<div class="tc-provenance-tag" title="Proveniência do Conhecimento: @label">
+    <i class="bi @icon" aria-hidden="true"></i>
+    <span>@label</span>
+    @if (!string.IsNullOrEmpty(Model.ReferenceId))
+    {
+        <span class="tc-code-inline ms-1">#@Model.ReferenceId</span>
+    }
+    @if (!string.IsNullOrEmpty(Model.Author))
+    {
+        <span class="ms-1 text-muted">(@Model.Author)</span>
+    }
+</div>

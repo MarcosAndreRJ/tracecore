@@ -1,0 +1,15 @@
+@model string
+
+@{
+    var status = Model ?? "Open";
+    var isResolved = status.Equals("Resolved", StringComparison.OrdinalIgnoreCase);
+    var isOpen = status.Equals("Open", StringComparison.OrdinalIgnoreCase);
+    var badgeClass = isResolved ? "tc-badge-confirmed" : (isOpen ? "tc-badge-open" : "tc-badge-closed");
+    var iconClass = isResolved ? "bi-check2-all" : (isOpen ? "bi-record-circle" : "bi-check-circle");
+    var label = isResolved ? "Resolvido" : (isOpen ? "Aberto" : "Fechado");
+}
+
+<span class="tc-badge @badgeClass" role="status" title="Status do Caso: @label">
+    <i class="bi @iconClass" aria-hidden="true"></i>
+    <span>@label</span>
+</span>

@@ -1,0 +1,51 @@
+/* ==========================================================================
+   TRACECORE — BREADCRUMB
+   Navegação de trilha e hierarquia contextual.
+   Acessibilidade: WCAG 2.2 AA (foco, contraste de estados).
+   ========================================================================== */
+
+.tc-breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--tc-space-1);
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-muted);
+    margin-bottom: var(--tc-space-4);
+    padding: 0;
+    list-style: none;
+}
+
+.tc-breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-1);
+}
+
+.tc-breadcrumb-item + .tc-breadcrumb-item::before {
+    content: '/';
+    color: var(--tc-border-strong);
+    padding: 0 var(--tc-space-1);
+}
+
+.tc-breadcrumb-item a {
+    color: var(--tc-text-muted);
+    text-decoration: none;
+    transition: color var(--tc-transition-fast);
+}
+
+.tc-breadcrumb-item a:hover {
+    color: var(--tc-text-link);
+    text-decoration: none;
+}
+
+.tc-breadcrumb-item a:focus-visible {
+    outline: none;
+    box-shadow: var(--tc-shadow-focus);
+    border-radius: var(--tc-radius-xs);
+}
+
+.tc-breadcrumb-item.active {
+    color: var(--tc-text-body);
+    font-weight: var(--tc-font-medium);
+}

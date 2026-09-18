@@ -1,13 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <ProjectReference Include="..\TraceCore.Domain\TraceCore.Domain.csproj" />
     <ProjectReference Include="..\TraceCore.Application\TraceCore.Application.csproj" />
+    <ProjectReference Include="..\TraceCore.Infrastructure\TraceCore.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>68d6142c-4a22-4349-961c-5428dc5fe60d</UserSecretsId>
   </PropertyGroup>
 
 </Project>

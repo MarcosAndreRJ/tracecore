@@ -1,0 +1,29 @@
+@model (long Id, string Title, string Summary, string Status, string Author, DateTime CreatedAt, bool IsAiSuggested, int ConfidenceScore)
+
+<div class="tc-solution-card @(Model.IsAiSuggested ? "is-ai-suggested" : "")" id="solution-@Model.Id">
+    <div class="tc-solution-header">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                @if (Model.IsAiSuggested)
+                {
+                    @await Html.PartialAsync("Partials/_AIContentBadge", ("Sugerido por IA", "Artigo formulado por inteligência a partir de casos semelhantes"))
+                }
+                @await Html.PartialAsync("Partials/_SolutionValidationStatus", Model.Status)
+                @if (Model.ConfidenceScore > 0)
+                {
+                    @await Html.PartialAsync("Partials/_ConfidenceIndicator", Model.ConfidenceScore)
+                }
+            </div>
+            <h5 class="tc-solution-title">@Model.Title</h5>
+            <div class="tc-solution-meta">
+                <span><i class="bi bi-person me-1"></i>@Model.Author</span>
+                <span><i class="bi bi-clock me-1"></i>@Model.CreatedAt.ToString("dd/MM/yyyy")</span>
+                <span class="tc-provenance-tag"><i class="bi bi-journal-check me-1"></i>M05 Conhecimento</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="tc-solution-body">
+        <p class="mb-0">@Model.Summary</p>
+    </div>
+</div>

@@ -1,0 +1,73 @@
+/* ==========================================================================
+   TRACECORE — FILTERS
+   Barra de filtros e buscas para listagens operacionais (Casos, Usuários, etc.)
+   ========================================================================== */
+
+.tc-filter-bar {
+    background-color: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    padding: 1rem 1.25rem;
+    margin-bottom: var(--tc-space-6);
+    box-shadow: var(--tc-shadow-xs);
+}
+
+.tc-filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--tc-space-3);
+}
+
+.tc-filter-item {
+    flex: 1 1 180px;
+    min-width: 160px;
+}
+
+.tc-filter-item-search {
+    flex: 2 1 280px;
+}
+
+.tc-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+    margin-bottom: 0;
+}
+
+/* Linha de tags com filtros atualmente aplicados */
+.tc-active-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--tc-space-2);
+    margin-top: var(--tc-space-3);
+    padding-top: var(--tc-space-3);
+    border-top: 1px dashed var(--tc-border-subtle);
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-secondary);
+}
+
+.tc-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tc-space-1);
+    background-color: var(--tc-bg-muted);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-full);
+    padding: 0.15rem 0.55rem;
+    color: var(--tc-text-body);
+}
+
+.tc-filter-tag-remove {
+    cursor: pointer;
+    color: var(--tc-text-muted);
+    border: none;
+    background: transparent;
+    padding: 0;
+    line-height: 1;
+}
+
+.tc-filter-tag-remove:hover {
+    color: var(--tc-danger);
+}

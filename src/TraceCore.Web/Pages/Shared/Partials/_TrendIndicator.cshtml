@@ -1,0 +1,25 @@
+@model (decimal? Percentage, string Direction)
+
+@{
+    var dir = (Model.Direction ?? "Neutral").ToLowerInvariant();
+    var trendClass = dir switch
+    {
+        "up" => "trend-up",
+        "down" => "trend-down",
+        _ => "trend-neutral"
+    };
+
+    var icon = dir switch
+    {
+        "up" => "bi-arrow-up-right",
+        "down" => "bi-arrow-down-right",
+        _ => "bi-dash"
+    };
+
+    var val = Model.Percentage.HasValue ? $"{Math.Abs(Model.Percentage.Value):F1}%" : "0%";
+}
+
+<span class="tc-trend-indicator @trendClass" title="Variação em relação ao período anterior">
+    <i class="bi @icon" aria-hidden="true"></i>
+    <span>@val</span>
+</span>

@@ -1,0 +1,155 @@
+/* ==========================================================================
+   TRACECORE — CARDS & STAT CARDS
+   Containers estruturais, superfícies de agrupamento e cartões de métricas.
+   ========================================================================== */
+
+.tc-card {
+    background: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    box-shadow: var(--tc-shadow-xs);
+    margin-bottom: var(--tc-space-6);
+    transition: box-shadow var(--tc-transition-base), border-color var(--tc-transition-base);
+}
+
+.tc-card:hover {
+    box-shadow: var(--tc-shadow-sm);
+}
+
+.tc-card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--tc-border-subtle);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tc-space-3);
+}
+
+.tc-card-title {
+    font-size: var(--tc-text-md);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+}
+
+.tc-card-subtitle {
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-secondary);
+    margin: var(--tc-space-1) 0 0 0;
+}
+
+.tc-card-body {
+    padding: 1.25rem;
+}
+
+.tc-card-footer {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--tc-border-subtle);
+    background: var(--tc-bg-subtle);
+    border-bottom-left-radius: var(--tc-radius-md);
+    border-bottom-right-radius: var(--tc-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Card Interativo / Clicável */
+.tc-card-clickable {
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.tc-card-clickable:hover {
+    border-color: var(--tc-primary);
+    box-shadow: var(--tc-shadow-md);
+    text-decoration: none;
+    color: inherit;
+}
+
+/* -------------------------------------------------------------------------
+   Stat Cards (Dashboard e Resumos Métricos)
+   IsPlaceholder=true → exibe "—" e indicação visual de dado indisponível
+   ------------------------------------------------------------------------- */
+.tc-stat-card {
+    background: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    padding: 1.25rem;
+    box-shadow: var(--tc-shadow-xs);
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: box-shadow var(--tc-transition-base), border-color var(--tc-transition-base);
+}
+
+.tc-stat-card:hover {
+    box-shadow: var(--tc-shadow-sm);
+}
+
+.tc-stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.tc-stat-title {
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+}
+
+.tc-stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--tc-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.tc-stat-icon.primary   { background: var(--tc-primary-subtle);    color: var(--tc-primary); }
+.tc-stat-icon.success   { background: var(--tc-success-subtle);    color: var(--tc-success); }
+.tc-stat-icon.warning   { background: var(--tc-warning-subtle);    color: var(--tc-warning); }
+.tc-stat-icon.danger    { background: var(--tc-danger-subtle);     color: var(--tc-danger); }
+.tc-stat-icon.secondary { background: var(--tc-secondary-subtle);  color: var(--tc-secondary); }
+
+.tc-stat-value {
+    font-size: var(--tc-text-3xl);
+    font-weight: var(--tc-font-bold);
+    color: var(--tc-text-primary);
+    line-height: var(--tc-leading-tight);
+    margin-bottom: 0.25rem;
+}
+
+.tc-stat-footer {
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+    margin-top: var(--tc-space-2);
+}
+
+/* Estado placeholder — métrica não calculada ou indisponível */
+.tc-stat-card.placeholder-card {
+    background: #fafafa;
+    border-style: dashed;
+}
+
+.tc-stat-card.placeholder-card .tc-stat-value {
+    color: var(--tc-text-muted);
+}

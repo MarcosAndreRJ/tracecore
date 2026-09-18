@@ -1,0 +1,37 @@
+@model string
+
+@{
+    var severity = Model ?? "Low";
+    string badgeClass;
+    string iconClass;
+    string label;
+
+    switch (severity.ToLowerInvariant())
+    {
+        case "critical":
+            badgeClass = "tc-badge-critical";
+            iconClass = "bi-exclamation-octagon-fill";
+            label = "Crítica";
+            break;
+        case "high":
+            badgeClass = "tc-badge-high";
+            iconClass = "bi-exclamation-triangle-fill";
+            label = "Alta";
+            break;
+        case "medium":
+            badgeClass = "tc-badge-medium";
+            iconClass = "bi-dash-circle-fill";
+            label = "Média";
+            break;
+        default:
+            badgeClass = "tc-badge-low";
+            iconClass = "bi-info-circle-fill";
+            label = "Baixa";
+            break;
+    }
+}
+
+<span class="tc-badge @badgeClass" role="status" title="Severidade: @label">
+    <i class="bi @iconClass" aria-hidden="true"></i>
+    <span>@label</span>
+</span>

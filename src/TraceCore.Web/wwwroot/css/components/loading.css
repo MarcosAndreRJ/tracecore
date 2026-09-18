@@ -1,0 +1,122 @@
+/* ==========================================================================
+   TRACECORE — LOADING & SKELETONS
+   Indicadores visuais de processamento, skeletons de conteúdo e overlays.
+   Conformidade: WCAG 2.2 AA (respeita prefers-reduced-motion).
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------
+   Spinners
+   ------------------------------------------------------------------------- */
+.tc-spinner {
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+    vertical-align: -0.125em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: tc-spin 0.75s linear infinite;
+}
+
+.tc-spinner-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 1.5px;
+}
+
+.tc-spinner-lg {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-width: 3px;
+}
+
+.tc-spinner-primary {
+    color: var(--tc-primary);
+}
+
+@keyframes tc-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* -------------------------------------------------------------------------
+   Skeletons (Carregamento progressivo de conteúdo)
+   ------------------------------------------------------------------------- */
+.tc-skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--tc-bg-muted) 25%,
+        #e2e8f0 37%,
+        var(--tc-bg-muted) 63%
+    );
+    background-size: 400% 100%;
+    border-radius: var(--tc-radius-xs);
+    animation: tc-skeleton-loading 1.4s ease infinite;
+}
+
+.tc-skeleton-text {
+    height: 0.9rem;
+    margin-bottom: 0.5rem;
+    width: 100%;
+}
+
+.tc-skeleton-text.tc-skeleton-short {
+    width: 60%;
+}
+
+.tc-skeleton-text.tc-skeleton-long {
+    width: 85%;
+}
+
+.tc-skeleton-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+.tc-skeleton-button {
+    height: 34px;
+    width: 110px;
+    border-radius: var(--tc-radius-sm);
+}
+
+@keyframes tc-skeleton-loading {
+    0% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0 50%;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   Loading Overlay (para áreas em atualização)
+   ------------------------------------------------------------------------- */
+.tc-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.75);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tc-space-3);
+    z-index: 10;
+    backdrop-filter: blur(1px);
+    border-radius: inherit;
+}
+
+/* Respeito à preferência de redução de movimento (NFR-007) */
+@media (prefers-reduced-motion: reduce) {
+    .tc-spinner {
+        animation-duration: 2s;
+    }
+    .tc-skeleton {
+        animation: none;
+        background: var(--tc-bg-muted);
+    }
+}

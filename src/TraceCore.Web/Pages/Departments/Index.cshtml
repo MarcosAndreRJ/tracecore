@@ -1,0 +1,254 @@
+@page "/departamentos"
+@model TraceCore.Web.Pages.Departments.IndexModel
+@{
+    ViewData["Title"] = "Estrutura Organizacional - Departamentos";
+    var activeCount = Model.Departments.Count(d => d.Status == "Active");
+    var inactiveCount = Model.Departments.Count(d => d.Status != "Active");
+}
+
+<div class="tc-container-fluid py-3">
+    <!-- BREADCRUMB -->
+    <nav class="tc-breadcrumb mb-3" aria-label="Navegação">
+        <a asp-page="/Index" class="tc-breadcrumb-item">
+            <i class="bi bi-house-door me-1"></i>Início
+        </a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="tc-breadcrumb-item active" aria-current="page">Departamentos</span>
+    </nav>
+
+    <!-- CABEÇALHO DA PÁGINA -->
+    <div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h1 class="tc-title-page mb-0">Estrutura Organizacional & Departamentos</h1>
+                <span class="tc-badge tc-badge-primary">Módulo M02</span>
+                <span class="tc-badge tc-badge-neutral">Mapeamento N:N (BR-002)</span>
+            </div>
+            <p class="tc-subtitle text-muted mb-0">
+                Gestão das unidades de negócio, equipes técnicas e escopo operacional corporativo.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="tc-btn tc-btn-primary" data-bs-toggle="modal" data-bs-target="#createDeptModal">
+                <i class="bi bi-plus-lg"></i>
+                <span>Novo Departamento</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- CARDS DE MÉTRICAS -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-4">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Total de Unidades",
+                Model.Departments.Count.ToString(),
+                "Departamentos cadastrados",
+                "bi-diagram-3",
+                "/departamentos",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Departamentos Ativos",
+                activeCount.ToString(),
+                "Disponíveis para triagem e casos",
+                "bi-check-circle",
+                "/departamentos",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+        <div class="col-12 col-sm-6 col-xl-4">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Departamentos Inativos",
+                inactiveCount.ToString(),
+                "Preservados para histórico",
+                "bi-pause-circle",
+                "/departamentos",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+    </div>
+
+    <!-- MENSAGENS DE FEEDBACK -->
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="tc-alert tc-alert-success mb-4 d-flex align-items-center justify-content-between" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                <span>@Model.SuccessMessage</span>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="tc-alert tc-alert-danger mb-4 d-flex align-items-center justify-content-between" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
+                <span>@Model.ErrorMessage</span>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+        </div>
+    }
+
+    <!-- TABELA DE DEPARTAMENTOS -->
+    <div class="tc-card p-0">
+        <div class="p-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-building text-primary"></i>
+                <h3 class="tc-card-title mb-0 fs-6">Unidades Organizacionais Homologadas</h3>
+            </div>
+            <span class="tc-caption text-muted">@Model.Departments.Count departamento(s)</span>
+        </div>
+
+        @if (Model.Departments.Count == 0)
+        {
+            <div class="p-4">
+                @await Html.PartialAsync("Partials/_EmptyState", (
+                    Title: "Nenhum departamento cadastrado",
+                    Description: "Crie a primeira unidade organizacional para permitir alocação de usuários e encaminhamento de casos.",
+                    Icon: "bi-building-add",
+                    ActionText: "Criar Departamento",
+                    ActionUrl: "#createDeptModal"
+                ))
+            </div>
+        }
+        else
+        {
+            <div class="tc-table-responsive">
+                <table class="tc-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Unidade / Nome</th>
+                            <th>Finalidade / Descrição</th>
+                            <th>Status Operacional</th>
+                            <th class="text-end pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var dept in Model.Departments)
+                        {
+                            <tr>
+                                <td class="ps-4 fw-semibold text-dark">
+                                    <i class="bi bi-folder2 me-2 text-primary"></i>@dept.Name
+                                </td>
+                                <td class="text-muted small">@dept.Description</td>
+                                <td>
+                                    @if (dept.Status == "Active")
+                                    {
+                                        <span class="tc-badge tc-badge-success">
+                                            <i class="bi bi-check-circle me-1"></i>Ativo
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="tc-badge tc-badge-secondary">
+                                            <i class="bi bi-pause-circle me-1"></i>Inativo
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-end pe-4">
+                                    <button class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#editDeptModal-@dept.Id">
+                                        <i class="bi bi-pencil"></i>
+                                        <span>Editar</span>
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- MODAL: EDITAR DEPARTAMENTO -->
+                            <div class="modal fade" id="editDeptModal-@dept.Id" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content tc-modal-content">
+                                        <form method="post" asp-page-handler="Update">
+                                            <div class="modal-header">
+                                                <div>
+                                                    <h5 class="modal-title tc-modal-title">
+                                                        <i class="bi bi-pencil-square me-2 text-primary"></i>Editar Departamento
+                                                    </h5>
+                                                    <p class="tc-caption text-muted mb-0">@dept.Name</p>
+                                                </div>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <input type="hidden" name="id" value="@dept.Id" />
+                                                <div class="mb-3">
+                                                    <label class="tc-form-label">Nome da Unidade *</label>
+                                                    <input type="text" name="name" class="tc-input" value="@dept.Name" required />
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="tc-form-label">Descrição da Finalidade *</label>
+                                                    <textarea name="description" class="tc-textarea" rows="3" required>@dept.Description</textarea>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="tc-form-label">Status Operacional</label>
+                                                    <select name="status" class="tc-select">
+                                                        <option value="Active" selected="@(dept.Status == "Active")">Ativo</option>
+                                                        <option value="Inactive" selected="@(dept.Status == "Inactive")">Inativo</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <button type="submit" class="tc-btn tc-btn-primary">
+                                                    <i class="bi bi-check2 me-1"></i>
+                                                    <span>Salvar Alterações</span>
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- MODAL: CRIAR NOVO DEPARTAMENTO -->
+<div class="modal fade" id="createDeptModal" tabindex="-1" aria-labelledby="createDeptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="Create">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title tc-modal-title" id="createDeptModalLabel">
+                            <i class="bi bi-plus-circle me-2 text-primary"></i>Criar Nova Unidade Organizacional
+                        </h5>
+                        <p class="tc-caption text-muted mb-0">Mapeamento para alocação de especialistas e casos</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="tc-form-label">Nome do Departamento *</label>
+                        <input type="text" name="name" class="tc-input" placeholder="Ex.: Engenharia de Dados ou Suporte N3" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="tc-form-label">Descrição e Atribuições *</label>
+                        <textarea name="description" class="tc-textarea" rows="3" placeholder="Descreva sucintamente as responsabilidades do departamento..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">
+                        <i class="bi bi-check2 me-1"></i>
+                        <span>Salvar Departamento</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

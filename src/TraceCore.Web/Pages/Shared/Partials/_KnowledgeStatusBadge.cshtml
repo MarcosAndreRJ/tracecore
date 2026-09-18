@@ -1,0 +1,46 @@
+@model string
+
+@{
+    var status = Model ?? "Draft";
+    string badgeClass;
+    string iconClass;
+    string label;
+
+    switch (status.ToLowerInvariant())
+    {
+        case "published":
+        case "publicado":
+            badgeClass = "tc-badge-published";
+            iconClass = "bi-check-circle";
+            label = "Publicado";
+            break;
+        case "verified":
+        case "verificado":
+            badgeClass = "tc-badge-verified";
+            iconClass = "bi-shield-check";
+            label = "Verificado";
+            break;
+        case "stale":
+        case "obsoleto":
+            badgeClass = "tc-badge-stale";
+            iconClass = "bi-clock-history";
+            label = "Obsoleto";
+            break;
+        case "deprecated":
+        case "depreciado":
+            badgeClass = "tc-badge-deprecated";
+            iconClass = "bi-x-octagon";
+            label = "Depreciado";
+            break;
+        default:
+            badgeClass = "tc-badge-draft";
+            iconClass = "bi-file-earmark";
+            label = "Rascunho";
+            break;
+    }
+}
+
+<span class="tc-badge @badgeClass" role="status" title="Governança de Conhecimento: @label">
+    <i class="bi @iconClass" aria-hidden="true"></i>
+    <span>@label</span>
+</span>

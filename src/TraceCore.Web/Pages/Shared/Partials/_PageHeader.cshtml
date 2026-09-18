@@ -1,0 +1,23 @@
+@model (string Title, string? Subtitle, string? ActionText, string? ActionUrl, string? ActionIcon)
+
+<div class="tc-page-header">
+    <div>
+        <h1 class="tc-page-header-title">@Model.Title</h1>
+        @if (!string.IsNullOrWhiteSpace(Model.Subtitle))
+        {
+            <p class="tc-page-header-subtitle">@Model.Subtitle</p>
+        }
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Model.ActionText) && !string.IsNullOrWhiteSpace(Model.ActionUrl))
+    {
+        <div>
+            <a href="@Model.ActionUrl" class="tc-btn tc-btn-primary">
+                @if (!string.IsNullOrWhiteSpace(Model.ActionIcon))
+                {
+                    <i class="bi @Model.ActionIcon" aria-hidden="true"></i>
+                }
+                <span>@Model.ActionText</span>
+            </a>
+        </div>
+    }
+</div>

@@ -1,0 +1,89 @@
+/* ==========================================================================
+   TRACECORE — EMPTY STATES
+   Estados vazios claros, informativos e com orientação da próxima ação.
+   ========================================================================== */
+
+.tc-empty-state {
+    text-align: center;
+    padding: 3.5rem 1.5rem;
+    background: var(--tc-bg-surface);
+    border: 1px dashed var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    margin-bottom: var(--tc-space-6);
+}
+
+.tc-empty-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--tc-bg-muted);
+    color: var(--tc-text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    margin-bottom: 1.25rem;
+}
+
+.tc-empty-title {
+    font-size: var(--tc-text-lg);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-primary);
+    margin-bottom: var(--tc-space-2);
+}
+
+.tc-empty-description {
+    font-size: var(--tc-text-base);
+    color: var(--tc-text-secondary);
+    max-width: 460px;
+    margin: 0 auto var(--tc-space-6) auto;
+    line-height: var(--tc-leading-relaxed);
+}
+
+.tc-empty-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tc-space-3);
+    flex-wrap: wrap;
+}
+
+/* -------------------------------------------------------------------------
+   Variante de Falha / Timeout / Erro Operacional
+   ------------------------------------------------------------------------- */
+.tc-empty-state-error {
+    border-color: var(--tc-danger-border);
+    background-color: #fffbfb;
+}
+
+.tc-empty-state-error .tc-empty-icon {
+    background: var(--tc-danger-subtle);
+    color: var(--tc-danger);
+}
+
+.tc-empty-state-error .tc-empty-title {
+    color: var(--tc-danger-text);
+}
+
+/* -------------------------------------------------------------------------
+   Variante Compacta (para uso dentro de tabs secundárias ou cards)
+   ------------------------------------------------------------------------- */
+.tc-empty-state-compact {
+    padding: 2rem 1rem;
+}
+
+.tc-empty-state-compact .tc-empty-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.tc-empty-state-compact .tc-empty-title {
+    font-size: var(--tc-text-md);
+}
+
+.tc-empty-state-compact .tc-empty-description {
+    font-size: var(--tc-text-sm);
+    margin-bottom: var(--tc-space-3);
+}

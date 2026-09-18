@@ -1,0 +1,37 @@
+@model (string Title, string EvidenceType, string Content, string? CollectedBy, DateTime CollectedAt)
+
+@{
+    var typeIcon = (Model.EvidenceType ?? "").ToLowerInvariant() switch
+    {
+        "log" => "bi-file-earmark-code",
+        "dump" => "bi-database",
+        "stacktrace" => "bi-bug",
+        "screenshot" => "bi-image",
+        "network" => "bi-hdd-network",
+        _ => "bi-paperclip"
+    };
+}
+
+<div class="tc-evidence-card">
+    <div class="tc-evidence-header">
+        <div class="tc-evidence-type">
+            <i class="bi @typeIcon" aria-hidden="true"></i>
+            <span>@Model.EvidenceType</span>
+        </div>
+        <span class="tc-code-inline small">Evidência Comprobatória</span>
+    </div>
+
+    <h6 class="tc-evidence-title">@Model.Title</h6>
+
+    <div class="tc-evidence-content">@Model.Content</div>
+
+    <div class="tc-evidence-footer">
+        <span>
+            @if (!string.IsNullOrEmpty(Model.CollectedBy))
+            {
+                <i class="bi bi-person me-1"></i>@Model.CollectedBy
+            }
+        </span>
+        <span><i class="bi bi-clock me-1"></i>@Model.CollectedAt.ToString("dd/MM/yyyy HH:mm")</span>
+    </div>
+</div>

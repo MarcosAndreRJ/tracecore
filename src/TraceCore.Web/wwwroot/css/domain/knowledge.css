@@ -1,0 +1,137 @@
+/* ==========================================================================
+   TRACECORE DOMAIN — KNOWLEDGE & SOLUTIONS (M05)
+   Cards de soluções, governança do conhecimento, proveniência e IA.
+   REGRA CRÍTICA: Nunca misturar visualmente conhecimento validado,
+   histórico e sugestão de IA.
+   ========================================================================== */
+
+.tc-solution-card {
+    background-color: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    padding: 1.25rem;
+    box-shadow: var(--tc-shadow-xs);
+    margin-bottom: var(--tc-space-4);
+    position: relative;
+    transition: box-shadow var(--tc-transition-fast), border-color var(--tc-transition-fast);
+}
+
+.tc-solution-card:hover {
+    box-shadow: var(--tc-shadow-sm);
+    border-color: var(--tc-border-strong);
+}
+
+/* Solução sugerida por IA: tratamento visual inconfundível */
+.tc-solution-card.is-ai-suggested {
+    border-color: #ddd6fe;
+    background-color: #faf5ff;
+}
+
+.tc-solution-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--tc-space-3);
+    margin-bottom: var(--tc-space-3);
+}
+
+.tc-solution-title {
+    font-size: var(--tc-text-md);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-primary);
+    margin: 0 0 var(--tc-space-1) 0;
+}
+
+.tc-solution-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--tc-space-2);
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-secondary);
+}
+
+.tc-solution-body {
+    font-size: var(--tc-text-sm);
+    color: var(--tc-text-body);
+    line-height: var(--tc-leading-relaxed);
+    margin-bottom: var(--tc-space-3);
+}
+
+/* -------------------------------------------------------------------------
+   Proveniência e Referência de Origem
+   ------------------------------------------------------------------------- */
+.tc-provenance-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tc-space-1);
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--tc-radius-xs);
+    background-color: var(--tc-bg-muted);
+    border: 1px solid var(--tc-border);
+    color: var(--tc-text-secondary);
+}
+
+.tc-source-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tc-space-1);
+    font-size: 0.7rem;
+    font-family: var(--tc-font-mono);
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--tc-radius-xs);
+    background-color: var(--tc-bg-subtle);
+    border: 1px solid var(--tc-border);
+    color: var(--tc-text-body);
+}
+
+/* -------------------------------------------------------------------------
+   Badge de Conteúdo Gerado/Sugerido por IA (M11)
+   ------------------------------------------------------------------------- */
+.tc-ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    font-weight: var(--tc-font-semibold);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--tc-radius-full);
+    background-color: #f5f3ff;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+    letter-spacing: 0.02em;
+}
+
+.tc-ai-badge i {
+    font-size: 0.75rem;
+}
+
+/* -------------------------------------------------------------------------
+   Indicador de Confiança / Score
+   ------------------------------------------------------------------------- */
+.tc-confidence-meter {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-secondary);
+}
+
+.tc-confidence-bar {
+    width: 60px;
+    height: 6px;
+    border-radius: var(--tc-radius-full);
+    background-color: var(--tc-border);
+    overflow: hidden;
+}
+
+.tc-confidence-fill {
+    height: 100%;
+    background-color: var(--tc-primary);
+    border-radius: var(--tc-radius-full);
+}
+
+.tc-confidence-fill.high { background-color: var(--tc-success); }
+.tc-confidence-fill.medium { background-color: var(--tc-warning); }
+.tc-confidence-fill.low { background-color: var(--tc-danger); }

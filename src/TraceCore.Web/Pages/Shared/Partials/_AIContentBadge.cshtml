@@ -1,0 +1,6 @@
+@model (string? Label, string? Tooltip)
+
+<span class="tc-ai-badge" role="status" title="@(Model.Tooltip ?? "Conteúdo formulado por Inteligência Assistiva do TraceCore (M11)")">
+    <i class="bi bi-stars" aria-hidden="true"></i>
+    <span>@(Model.Label ?? "Sugerido por IA")</span>
+</span>

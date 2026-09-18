@@ -1,0 +1,382 @@
+@page
+@model TraceCore.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = Model.IsUserAuthenticated ? "Cockpit Operacional - TraceCore" : "TraceCore - Acesso Corporativo";
+}
+
+@if (!Model.IsUserAuthenticated)
+{
+    <!-- Visual Institucional Limpo para Visitante Não Autenticado -->
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-5 text-center">
+                <div class="tc-card p-5 shadow-sm border">
+                    <div class="mb-4">
+                        <div class="tc-avatar mx-auto mb-3" style="width: 52px; height: 52px; font-size: 1.4rem;">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <h2 class="tc-title-page mb-1">Trace<span class="text-primary">Core</span></h2>
+                        <p class="tc-caption text-muted">Plataforma Corporativa de Conhecimento, Diagnóstico e Lições Aprendidas</p>
+                    </div>
+
+                    <p class="tc-body text-secondary mb-4">
+                        Ambiente corporativo centralizado para rastreabilidade de diagnósticos,
+                        investigação técnica e reaproveitamento de conhecimento operacional.
+                    </p>
+
+                    <div class="d-grid mb-4">
+                        <a asp-page="/Login" class="tc-btn tc-btn-primary tc-btn-lg">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            <span>Acessar Plataforma</span>
+                        </a>
+                    </div>
+
+                    <div class="pt-3 border-top text-muted small">
+                        <i class="bi bi-lock me-1"></i>Acesso restrito a colaboradores autorizados • BR-101
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- COCKPIT OPERACIONAL (Usuário Autenticado) -->
+    <div class="tc-breadcrumb">
+        <span class="tc-breadcrumb-item"><a asp-page="/Index">Início</a></span>
+        <span class="tc-breadcrumb-item active">Cockpit Operacional</span>
+    </div>
+
+    <!-- Cabeçalho da Página com Ações Rápidas -->
+    <div class="tc-page-header">
+        <div>
+            <h1 class="tc-page-header-title">
+                <i class="bi bi-speedometer2 text-primary" aria-hidden="true"></i>
+                <span>Cockpit Operacional</span>
+            </h1>
+            <p class="tc-page-header-subtitle">Visão consolidada de incidentes, investigações técnicas e saúde do ecossistema</p>
+        </div>
+
+        <!-- Ações Rápidas Corporativas -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a asp-page="/Cases/Create" class="tc-btn tc-btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                <span>Abrir Caso</span>
+            </a>
+
+            @if (Model.NextDiagnosisCaseId.HasValue)
+            {
+                <a asp-page="/Cases/Details" asp-route-id="@Model.NextDiagnosisCaseId.Value" class="tc-btn tc-btn-secondary"
+                   title="Diagnosticar caso prioritário em aberto">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Diagnosticar Caso</span>
+                </a>
+            }
+            else
+            {
+                <a asp-page="/Cases/Index" class="tc-btn tc-btn-secondary" title="Ver listagem de casos para diagnóstico">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Diagnosticar Caso</span>
+                </a>
+            }
+
+            <a asp-page="/Search" class="tc-btn tc-btn-secondary">
+                <i class="bi bi-search"></i>
+                <span>Pesquisar Conhecimento</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Grid de KPIs Operacionais (Regra de KPI: Drill-down real ou aviso de preparação) -->
+    <div class="row g-3 mb-4">
+        <!-- 1. Casos Abertos -->
+        <div class="col-sm-6 col-lg-3">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Casos Abertos",
+                Model.OpenCasesCount.ToString(),
+                "Ver todos os casos abertos",
+                "bi-folder2-open",
+                "/Cases/Index?status=Open",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+
+        <!-- 2. Casos Críticos -->
+        <div class="col-sm-6 col-lg-3">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Casos Críticos",
+                Model.CriticalCasesCount.ToString(),
+                "Severidade máxima pendente",
+                "bi-exclamation-octagon",
+                "/Cases/Index?severity=Critical",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+
+        <!-- 3. Em Investigação -->
+        <div class="col-sm-6 col-lg-3">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Em Investigação",
+                Model.InInvestigationCount.ToString(),
+                "Hipóteses técnicas ativas",
+                "bi-arrow-repeat",
+                "/Cases/Index?status=Open",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+
+        <!-- 4. Aguardando Ação -->
+        <div class="col-sm-6 col-lg-3">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Aguardando Triagem",
+                Model.AwaitingActionCount.ToString(),
+                "Sem hipótese formulada",
+                "bi-hourglass-split",
+                "/Cases/Index?status=Open",
+                true,
+                false,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+    </div>
+
+    <!-- Indicadores Secundários / Governança (Fase 5 - Dados ainda não disponíveis) -->
+    <div class="row g-3 mb-4">
+        <!-- 5. Resolvidos no Período -->
+        <div class="col-sm-6 col-lg-4">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Resolvidos no Período",
+                "—",
+                "case_resolutions (Fase 5)",
+                "bi-check-circle",
+                (string?)null,
+                false,
+                true,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+
+        <!-- 6. MTTR Médio -->
+        <div class="col-sm-6 col-lg-4">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "MTTR Médio de Resolução",
+                "—",
+                "Métrica temporal em desenvolvimento",
+                "bi-stopwatch",
+                (string?)null,
+                false,
+                true,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+
+        <!-- 7. Taxa de Reincidência -->
+        <div class="col-sm-6 col-lg-4">
+            @await Html.PartialAsync("Partials/_MetricCard", (
+                "Taxa de Reincidência",
+                "—",
+                "BR-030 Correlação em desenvolvimento",
+                "bi-repeat",
+                (string?)null,
+                false,
+                true,
+                (decimal?)null,
+                "Neutral"
+            ))
+        </div>
+    </div>
+
+    <!-- Linha de Operação: Fila de Casos e Diagnóstico do Ecossistema -->
+    <div class="row g-4">
+        <!-- Coluna Esquerda: Casos Recentes em Fila Operacional -->
+        <div class="col-lg-8">
+            <div class="tc-card mb-4">
+                <div class="tc-card-header">
+                    <h3 class="tc-card-title">
+                        <i class="bi bi-clock-history text-secondary"></i>
+                        <span>Fila de Casos Recentes em Aberto</span>
+                    </h3>
+                    <a asp-page="/Cases/Index" class="tc-btn tc-btn-ghost tc-btn-sm">
+                        <span>Ver todos os casos</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="tc-card-body p-0">
+                    @if (Model.RecentCases.Count == 0)
+                    {
+                        <div class="p-4">
+                            @await Html.PartialAsync("Partials/_EmptyState", (
+                                "Nenhum caso pendente",
+                                "Não há casos abertos aguardando atendimento no momento.",
+                                "bi-check2-circle",
+                                "Abrir Novo Caso",
+                                "/Cases/Create"
+                            ))
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="tc-table-responsive border-0 rounded-0 shadow-none mb-0">
+                            <table class="tc-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 100px;">Caso</th>
+                                        <th>Descrição / Resumo</th>
+                                        <th style="width: 140px;">Sistema</th>
+                                        <th style="width: 110px;">Severidade</th>
+                                        <th style="width: 100px;">Data</th>
+                                        <th class="tc-table-col-actions">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var c in Model.RecentCases)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <span class="tc-code-inline fw-semibold">#@c.CaseNumber</span>
+                                            </td>
+                                            <td>
+                                                <a asp-page="/Cases/Details" asp-route-id="@c.Id"
+                                                   class="fw-semibold text-dark text-decoration-none hover-primary d-block tc-truncate"
+                                                   style="max-width: 320px;" title="@c.Title">
+                                                    @c.Title
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <span class="tc-source-chip">
+                                                    <i class="bi bi-laptop"></i>
+                                                    <span>@c.SystemName</span>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @await Html.PartialAsync("Partials/_SeverityBadge", c.Severity)
+                                            </td>
+                                            <td class="tc-caption text-muted">
+                                                @c.OpenedAt.ToString("dd/MM HH:mm")
+                                            </td>
+                                            <td class="tc-table-col-actions">
+                                                <a asp-page="/Cases/Details" asp-route-id="@c.Id"
+                                                   class="tc-btn tc-btn-ghost tc-btn-icon tc-btn-sm"
+                                                   title="Abrir detalhes do caso">
+                                                    <i class="bi bi-chevron-right"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Visão de Dependências do Ecossistema (Fase 2 / M03) -->
+            <div class="tc-card">
+                <div class="tc-card-header">
+                    <h3 class="tc-card-title">
+                        <i class="bi bi-diagram-2 text-secondary"></i>
+                        <span>Cadeia de Dependência Ativa (Ecossistema)</span>
+                    </h3>
+                    <span class="tc-badge tc-badge-verified">Monitoramento Ativo</span>
+                </div>
+                <div class="tc-card-body">
+                    <p class="tc-caption text-secondary mb-2">
+                        Rastreabilidade estrutural de ponta a ponta do catálogo de sistemas, serviços e persistência:
+                    </p>
+                    @* Bloco 7.A.2: Religar card de topologia a dados reais de component_dependencies *@
+                    @await Html.PartialAsync("Partials/_SystemDependencyGraph", Model.ActiveDependencies)
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Direita: Sistemas com Maior Incidência & Conhecimento Reutilizável -->
+        <div class="col-lg-4">
+            <!-- Sistemas com Maior Número de Ocorrências (Dado Real Agrupado) -->
+            <div class="tc-card mb-4">
+                <div class="tc-card-header">
+                    <h3 class="tc-card-title">
+                        <i class="bi bi-cpu text-secondary"></i>
+                        <span>Sistemas Críticos</span>
+                    </h3>
+                    <span class="tc-caption text-muted">Por incidência</span>
+                </div>
+                <div class="tc-card-body p-0">
+                    @if (Model.TopSystems.Count == 0)
+                    {
+                        <div class="p-3 text-center text-muted small">
+                            Nenhuma ocorrência associada a sistemas ainda.
+                        </div>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush small">
+                            @foreach (var sys in Model.TopSystems)
+                            {
+                                <li class="list-group-item d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                                    <div>
+                                        <div class="fw-semibold text-dark">@sys.SystemName</div>
+                                        <div class="text-muted" style="font-size: 0.72rem;">@sys.Count registro(s) associado(s)</div>
+                                    </div>
+                                    <div>
+                                        @if (sys.Status == "Atenção Crítica")
+                                        {
+                                            <span class="tc-badge tc-badge-critical tc-badge-sm">Atenção</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="tc-badge tc-badge-low tc-badge-sm">Estável</span>
+                                        }
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+
+            <!-- Conhecimento e Soluções em Destaque (Placeholder de Governança M05) -->
+            <div class="tc-card">
+                <div class="tc-card-header">
+                    <h3 class="tc-card-title">
+                        <i class="bi bi-lightbulb text-secondary"></i>
+                        <span>Base de Conhecimento (M05)</span>
+                    </h3>
+                    @await Html.PartialAsync("Partials/_AIContentBadge", ("RAG / Assistivo", "Módulo de Inteligência em Preparação"))
+                </div>
+                <div class="tc-card-body">
+                    <div class="tc-alert tc-alert-info mb-3">
+                        <i class="bi bi-info-circle tc-alert-icon" aria-hidden="true"></i>
+                        <div class="tc-alert-content">
+                            <div class="tc-alert-title">Reutilização de Lições</div>
+                            Conhecimentos catalogados e soluções validadas serão sugeridos automaticamente conforme novos casos são diagnosticados.
+                        </div>
+                    </div>
+
+                    @await Html.PartialAsync("Partials/_SolutionCard", (
+                        1L,
+                        "Timeout intermitente em sincronização de banco",
+                        "Ajuste de timeout de conexão e expansão do pool de conexões do pool de persistência.",
+                        "Validada",
+                        "Time de Infraestrutura",
+                        DateTime.UtcNow.AddDays(-5),
+                        false,
+                        95
+                    ))
+                </div>
+            </div>
+        </div>
+    </div>
+}

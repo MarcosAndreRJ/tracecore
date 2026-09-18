@@ -1,0 +1,15 @@
+@model int
+
+@{
+    var score = Math.Clamp(Model, 0, 100);
+    var level = score >= 75 ? "high" : score >= 45 ? "medium" : "low";
+    var label = score >= 75 ? "Alta" : score >= 45 ? "Média" : "Baixa";
+}
+
+<div class="tc-confidence-meter" title="Índice de Confiança: @score% (@label)">
+    <span class="tc-caption">Confiança:</span>
+    <div class="tc-confidence-bar">
+        <div class="tc-confidence-fill @level" style="width: @score%;"></div>
+    </div>
+    <span class="tc-caption fw-semibold">@score%</span>
+</div>

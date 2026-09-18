@@ -1,0 +1,74 @@
+/* ==========================================================================
+   TRACECORE — TABS
+   Navegação por abas em formulários complexos, detalhes de casos e investigações.
+   Acessibilidade: WCAG 2.2 AA (foco visível, contraste do item ativo).
+   ========================================================================== */
+
+.tc-tabs {
+    margin-bottom: var(--tc-space-6);
+}
+
+.tc-tabs-nav {
+    display: flex;
+    flex-wrap: wrap;
+    padding-left: 0;
+    margin-bottom: 0;
+    list-style: none;
+    border-bottom: 1px solid var(--tc-border);
+    gap: var(--tc-space-4);
+}
+
+.tc-tab-item {
+    margin-bottom: -1px;
+}
+
+.tc-tab-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tc-space-2);
+    padding: 0.75rem 0.5rem;
+    font-size: var(--tc-text-sm);
+    font-weight: var(--tc-font-medium);
+    color: var(--tc-text-secondary);
+    text-decoration: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: color var(--tc-transition-fast), border-color var(--tc-transition-fast);
+}
+
+.tc-tab-link:hover {
+    color: var(--tc-text-primary);
+    text-decoration: none;
+}
+
+.tc-tab-link:focus-visible {
+    outline: none;
+    border-radius: var(--tc-radius-xs);
+    box-shadow: var(--tc-shadow-focus);
+}
+
+.tc-tab-link.active {
+    color: var(--tc-primary);
+    font-weight: var(--tc-font-semibold);
+    border-bottom-color: var(--tc-primary);
+}
+
+.tc-tab-badge {
+    font-size: 0.7rem;
+    font-weight: var(--tc-font-semibold);
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--tc-radius-full);
+    background-color: var(--tc-bg-muted);
+    color: var(--tc-text-secondary);
+}
+
+.tc-tab-link.active .tc-tab-badge {
+    background-color: var(--tc-primary-subtle);
+    color: var(--tc-primary-text);
+}
+
+.tc-tab-content {
+    padding-top: var(--tc-space-4);
+}

@@ -1,0 +1,250 @@
+@page
+@model TraceCore.Web.Pages.Cases.CreateModel
+@{
+    ViewData["Title"] = "Abertura de Ocorrência — TraceCore";
+}
+
+<div class="tc-container-fluid py-3">
+    <!-- BREADCRUMB -->
+    <nav class="tc-breadcrumb mb-3" aria-label="Navegação">
+        <a asp-page="/Index" class="tc-breadcrumb-item">
+            <i class="bi bi-house-door me-1"></i>Início
+        </a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <a asp-page="/Cases/Index" class="tc-breadcrumb-item">Casos</a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="tc-breadcrumb-item active" aria-current="page">Nova Ocorrência</span>
+    </nav>
+
+    <!-- CABEÇALHO DA PÁGINA -->
+    <div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h1 class="tc-title-page mb-0">Abertura de Caso / Ocorrência Técnica</h1>
+                <span class="tc-badge tc-badge-primary">Módulo M03</span>
+                <span class="tc-badge tc-badge-neutral">Fase 3</span>
+            </div>
+            <p class="tc-subtitle text-muted mb-0">
+                Registro factual primário da ocorrência. Apenas a descrição é estritamente obrigatória para abertura imediata (BR-022).
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a asp-page="/Cases/Index" class="tc-btn tc-btn-secondary tc-btn-sm">
+                <i class="bi bi-arrow-left"></i>
+                <span>Voltar para Lista de Casos</span>
+            </a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="tc-alert tc-alert-danger mb-4 d-flex align-items-center justify-content-between" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
+                <span><strong>Erro ao registrar caso:</strong> @Model.ErrorMessage</span>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+        </div>
+    }
+
+    <form method="post" enctype="multipart/form-data" class="needs-validation">
+        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+        <div class="row justify-content-center">
+            <div class="col-12 col-xl-10">
+                <!-- 1. RELATO ORIGINAL (BR-020) -->
+                <div class="tc-card p-4 mb-4 border-primary">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-primary rounded-pill px-2 py-1">1</span>
+                        <h3 class="tc-title-section mb-0">Relato Original da Ocorrência *</h3>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.OriginalReport" class="tc-form-label">
+                            Descrição Detalhada do Relato <span class="text-danger">*</span>
+                        </label>
+                        <textarea asp-for="Input.OriginalReport" class="tc-textarea font-monospace" rows="5"
+                                  placeholder="Descreva exatamente o que foi relatado pelo cliente ou identificado pelo operador..." required></textarea>
+                        <span asp-validation-for="Input.OriginalReport" class="text-danger small"></span>
+                        <div class="tc-form-text text-muted mt-2 small">
+                            <i class="bi bi-shield-lock text-primary me-1"></i>
+                            <strong>Imutabilidade Primária (Regra BR-020):</strong> Este relato original é a base fática da investigação e é estritamente imutável após a criação para garantir rastreabilidade pericial.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. CONTEXTO TÉCNICO E CLIENTE (BR-022) -->
+                <div class="tc-card p-4 mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary rounded-pill px-2 py-1">2</span>
+                            <h3 class="tc-title-section mb-0">Contexto Técnico e Cliente</h3>
+                        </div>
+                        <span class="tc-caption text-muted">Opcional para abertura rápida (BR-022)</span>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.ClientId" class="tc-form-label">Cliente / Conta Impactada</label>
+                            <select asp-for="Input.ClientId" class="tc-select">
+                                <option value="">-- Cliente não informado / Desconhecido --</option>
+                                @foreach (var c in Model.Clients)
+                                {
+                                    <option value="@c.Id">@c.Code — @c.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.ProductId" class="tc-form-label">Sistema / Produto Principal</label>
+                            <select asp-for="Input.ProductId" class="tc-select">
+                                <option value="">-- Produto não informado --</option>
+                                @foreach (var p in Model.Products)
+                                {
+                                    <option value="@p.Id">@p.Code — @p.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.EnvironmentId" class="tc-form-label">Ambiente da Ocorrência</label>
+                            <select asp-for="Input.EnvironmentId" class="tc-select">
+                                <option value="">-- Ambiente não informado --</option>
+                                @foreach (var e in Model.Environments)
+                                {
+                                    <option value="@e.Id">@e.Name (@e.EnvironmentType)</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.ProductVersionId" class="tc-form-label">Identificador de Versão</label>
+                            <input asp-for="Input.ProductVersionId" type="number" class="tc-input" placeholder="ID da versão (se conhecido)" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. COMPONENTES AFETADOS (BR-023: Múltiplos) -->
+                <div class="tc-card p-4 mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary rounded-pill px-2 py-1">3</span>
+                            <h3 class="tc-title-section mb-0">Módulos & Componentes Suspeitos (BR-023)</h3>
+                        </div>
+                        <span class="tc-caption text-muted">Vínculo N:N homologado</span>
+                    </div>
+                    <p class="tc-caption text-muted mb-3">
+                        Selecione um ou mais componentes suspeitos. Em conformidade com a regra BR-023, um caso pode afetar múltiplos componentes simultaneamente.
+                    </p>
+
+                    <div class="row g-2">
+                        @foreach (var comp in Model.AvailableComponents)
+                        {
+                            <div class="col-md-6 col-lg-4">
+                                <div class="p-2 border rounded bg-light">
+                                    <div class="tc-check-group">
+                                        <input class="tc-check-input" type="checkbox"
+                                               name="Input.SelectedComponentIds" value="@comp.Id" id="comp_@comp.Id" />
+                                        <label class="tc-check-label flex-grow-1" for="comp_@comp.Id">
+                                            <strong class="text-dark">@comp.Name</strong>
+                                            <div class="tc-caption text-muted">Tipo: @comp.ComponentType</div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- 4. CLASSIFICAÇÃO OPERACIONAL -->
+                <div class="tc-card p-4 mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-secondary rounded-pill px-2 py-1">4</span>
+                        <h3 class="tc-title-section mb-0">Classificação & Gravidade Operacional</h3>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.Severity" class="tc-form-label">Prioridade / Severidade *</label>
+                            <select asp-for="Input.Severity" class="tc-select">
+                                <option value="Low">Baixa (Sem impacto direto no serviço)</option>
+                                <option value="Medium" selected>Média (Degradação parcial com contorno)</option>
+                                <option value="High">Alta (Indisponibilidade funcional relevante)</option>
+                                <option value="Critical">Crítica (Interrupção total / Incidente P1)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.ImpactLevel" class="tc-form-label">Abrangência do Impacto</label>
+                            <select asp-for="Input.ImpactLevel" class="tc-select">
+                                <option value="">-- Não classificado --</option>
+                                <option value="Pontual">Pontual (um usuário / transação isolada)</option>
+                                <option value="Setorial">Setorial (equipe / filial afetada)</option>
+                                <option value="Corporativo">Corporativo (interrupção ampla do serviço)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. DIAGNÓSTICO PRELIMINAR E SINTOMAS -->
+                <div class="tc-card p-4 mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-secondary rounded-pill px-2 py-1">5</span>
+                        <h3 class="tc-title-section mb-0">Sintomas & Códigos de Erro</h3>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="Input.ErrorCode" class="tc-form-label">Código de Erro Técnico</label>
+                            <input asp-for="Input.ErrorCode" class="tc-input font-monospace" placeholder="Ex: ERR-504, HTTP 504" />
+                        </div>
+                        <div class="col-md-8">
+                            <label asp-for="Input.ErrorErrorMessage" class="tc-form-label">Mensagem de Exceção ou Log Resumido</label>
+                            <input asp-for="Input.ErrorErrorMessage" class="tc-input font-monospace" placeholder="Ex: Connection pool timeout expired after 30000ms..." />
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.SymptomText" class="tc-form-label">Sintoma Observado em Linguagem Natural</label>
+                            <input asp-for="Input.SymptomText" class="tc-input" placeholder="Ex: Gateway trava sob pico e requisições retornam timeout sem resposta..." />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. EVIDÊNCIAS E ANEXOS (STORAGE SEGURO) -->
+                <div class="tc-card p-4 mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary rounded-pill px-2 py-1">6</span>
+                            <h3 class="tc-title-section mb-0">Evidências Iniciais & Anexo de Arquivo</h3>
+                        </div>
+                        <span class="tc-caption text-muted">Storage Seguro com SHA-256</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.EvidenceDescription" class="tc-form-label">Observação Factual / Evidência Textual</label>
+                        <input asp-for="Input.EvidenceDescription" class="tc-input" placeholder="Ex: Print do painel de monitoramento Grafana mostrando saturation a 99%..." />
+                    </div>
+
+                    <div class="mb-2">
+                        <label asp-for="Input.AttachmentFile" class="tc-form-label">Anexar Arquivo de Apoio (Log, Screenshot ou Relatório)</label>
+                        <input asp-for="Input.AttachmentFile" type="file" class="tc-input" />
+                        <div class="tc-form-text text-muted mt-1 small">
+                            Formatos permitidos: imagens (.png, .jpg, .webp), logs (.log, .txt), documentos (.pdf, .json, .csv, .zip). Limite de 25 MB por arquivo.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AÇÕES FINAIS -->
+                <div class="d-flex align-items-center justify-content-end gap-2 mb-5">
+                    <a asp-page="/Cases/Index" class="tc-btn tc-btn-secondary">Cancelar</a>
+                    <button type="submit" class="tc-btn tc-btn-primary tc-btn-lg">
+                        <i class="bi bi-check2-circle me-1"></i>
+                        <span>Confirmar e Abrir Caso</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,38 @@
+@model string
+
+@{
+    var status = Model ?? "NotStarted";
+    string badgeClass;
+    string iconClass;
+    string label;
+
+    switch (status.ToLowerInvariant())
+    {
+        case "inprogress":
+        case "ininvestigation":
+            badgeClass = "tc-badge-supported";
+            iconClass = "bi-arrow-repeat";
+            label = "Em Investigação";
+            break;
+        case "completed":
+            badgeClass = "tc-badge-confirmed";
+            iconClass = "bi-check2-all";
+            label = "Concluída";
+            break;
+        case "suspended":
+            badgeClass = "tc-badge-discarded";
+            iconClass = "bi-pause-circle";
+            label = "Suspensa";
+            break;
+        default:
+            badgeClass = "tc-badge-draft";
+            iconClass = "bi-hourglass";
+            label = "Não Iniciada";
+            break;
+    }
+}
+
+<span class="tc-badge @badgeClass" role="status" title="Status da Investigação: @label">
+    <i class="bi @iconClass" aria-hidden="true"></i>
+    <span>@label</span>
+</span>

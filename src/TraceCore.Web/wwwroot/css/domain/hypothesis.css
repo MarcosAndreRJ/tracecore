@@ -1,0 +1,134 @@
+/* ==========================================================================
+   TRACECORE DOMAIN — HYPOTHESIS
+   Card e estados de hipótese técnica (M04).
+   Vocabulário oficial: Proposed, Discarded, Supported.
+   (Nota de domínio: "Confirmada" é restrito à causa raiz na Fase 5).
+   ========================================================================== */
+
+.tc-hypothesis-card {
+    background-color: var(--tc-bg-surface);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-md);
+    box-shadow: var(--tc-shadow-xs);
+    margin-bottom: var(--tc-space-4);
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow var(--tc-transition-base), border-color var(--tc-transition-base);
+}
+
+.tc-hypothesis-card:hover {
+    box-shadow: var(--tc-shadow-sm);
+}
+
+/* Indicador lateral sutil de status */
+.tc-hypothesis-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 4px;
+    background-color: var(--tc-border-strong);
+}
+
+.tc-hypothesis-card.status-proposed::before {
+    background-color: var(--tc-warning);
+}
+
+.tc-hypothesis-card.status-supported::before {
+    background-color: var(--tc-primary);
+}
+
+.tc-hypothesis-card.status-discarded::before {
+    background-color: var(--tc-secondary);
+}
+
+.tc-hypothesis-header {
+    padding: 1rem 1.25rem 0.75rem 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--tc-space-3);
+    border-bottom: 1px solid var(--tc-border-subtle);
+}
+
+.tc-hypothesis-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tc-space-1);
+}
+
+.tc-hypothesis-title {
+    font-size: var(--tc-text-md);
+    font-weight: var(--tc-font-semibold);
+    color: var(--tc-text-primary);
+    margin: 0;
+    line-height: var(--tc-leading-snug);
+}
+
+.tc-hypothesis-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--tc-space-2);
+    font-size: var(--tc-text-xs);
+    color: var(--tc-text-secondary);
+}
+
+.tc-hypothesis-body {
+    padding: 1rem 1.25rem 1rem 1.5rem;
+}
+
+.tc-hypothesis-desc {
+    font-size: var(--tc-text-sm);
+    color: var(--tc-text-body);
+    line-height: var(--tc-leading-relaxed);
+    margin-bottom: var(--tc-space-3);
+}
+
+/* Bloco de Justificativa / Conclusão Técnica */
+.tc-hypothesis-justification {
+    padding: 0.75rem 1rem;
+    border-radius: var(--tc-radius-sm);
+    font-size: var(--tc-text-xs);
+    line-height: var(--tc-leading-normal);
+    margin-bottom: var(--tc-space-3);
+    border: 1px solid transparent;
+}
+
+.tc-hypothesis-card.status-supported .tc-hypothesis-justification {
+    background-color: var(--tc-primary-subtle);
+    border-color: var(--tc-info-border);
+    color: var(--tc-primary-text);
+}
+
+.tc-hypothesis-card.status-discarded .tc-hypothesis-justification {
+    background-color: var(--tc-bg-muted);
+    border-color: var(--tc-border);
+    color: var(--tc-text-secondary);
+}
+
+.tc-hypothesis-card.status-proposed .tc-hypothesis-justification {
+    background-color: var(--tc-warning-subtle);
+    border-color: var(--tc-warning-border);
+    color: var(--tc-warning-text);
+}
+
+/* Lista de Passos / Testes Vinculados */
+.tc-hypothesis-steps-section {
+    margin-top: var(--tc-space-3);
+    padding-top: var(--tc-space-3);
+    border-top: 1px dashed var(--tc-border-subtle);
+}
+
+.tc-hypothesis-steps-title {
+    font-size: var(--tc-text-xs);
+    font-weight: var(--tc-font-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tc-text-secondary);
+    margin-bottom: var(--tc-space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--tc-space-1);
+}

@@ -1,0 +1,32 @@
+@page "/operacao-protegida"
+@model TraceCore.Web.Pages.ProtectedOperationModel
+@{
+    ViewData["Title"] = "Operação Protegida";
+}
+
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-success">
+            <div class="card-header bg-success text-white py-3">
+                <h4 class="mb-0 fw-bold">Operação Protegida no Servidor</h4>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-success" role="alert">
+                    <h5 class="alert-heading fw-bold">Autorização Confirmada (BR-102 / DEV-AI-005)</h5>
+                    <p class="mb-0">@Model.StatusMessage</p>
+                </div>
+
+                <p class="text-muted">
+                    Esta tela e seus respectivos endpoints de escrita validam no servidor se o usuário autenticado possui a permissão granular <code>usuario.gerenciar</code>.
+                    Caso o usuário não possua essa permissão, o servidor recusa a requisição com HTTP 403 Forbidden antes de qualquer processamento.
+                </p>
+
+                <form method="post" asp-page-handler="Execute">
+                    <button type="submit" class="btn btn-success fw-semibold">
+                        Executar Operação Administrativa Protegida
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

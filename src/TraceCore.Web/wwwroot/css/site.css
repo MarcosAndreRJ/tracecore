@@ -1,31 +1,53 @@
-html {
-  font-size: 14px;
+/* ==========================================================================
+   TRACECORE — SITE.CSS
+   Estilos específicos do site e utilitários complementares.
+   
+   ARQUITETURA DE FOLHAS DE ESTILO (Ordem de carregamento):
+     1. wwwroot/css/tokens.css             — Variáveis e design tokens (--tc-*)
+     2. wwwroot/css/base.css               — Reset, tipografia, acessibilidade WCAG
+     3. wwwroot/css/layout.css             — Shell da aplicação, sidebar, topbar
+     4. wwwroot/css/components/buttons.css — Botões, estados e tamanhos
+     5. wwwroot/css/components/forms.css   — Campos, labels e validações
+     6. wwwroot/css/components/badges.css  — Badges semânticos de status
+     7. wwwroot/css/components/cards.css   — Cards estruturais e stat cards
+     8. wwwroot/css/components/tables.css  — Tabelas de dados e ações
+     9. wwwroot/css/components/modals.css  — Modais e diálogos consistentes
+     10. wwwroot/css/components/alerts.css — Alertas inline e toasts
+     11. wwwroot/css/components/empty-state.css — Estados vazios informativos
+     12. wwwroot/css/components/loading.css — Spinners, skeletons e overlays
+     13. wwwroot/css/components/tabs.css    — Abas de navegação interna
+     14. wwwroot/css/components/filters.css — Barra de filtros e tags ativas
+     15. wwwroot/css/components/breadcrumb.css — Navegação em trilha
+     16. wwwroot/css/components/pagination.css — Controles de paginação
+     17. wwwroot/css/site.css              — Utilitários e classes auxiliares (este arquivo)
+   ========================================================================== */
+
+/* -------------------------------------------------------------------------
+   Classes Utilitárias de Texto e Alinhamento
+   ------------------------------------------------------------------------- */
+.tc-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+.tc-text-nowrap {
+    white-space: nowrap;
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.tc-code-inline {
+    font-family: var(--tc-font-mono);
+    font-size: 0.85em;
+    padding: 0.15em 0.4em;
+    background-color: var(--tc-bg-muted);
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-xs);
+    color: var(--tc-text-body);
 }
 
-html {
-  position: relative;
-  min-height: 100%;
-}
-
-body {
-  margin-bottom: 60px;
-}
-
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
-}
-
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+.tc-divider {
+    height: 1px;
+    background-color: var(--tc-border-subtle);
+    margin: var(--tc-space-4) 0;
+    border: none;
 }
