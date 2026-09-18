@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<ICaseRelationService, CaseRelationService>();
         services.AddScoped<IDiagnosticEngineService, DiagnosticEngineService>();
+        services.AddScoped<IIntegrationService, IntegrationService>();
 
         return services;
     }

@@ -65,6 +65,7 @@ public static class DependencyInjection
             services.AddScoped<ISearchRepository, MySqlSearchRepository>();
             services.AddScoped<ICaseRelationRepository, MySqlCaseRelationRepository>();
             services.AddScoped<IDiagnosticFlowRepository, MySqlDiagnosticFlowRepository>();
+            services.AddScoped<IIntegrationRepository, MySqlIntegrationRepository>();
 
             // FluentMigrator setup
             services.AddFluentMigratorCore()
@@ -97,6 +98,7 @@ public static class DependencyInjection
             services.AddScoped<ISearchRepository, InMemorySearchRepository>();
             services.AddScoped<ICaseRelationRepository, InMemoryCaseRelationRepository>();
             services.AddScoped<IDiagnosticFlowRepository, InMemoryDiagnosticFlowRepository>();
+            services.AddScoped<IIntegrationRepository, InMemoryIntegrationRepository>();
         }
         else
         {

@@ -28,6 +28,8 @@ public class InMemoryDataStore
     public ConcurrentDictionary<long, ComponentEntity> Components { get; } = new();
     public ConcurrentDictionary<long, ComponentDependency> ComponentDependencies { get; } = new();
     public ConcurrentDictionary<long, ComponentOwner> ComponentOwners { get; } = new();
+    public ConcurrentDictionary<long, Integration> Integrations { get; } = new();
+    public ConcurrentDictionary<long, IntegrationRun> IntegrationRuns { get; } = new();
     public ConcurrentDictionary<long, Case> Cases { get; } = new();
     public ConcurrentDictionary<long, CaseIteration> CaseIterations { get; } = new();
     public ConcurrentDictionary<long, CaseEvidence> CaseEvidences { get; } = new();
@@ -111,6 +113,8 @@ public class InMemoryDataStore
     public long NextDiagnosticStepId() => Interlocked.Increment(ref _diagnosticStepIdSeq);
     public long NextCaseEvidenceId() => Interlocked.Increment(ref _caseEvidenceIdSeq);
     public long NextCaseHypothesisEvidenceId() => Interlocked.Increment(ref _caseHypothesisEvidenceIdSeq);
+    public long NextIntegrationId() => Interlocked.Increment(ref _integrationIdSeq);
+    public long NextIntegrationRunId() => Interlocked.Increment(ref _integrationRunIdSeq);
     public long NextCaseRelationId() => Interlocked.Increment(ref _caseRelationIdSeq);
     public long NextDiagnosticFlowId() => Interlocked.Increment(ref _diagnosticFlowIdSeq);
     public long NextDiagnosticFlowHypothesisId() => Interlocked.Increment(ref _diagnosticFlowHypothesisIdSeq);
@@ -153,6 +157,8 @@ public class InMemoryDataStore
     private long _diagnosticCheckIdSeq = 0;
     private long _diagnosticCheckOptionIdSeq = 0;
     private long _diagnosticCheckImpactIdSeq = 0;
+    private long _integrationIdSeq = 0;
+    private long _integrationRunIdSeq = 0;
 
     public InMemoryDataStore()
     {
@@ -177,6 +183,8 @@ public class InMemoryDataStore
         Components.Clear();
         ComponentDependencies.Clear();
         ComponentOwners.Clear();
+        Integrations.Clear();
+        IntegrationRuns.Clear();
         Cases.Clear();
         CaseIterations.Clear();
         CaseRelations.Clear();
@@ -244,6 +252,8 @@ public class InMemoryDataStore
         _knowledgeUsageIdSeq = 0;
         _componentDependencyIdSeq = 0;
         _componentOwnerIdSeq = 0;
+        _integrationIdSeq = 0;
+        _integrationRunIdSeq = 0;
         Seed();
     }
 
@@ -268,7 +278,8 @@ public class InMemoryDataStore
             ("caso.diagnosticar", "Diagnosticar caso, registrar hipóteses, testes e avaliações"),
             ("cliente.gerenciar", "Gerenciar clientes, unidades e contextos técnicos"),
             ("catalogo.gerenciar", "Gerenciar produtos, componentes, dependências e ownership no catálogo técnico"),
-            ("diagnostico.configurar", "Permite criar e gerenciar fluxos de diagnóstico guiado, hipóteses candidatas e verificações")
+            ("diagnostico.configurar", "Permite criar e gerenciar fluxos de diagnóstico guiado, hipóteses candidatas e verificações"),
+            ("integracao.gerenciar", "Permite cadastrar integrações, alterar status e registrar execuções manuais no catálogo de integrações")
         };
 
         var permLookup = new Dictionary<string, Permission>();
@@ -307,7 +318,7 @@ public class InMemoryDataStore
             ("Especialista", "Atua no diagnóstico e validação", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "caso.diagnosticar" }),
             ("Revisor", "Revisa e publica artigos na base", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "solucao.publicar", "caso.diagnosticar" }),
             ("Gestor", "Acompanha indicadores e métricas", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "auditoria.visualizar", "caso.diagnosticar" }),
-            ("Admin Funcional", "Administra catálogo e usuários", new[] { "caso.visualizar", "caso.criar", "caso.editar", "caso.encerrar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "usuario.gerenciar", "auditoria.visualizar", "caso.diagnosticar", "cliente.gerenciar", "catalogo.gerenciar", "diagnostico.configurar" }),
+            ("Admin Funcional", "Administra catálogo e usuários", new[] { "caso.visualizar", "caso.criar", "caso.editar", "caso.encerrar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "usuario.gerenciar", "auditoria.visualizar", "caso.diagnosticar", "cliente.gerenciar", "catalogo.gerenciar", "diagnostico.configurar", "integracao.gerenciar" }),
             ("Admin Segurança", "Gestão de acessos, papéis e segurança", new[] { "usuario.gerenciar", "permissao.gerenciar", "auditoria.visualizar", "analytics.visualizar", "caso.visualizar" })
         };
 
@@ -429,6 +440,38 @@ public class InMemoryDataStore
             var tag = new Tag(tg) { Id = NextTagId() };
             Tags[tag.Id] = tag;
         }
+
+        // 9. Integrations (M10) — registro/catálogo administrativo, NÃO conector real.
+        // ADR-P005/P010 em aberto: sem credencial/sistema externo, entram como
+        // 'Configured' sem execução — catálogo, não conexão ativa.
+        var intgDept = Departments.Values.FirstOrDefault(d => d.Name == "Integrações");
+        var supportDept = Departments.Values.FirstOrDefault(d => d.Name == "Suporte");
+
+        var sap = new Integration(
+            "INT-SAP",
+            "Integração SAP",
+            "Sap",
+            "ERP SAP — integração de dados mestre e financeiro",
+            intgDept?.Id,
+            "Registro de catálogo (M10): conector ainda não construído. Isolamento e contrato próprio por definir após ADR-P010. Nenhuma conexão ativa.",
+            createdBy: null,
+            status: "Configured")
+        { Id = NextIntegrationId() };
+        sap.OwnerDepartmentName = intgDept?.Name;
+        Integrations[sap.Id] = sap;
+
+        var ticket = new Integration(
+            "INT-TICKET",
+            "Sistema de Chamados Corporativo",
+            "Ticketing",
+            "Plataforma corporativa de chamados/suporte",
+            supportDept?.Id,
+            "Registro de catálogo (M10): fonte e sincronização ainda sem decisão (ADR-P005 em aberto). Conector não construído. Nenhuma conexão ativa.",
+            createdBy: null,
+            status: "Configured")
+        { Id = NextIntegrationId() };
+        ticket.OwnerDepartmentName = supportDept?.Name;
+        Integrations[ticket.Id] = ticket;
     }
 }
 
@@ -1115,6 +1158,71 @@ public class InMemoryCatalogRepository : ICatalogRepository
     {
         var removed = _store.ComponentOwners.TryRemove(id, out _);
         return Task.FromResult(removed);
+    }
+}
+
+public class InMemoryIntegrationRepository : IIntegrationRepository
+{
+    private readonly InMemoryDataStore _store;
+
+    public InMemoryIntegrationRepository(InMemoryDataStore store)
+    {
+        _store = store;
+    }
+
+    public Task<IReadOnlyList<Integration>> GetAllIntegrationsAsync(CancellationToken ct = default)
+    {
+        var list = _store.Integrations.Values
+            .Select(i =>
+            {
+                _store.Departments.TryGetValue(i.OwnerDepartmentId ?? 0, out var d);
+                i.OwnerDepartmentName = d?.Name;
+                return i;
+            })
+            .OrderBy(i => i.Name)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<Integration>>(list);
+    }
+
+    public Task<Integration?> GetIntegrationByIdAsync(long id, CancellationToken ct = default)
+    {
+        _store.Integrations.TryGetValue(id, out var integration);
+        if (integration != null)
+        {
+            _store.Departments.TryGetValue(integration.OwnerDepartmentId ?? 0, out var d);
+            integration.OwnerDepartmentName = d?.Name;
+        }
+        return Task.FromResult(integration);
+    }
+
+    public Task<long> AddIntegrationAsync(Integration integration, CancellationToken ct = default)
+    {
+        integration.Id = _store.NextIntegrationId();
+        _store.Integrations[integration.Id] = integration;
+        return Task.FromResult(integration.Id);
+    }
+
+    public Task UpdateIntegrationAsync(Integration integration, CancellationToken ct = default)
+    {
+        integration.UpdatedAt = DateTime.UtcNow;
+        _store.Integrations[integration.Id] = integration;
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<IntegrationRun>> GetRunsByIntegrationIdAsync(long integrationId, CancellationToken ct = default)
+    {
+        IReadOnlyList<IntegrationRun> list = _store.IntegrationRuns.Values
+            .Where(r => r.IntegrationId == integrationId)
+            .OrderByDescending(r => r.RecordedAt)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<long> AddRunAsync(IntegrationRun run, CancellationToken ct = default)
+    {
+        run.Id = _store.NextIntegrationRunId();
+        _store.IntegrationRuns[run.Id] = run;
+        return Task.FromResult(run.Id);
     }
 }
 

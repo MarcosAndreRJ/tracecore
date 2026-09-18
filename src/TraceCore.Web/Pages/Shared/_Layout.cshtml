@@ -115,8 +115,8 @@
                                 </li>
                             }
                             <li class="tc-sidebar-item">
-                                <a class="tc-sidebar-link @(currentPath.Contains("module=Pesquisa", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-                                   asp-page="/Placeholder" asp-route-module="Pesquisa">
+                                <a class="tc-sidebar-link @(currentPath.StartsWith("/Search", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                   asp-page="/Search">
                                     <i class="bi bi-search"></i>
                                     <span>Pesquisa</span>
                                 </a>
@@ -156,30 +156,26 @@
                     <div class="tc-sidebar-group">
                         <div class="tc-sidebar-group-title">Ecossistema</div>
                         <ul class="tc-sidebar-nav">
-                            <li class="tc-sidebar-item">
-                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Sistemas">
-                                    <i class="bi bi-laptop"></i>
-                                    <span>Sistemas</span>
-                                </a>
-                            </li>
-                            <li class="tc-sidebar-item">
-                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Componentes">
-                                    <i class="bi bi-cpu"></i>
-                                    <span>Componentes</span>
-                                </a>
-                            </li>
-                            <li class="tc-sidebar-item">
-                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Dependências">
-                                    <i class="bi bi-bezier2"></i>
-                                    <span>Dependências</span>
-                                </a>
-                            </li>
-                            <li class="tc-sidebar-item">
-                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Integrações">
-                                    <i class="bi bi-arrow-left-right"></i>
-                                    <span>Integrações</span>
-                                </a>
-                            </li>
+                            @if (User.HasClaim("permission", "catalogo.gerenciar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Components", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Catalog/Components/Index">
+                                        <i class="bi bi-bezier2"></i>
+                                        <span>Dependências</span>
+                                    </a>
+                                </li>
+                            }
+                            @if (User.HasClaim("permission", "integracao.gerenciar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Integrations", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Integrations/Index">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                        <span>Integrações</span>
+                                    </a>
+                                </li>
+                            }
                         </ul>
                     </div>
 
