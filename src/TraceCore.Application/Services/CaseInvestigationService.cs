@@ -81,6 +81,11 @@ public class CaseInvestigationService : ICaseInvestigationService
             createdAt: DateTime.UtcNow
         );
 
+        if (!string.IsNullOrWhiteSpace(command.SourceType))
+        {
+            hypothesis.SourceType = command.SourceType.Trim();
+        }
+
         var id = await _diagnosticRepository.AddHypothesisAsync(hypothesis, ct);
         hypothesis.Id = id;
 

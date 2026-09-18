@@ -48,6 +48,10 @@
                     <i class="bi bi-plus-circle"></i>
                     <span>Registrar Teste</span>
                 </button>
+                <a asp-page="/Diagnosis/Index" asp-route-caseId="@Model.Case.Id" class="tc-btn tc-btn-outline tc-btn-sm" title="Abrir motor de diagnóstico guiado e adaptativo (BR-070 a BR-076)">
+                    <i class="bi bi-diagram-3 text-primary"></i>
+                    <span>Diagnóstico Guiado</span>
+                </a>
             }
 
             @if (Model.CanResolve)

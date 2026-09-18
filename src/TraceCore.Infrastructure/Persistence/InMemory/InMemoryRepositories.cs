@@ -39,6 +39,11 @@ public class InMemoryDataStore
     public ConcurrentDictionary<long, RootCause> RootCauses { get; } = new();
     public ConcurrentDictionary<long, CaseResolution> CaseResolutions { get; } = new();
     public ConcurrentDictionary<long, CaseRelation> CaseRelations { get; } = new();
+    public ConcurrentDictionary<long, DiagnosticFlow> DiagnosticFlows { get; } = new();
+    public ConcurrentDictionary<long, DiagnosticFlowHypothesis> DiagnosticFlowHypotheses { get; } = new();
+    public ConcurrentDictionary<long, DiagnosticCheck> DiagnosticChecks { get; } = new();
+    public ConcurrentDictionary<long, DiagnosticCheckOption> DiagnosticCheckOptions { get; } = new();
+    public ConcurrentDictionary<long, DiagnosticCheckImpact> DiagnosticCheckImpacts { get; } = new();
     public ConcurrentDictionary<long, KnowledgeItem> KnowledgeItems { get; } = new();
     public ConcurrentDictionary<long, KnowledgeVersion> KnowledgeVersions { get; } = new();
     public ConcurrentDictionary<long, KnowledgeApplicability> KnowledgeApplicabilities { get; } = new();
@@ -107,6 +112,11 @@ public class InMemoryDataStore
     public long NextCaseEvidenceId() => Interlocked.Increment(ref _caseEvidenceIdSeq);
     public long NextCaseHypothesisEvidenceId() => Interlocked.Increment(ref _caseHypothesisEvidenceIdSeq);
     public long NextCaseRelationId() => Interlocked.Increment(ref _caseRelationIdSeq);
+    public long NextDiagnosticFlowId() => Interlocked.Increment(ref _diagnosticFlowIdSeq);
+    public long NextDiagnosticFlowHypothesisId() => Interlocked.Increment(ref _diagnosticFlowHypothesisIdSeq);
+    public long NextDiagnosticCheckId() => Interlocked.Increment(ref _diagnosticCheckIdSeq);
+    public long NextDiagnosticCheckOptionId() => Interlocked.Increment(ref _diagnosticCheckOptionIdSeq);
+    public long NextDiagnosticCheckImpactId() => Interlocked.Increment(ref _diagnosticCheckImpactIdSeq);
     public long NextRootCauseId() => Interlocked.Increment(ref _rootCauseIdSeq);
     public long NextCaseResolutionId() => Interlocked.Increment(ref _caseResolutionIdSeq);
     public long NextKnowledgeItemId() => Interlocked.Increment(ref _knowledgeItemIdSeq);
@@ -138,6 +148,11 @@ public class InMemoryDataStore
     private long _componentOwnerIdSeq = 0;
     private long _caseIterationIdSeq = 0;
     private long _caseRelationIdSeq = 0;
+    private long _diagnosticFlowIdSeq = 0;
+    private long _diagnosticFlowHypothesisIdSeq = 0;
+    private long _diagnosticCheckIdSeq = 0;
+    private long _diagnosticCheckOptionIdSeq = 0;
+    private long _diagnosticCheckImpactIdSeq = 0;
 
     public InMemoryDataStore()
     {
@@ -173,6 +188,12 @@ public class InMemoryDataStore
         CaseHypothesisEvidences.Clear();
         RootCauses.Clear();
         CaseResolutions.Clear();
+        CaseRelations.Clear();
+        DiagnosticFlows.Clear();
+        DiagnosticFlowHypotheses.Clear();
+        DiagnosticChecks.Clear();
+        DiagnosticCheckOptions.Clear();
+        DiagnosticCheckImpacts.Clear();
         KnowledgeItems.Clear();
         KnowledgeVersions.Clear();
         KnowledgeApplicabilities.Clear();
@@ -246,7 +267,8 @@ public class InMemoryDataStore
             ("auditoria.visualizar", "Visualizar trilhas de auditoria"),
             ("caso.diagnosticar", "Diagnosticar caso, registrar hipóteses, testes e avaliações"),
             ("cliente.gerenciar", "Gerenciar clientes, unidades e contextos técnicos"),
-            ("catalogo.gerenciar", "Gerenciar produtos, componentes, dependências e ownership no catálogo técnico")
+            ("catalogo.gerenciar", "Gerenciar produtos, componentes, dependências e ownership no catálogo técnico"),
+            ("diagnostico.configurar", "Permite criar e gerenciar fluxos de diagnóstico guiado, hipóteses candidatas e verificações")
         };
 
         var permLookup = new Dictionary<string, Permission>();
@@ -285,7 +307,7 @@ public class InMemoryDataStore
             ("Especialista", "Atua no diagnóstico e validação", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "caso.diagnosticar" }),
             ("Revisor", "Revisa e publica artigos na base", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "solucao.publicar", "caso.diagnosticar" }),
             ("Gestor", "Acompanha indicadores e métricas", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "auditoria.visualizar", "caso.diagnosticar" }),
-            ("Admin Funcional", "Administra catálogo e usuários", new[] { "caso.visualizar", "caso.criar", "caso.editar", "caso.encerrar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "usuario.gerenciar", "auditoria.visualizar", "caso.diagnosticar", "cliente.gerenciar", "catalogo.gerenciar" }),
+            ("Admin Funcional", "Administra catálogo e usuários", new[] { "caso.visualizar", "caso.criar", "caso.editar", "caso.encerrar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "usuario.gerenciar", "auditoria.visualizar", "caso.diagnosticar", "cliente.gerenciar", "catalogo.gerenciar", "diagnostico.configurar" }),
             ("Admin Segurança", "Gestão de acessos, papéis e segurança", new[] { "usuario.gerenciar", "permissao.gerenciar", "auditoria.visualizar", "analytics.visualizar", "caso.visualizar" })
         };
 
@@ -2288,6 +2310,247 @@ public class InMemoryCaseRelationRepository : ICaseRelationRepository
             .ToList();
 
         return Task.FromResult<IReadOnlyList<CaseResolution>>(resolutions);
+    }
+}
+
+public class InMemoryDiagnosticFlowRepository : IDiagnosticFlowRepository
+{
+    private readonly InMemoryDataStore _store;
+
+    public InMemoryDiagnosticFlowRepository(InMemoryDataStore store)
+    {
+        _store = store;
+        EnsureDefaultSeed();
+    }
+
+    private void EnsureDefaultSeed()
+    {
+        lock (_store.DiagnosticFlows)
+        {
+            if (_store.DiagnosticFlows.IsEmpty)
+            {
+                var flow = new DiagnosticFlow(
+                    code: "FLOW-LOGIN-ISSUES",
+                    name: "Falha de Autenticação e Acesso ao Sistema",
+                    entryKeywords: "não consigo entrar,login,autenticação,senha,acesso recusado,bloqueado,invalid credentials,credenciais",
+                    description: "Fluxo adaptativo para triagem de usuários que não conseguem entrar no sistema (doc 05 §6 / BR-070)"
+                ) { Id = _store.NextDiagnosticFlowId() };
+                _store.DiagnosticFlows[flow.Id] = flow;
+
+                var h1 = new DiagnosticFlowHypothesis(flow.Id, "Bloqueio ou expiração de credencial de usuário", "Conta expirada, senha incorreta repetida ou bloqueio no diretório/IAM.") { Id = _store.NextDiagnosticFlowHypothesisId() };
+                var h2 = new DiagnosticFlowHypothesis(flow.Id, "Indisponibilidade ou instabilidade do serviço de autenticação", "Serviço de IAM, SSO ou gateway de autenticação fora do ar ou degradado.") { Id = _store.NextDiagnosticFlowHypothesisId() };
+                var h3 = new DiagnosticFlowHypothesis(flow.Id, "Erro de configuração ou deploy recente no gateway de login", "Alteração recente de certificados, CORS, redirect URIs ou segredos de cliente.") { Id = _store.NextDiagnosticFlowHypothesisId() };
+                var h4 = new DiagnosticFlowHypothesis(flow.Id, "Bloqueio de conectividade ou rede local do cliente", "Firewall, proxy corporativo do cliente ou falha de DNS impedindo handshake.") { Id = _store.NextDiagnosticFlowHypothesisId() };
+
+                _store.DiagnosticFlowHypotheses[h1.Id] = h1;
+                _store.DiagnosticFlowHypotheses[h2.Id] = h2;
+                _store.DiagnosticFlowHypotheses[h3.Id] = h3;
+                _store.DiagnosticFlowHypotheses[h4.Id] = h4;
+
+                // Check 1: CHK-SCOPE
+                var c1 = new DiagnosticCheck(flow.Id, "CHK-SCOPE", "Escopo de Usuários Afetados", "O problema afeta somente um usuário específico ou múltiplos/todos os usuários?") { Id = _store.NextDiagnosticCheckId() };
+                _store.DiagnosticChecks[c1.Id] = c1;
+
+                var c1Opt1 = new DiagnosticCheckOption(c1.Id, "Apenas um usuário isolado", 1) { Id = _store.NextDiagnosticCheckOptionId() };
+                var c1Opt2 = new DiagnosticCheckOption(c1.Id, "Múltiplos ou todos os usuários da organização", 2) { Id = _store.NextDiagnosticCheckOptionId() };
+                _store.DiagnosticCheckOptions[c1Opt1.Id] = c1Opt1;
+                _store.DiagnosticCheckOptions[c1Opt2.Id] = c1Opt2;
+
+                var c1Imp1 = new DiagnosticCheckImpact(c1Opt1.Id, h1.Id, "Favors", 1.5m) { Id = _store.NextDiagnosticCheckImpactId() };
+                var c1Imp2 = new DiagnosticCheckImpact(c1Opt1.Id, h2.Id, "Discards", 1.5m) { Id = _store.NextDiagnosticCheckImpactId() };
+                var c1Imp3 = new DiagnosticCheckImpact(c1Opt2.Id, h2.Id, "Favors", 2.0m) { Id = _store.NextDiagnosticCheckImpactId() };
+                var c1Imp4 = new DiagnosticCheckImpact(c1Opt2.Id, h1.Id, "Discards", 2.0m) { Id = _store.NextDiagnosticCheckImpactId() };
+                _store.DiagnosticCheckImpacts[c1Imp1.Id] = c1Imp1;
+                _store.DiagnosticCheckImpacts[c1Imp2.Id] = c1Imp2;
+                _store.DiagnosticCheckImpacts[c1Imp3.Id] = c1Imp3;
+                _store.DiagnosticCheckImpacts[c1Imp4.Id] = c1Imp4;
+
+                // Check 2: CHK-SCREEN
+                var c2 = new DiagnosticCheck(flow.Id, "CHK-SCREEN", "Carregamento da Tela de Login", "A tela/página de login chega a carregar ou o navegador/app apresenta falha de conexão imediata?") { Id = _store.NextDiagnosticCheckId() };
+                _store.DiagnosticChecks[c2.Id] = c2;
+
+                var c2Opt1 = new DiagnosticCheckOption(c2.Id, "Sim, a tela de login carrega e permite digitar", 1) { Id = _store.NextDiagnosticCheckOptionId() };
+                var c2Opt2 = new DiagnosticCheckOption(c2.Id, "Não, tela em branco ou timeout/erro de rede do navegador", 2) { Id = _store.NextDiagnosticCheckOptionId() };
+                _store.DiagnosticCheckOptions[c2Opt1.Id] = c2Opt1;
+                _store.DiagnosticCheckOptions[c2Opt2.Id] = c2Opt2;
+
+                var c2Imp1 = new DiagnosticCheckImpact(c2Opt1.Id, h4.Id, "Discards", 2.0m) { Id = _store.NextDiagnosticCheckImpactId() };
+                var c2Imp2 = new DiagnosticCheckImpact(c2Opt2.Id, h4.Id, "Favors", 2.0m) { Id = _store.NextDiagnosticCheckImpactId() };
+                _store.DiagnosticCheckImpacts[c2Imp1.Id] = c2Imp1;
+                _store.DiagnosticCheckImpacts[c2Imp2.Id] = c2Imp2;
+
+                // Check 3: CHK-ERRMSG
+                var c3 = new DiagnosticCheck(flow.Id, "CHK-ERRMSG", "Mensagem de Erro Apresentada", "Qual mensagem de erro exata é exibida após a tentativa de login?") { Id = _store.NextDiagnosticCheckId() };
+                _store.DiagnosticChecks[c3.Id] = c3;
+
+                var c3Opt1 = new DiagnosticCheckOption(c3.Id, "Usuário/senha inválidos ou conta temporariamente bloqueada", 1) { Id = _store.NextDiagnosticCheckOptionId() };
+                var c3Opt2 = new DiagnosticCheckOption(c3.Id, "Erro 500 / 502 / 504 / Falha interna de comunicação", 2) { Id = _store.NextDiagnosticCheckOptionId() };
+                _store.DiagnosticCheckOptions[c3Opt1.Id] = c3Opt1;
+                _store.DiagnosticCheckOptions[c3Opt2.Id] = c3Opt2;
+
+                var c3Imp1 = new DiagnosticCheckImpact(c3Opt1.Id, h1.Id, "Favors", 2.0m) { Id = _store.NextDiagnosticCheckImpactId() };
+                var c3Imp2 = new DiagnosticCheckImpact(c3Opt2.Id, h2.Id, "Favors", 2.0m) { Id = _store.NextDiagnosticCheckImpactId() };
+                _store.DiagnosticCheckImpacts[c3Imp1.Id] = c3Imp1;
+                _store.DiagnosticCheckImpacts[c3Imp2.Id] = c3Imp2;
+
+                // Check 4: CHK-RECENT-CHANGE
+                var c4 = new DiagnosticCheck(flow.Id, "CHK-RECENT-CHANGE", "Deploy ou Mudança Recente", "Houve publicação de versão, manutenção ou alteração de configurações no ecossistema nas últimas 24h?") { Id = _store.NextDiagnosticCheckId() };
+                _store.DiagnosticChecks[c4.Id] = c4;
+
+                var c4Opt1 = new DiagnosticCheckOption(c4.Id, "Sim, houve deploy recente ou alteração de infraestrutura", 1) { Id = _store.NextDiagnosticCheckOptionId() };
+                var c4Opt2 = new DiagnosticCheckOption(c4.Id, "Não, ambiente totalmente estável sem alterações recentes", 2) { Id = _store.NextDiagnosticCheckOptionId() };
+                _store.DiagnosticCheckOptions[c4Opt1.Id] = c4Opt1;
+                _store.DiagnosticCheckOptions[c4Opt2.Id] = c4Opt2;
+
+                var c4Imp1 = new DiagnosticCheckImpact(c4Opt1.Id, h3.Id, "Favors", 2.0m) { Id = _store.NextDiagnosticCheckImpactId() };
+                var c4Imp2 = new DiagnosticCheckImpact(c4Opt2.Id, h3.Id, "Discards", 1.5m) { Id = _store.NextDiagnosticCheckImpactId() };
+                _store.DiagnosticCheckImpacts[c4Imp1.Id] = c4Imp1;
+                _store.DiagnosticCheckImpacts[c4Imp2.Id] = c4Imp2;
+            }
+        }
+    }
+
+    public Task<IReadOnlyList<DiagnosticFlow>> GetAllFlowsAsync(bool activeOnly = false, CancellationToken ct = default)
+    {
+        var flows = _store.DiagnosticFlows.Values
+            .Where(f => !activeOnly || f.Status == "Active")
+            .OrderBy(f => f.Name)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<DiagnosticFlow>>(flows);
+    }
+
+    public async Task<DiagnosticFlow?> GetFlowByIdAsync(long id, CancellationToken ct = default)
+    {
+        if (!_store.DiagnosticFlows.TryGetValue(id, out var flow)) return null;
+
+        flow.CandidateHypotheses = (await GetHypothesesByFlowIdAsync(flow.Id, ct)).ToList();
+        flow.Checks = (await GetChecksByFlowIdAsync(flow.Id, ct)).ToList();
+        return flow;
+    }
+
+    public async Task<DiagnosticFlow?> GetFlowByCodeAsync(string code, CancellationToken ct = default)
+    {
+        var flow = _store.DiagnosticFlows.Values.FirstOrDefault(f => string.Equals(f.Code, code, StringComparison.OrdinalIgnoreCase));
+        if (flow == null) return null;
+
+        flow.CandidateHypotheses = (await GetHypothesesByFlowIdAsync(flow.Id, ct)).ToList();
+        flow.Checks = (await GetChecksByFlowIdAsync(flow.Id, ct)).ToList();
+        return flow;
+    }
+
+    public Task<long> AddFlowAsync(DiagnosticFlow flow, CancellationToken ct = default)
+    {
+        flow.Id = _store.NextDiagnosticFlowId();
+        _store.DiagnosticFlows[flow.Id] = flow;
+        return Task.FromResult(flow.Id);
+    }
+
+    public Task UpdateFlowAsync(DiagnosticFlow flow, CancellationToken ct = default)
+    {
+        _store.DiagnosticFlows[flow.Id] = flow;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> DeleteFlowAsync(long id, CancellationToken ct = default)
+    {
+        bool removed = _store.DiagnosticFlows.TryRemove(id, out _);
+        return Task.FromResult(removed);
+    }
+
+    public Task<IReadOnlyList<DiagnosticFlowHypothesis>> GetHypothesesByFlowIdAsync(long flowId, CancellationToken ct = default)
+    {
+        var hyps = _store.DiagnosticFlowHypotheses.Values
+            .Where(h => h.FlowId == flowId)
+            .OrderBy(h => h.Id)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<DiagnosticFlowHypothesis>>(hyps);
+    }
+
+    public Task<long> AddHypothesisAsync(DiagnosticFlowHypothesis hypothesis, CancellationToken ct = default)
+    {
+        hypothesis.Id = _store.NextDiagnosticFlowHypothesisId();
+        _store.DiagnosticFlowHypotheses[hypothesis.Id] = hypothesis;
+        return Task.FromResult(hypothesis.Id);
+    }
+
+    public Task<bool> DeleteHypothesisAsync(long id, CancellationToken ct = default)
+    {
+        bool removed = _store.DiagnosticFlowHypotheses.TryRemove(id, out _);
+        return Task.FromResult(removed);
+    }
+
+    public Task<IReadOnlyList<DiagnosticCheck>> GetChecksByFlowIdAsync(long flowId, CancellationToken ct = default)
+    {
+        var checks = _store.DiagnosticChecks.Values
+            .Where(c => c.FlowId == flowId)
+            .OrderBy(c => c.Id)
+            .ToList();
+
+        foreach (var c in checks)
+        {
+            var options = _store.DiagnosticCheckOptions.Values
+                .Where(o => o.CheckId == c.Id)
+                .OrderBy(o => o.OrderNo)
+                .ToList();
+
+            foreach (var opt in options)
+            {
+                opt.Impacts = _store.DiagnosticCheckImpacts.Values
+                    .Where(i => i.CheckOptionId == opt.Id)
+                    .ToList();
+            }
+
+            c.Options = options;
+        }
+
+        return Task.FromResult<IReadOnlyList<DiagnosticCheck>>(checks);
+    }
+
+    public Task<DiagnosticCheck?> GetCheckByIdAsync(long id, CancellationToken ct = default)
+    {
+        if (!_store.DiagnosticChecks.TryGetValue(id, out var check)) return Task.FromResult<DiagnosticCheck?>(null);
+
+        var options = _store.DiagnosticCheckOptions.Values
+            .Where(o => o.CheckId == check.Id)
+            .OrderBy(o => o.OrderNo)
+            .ToList();
+
+        foreach (var opt in options)
+        {
+            opt.Impacts = _store.DiagnosticCheckImpacts.Values
+                .Where(i => i.CheckOptionId == opt.Id)
+                .ToList();
+        }
+
+        check.Options = options;
+        return Task.FromResult<DiagnosticCheck?>(check);
+    }
+
+    public Task<long> AddCheckAsync(DiagnosticCheck check, CancellationToken ct = default)
+    {
+        check.Id = _store.NextDiagnosticCheckId();
+        _store.DiagnosticChecks[check.Id] = check;
+        return Task.FromResult(check.Id);
+    }
+
+    public Task<bool> DeleteCheckAsync(long id, CancellationToken ct = default)
+    {
+        bool removed = _store.DiagnosticChecks.TryRemove(id, out _);
+        return Task.FromResult(removed);
+    }
+
+    public Task<long> AddCheckOptionAsync(DiagnosticCheckOption option, CancellationToken ct = default)
+    {
+        option.Id = _store.NextDiagnosticCheckOptionId();
+        _store.DiagnosticCheckOptions[option.Id] = option;
+        return Task.FromResult(option.Id);
+    }
+
+    public Task<long> AddCheckImpactAsync(DiagnosticCheckImpact impact, CancellationToken ct = default)
+    {
+        impact.Id = _store.NextDiagnosticCheckImpactId();
+        _store.DiagnosticCheckImpacts[impact.Id] = impact;
+        return Task.FromResult(impact.Id);
     }
 }
 

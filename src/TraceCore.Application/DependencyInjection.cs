@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<IClientService, ClientService>();
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<ICaseRelationService, CaseRelationService>();
+        services.AddScoped<IDiagnosticEngineService, DiagnosticEngineService>();
 
         return services;
     }

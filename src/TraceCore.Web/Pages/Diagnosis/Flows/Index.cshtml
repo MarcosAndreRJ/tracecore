@@ -1,0 +1,433 @@
+@page
+@model TraceCore.Web.Pages.Diagnosis.Flows.IndexModel
+@{
+    ViewData["Title"] = "Administração de Fluxos de Diagnóstico (M07)";
+}
+
+<div class="tc-container-fluid py-3">
+    <!-- BREADCRUMB -->
+    <nav class="tc-breadcrumb mb-3" aria-label="Navegação">
+        <a asp-page="/Index" class="tc-breadcrumb-item">
+            <i class="bi bi-house-door me-1"></i>Início
+        </a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <a asp-page="/Diagnosis/Index" class="tc-breadcrumb-item">Diagnóstico Guiado</a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="tc-breadcrumb-item active" aria-current="page">Gerenciamento de Fluxos</span>
+    </nav>
+
+    <!-- STATUS MESSAGES -->
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="tc-alert tc-alert-success mb-3" role="alert">
+            <i class="bi bi-check-circle tc-alert-icon" aria-hidden="true"></i>
+            <div class="tc-alert-content">@Model.StatusMessage</div>
+            <button type="button" class="tc-alert-close" data-bs-dismiss="alert" aria-label="Fechar">&times;</button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="tc-alert tc-alert-danger mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle tc-alert-icon" aria-hidden="true"></i>
+            <div class="tc-alert-content">@Model.ErrorMessage</div>
+            <button type="button" class="tc-alert-close" data-bs-dismiss="alert" aria-label="Fechar">&times;</button>
+        </div>
+    }
+
+    <!-- CABEÇALHO -->
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h1 class="tc-title-page mb-0">Catálogo de Fluxos e Verificações de Diagnóstico</h1>
+                <span class="tc-badge tc-badge-primary">Configuração Dinâmica (BR-071)</span>
+            </div>
+            <p class="tc-subtitle text-muted mb-0">
+                Gerencie os grafos de perguntas adaptativas, hipóteses candidatas e impactos de discriminação sem alteração de código fonte.
+            </p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreateFlow">
+                <i class="bi bi-plus-circle me-1"></i>
+                <span>Novo Fluxo de Diagnóstico</span>
+            </button>
+            <a asp-page="/Diagnosis/Index" class="tc-btn tc-btn-secondary tc-btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>
+                <span>Voltar à Central</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- COLUNA ESQUERDA: LISTA DE FLUXOS -->
+        <div class="col-lg-4">
+            <div class="tc-card p-3 shadow-sm">
+                <h3 class="tc-title-section mb-3">Fluxos Cadastrados</h3>
+
+                @if (Model.Flows.Count == 0)
+                {
+                    <div class="tc-empty-state tc-empty-state-compact p-3">
+                        <div class="tc-empty-title small">Nenhum fluxo cadastrado</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-2">
+                        @foreach (var fl in Model.Flows)
+                        {
+                            var isSelected = Model.SelectedFlowId == fl.Id;
+                            var cardClass = isSelected ? "border-primary bg-light" : "";
+
+                            <a asp-page="./Index" asp-route-selectedFlowId="@fl.Id" class="text-decoration-none">
+                                <div class="tc-card p-3 mb-0 hover-shadow @cardClass">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <span class="tc-code-inline fw-bold text-primary small">@fl.Code</span>
+                                        <span class="badge @(fl.Status == "Active" ? "bg-success" : "bg-secondary")">@fl.Status</span>
+                                    </div>
+                                    <div class="fw-semibold text-dark small mb-1">@fl.Name</div>
+                                    <div class="d-flex align-items-center justify-content-between tc-caption text-muted">
+                                        <span>@fl.HypothesesCount hipóteses • @fl.ChecksCount checagens</span>
+                                        <span>@fl.CreatedAt.ToString("dd/MM/yyyy")</span>
+                                    </div>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- COLUNA DIREITA: DETALHES DO FLUXO SELECIONADO -->
+        <div class="col-lg-8">
+            @if (Model.SelectedFlowDetails == null)
+            {
+                <div class="tc-card p-5 text-center text-muted">
+                    Selecione um fluxo na lista lateral para gerenciar suas hipóteses e verificações.
+                </div>
+            }
+            else
+            {
+                var flow = Model.SelectedFlowDetails;
+
+                <!-- CABEÇALHO DO FLUXO SELECIONADO -->
+                <div class="tc-card p-4 mb-4 shadow-sm">
+                    <div class="d-flex align-items-start justify-content-between mb-2">
+                        <div>
+                            <span class="tc-code-inline fs-6 text-primary fw-bold">@flow.Code</span>
+                            <h2 class="tc-title-page fs-4 mt-1 mb-1">@flow.Name</h2>
+                            <p class="tc-body text-muted mb-0">@(flow.Description ?? "Sem descrição cadastrada.")</p>
+                        </div>
+                        <span class="badge bg-success fs-6">@flow.Status</span>
+                    </div>
+                    <div class="border-top pt-2 mt-2">
+                        <span class="tc-caption text-muted"><strong>Palavras-chave de entrada (Matching):</strong> @flow.EntryKeywords</span>
+                    </div>
+                </div>
+
+                <!-- 1. HIPÓTESES CANDIDATAS DO FLUXO -->
+                <div class="tc-card p-4 mb-4 shadow-sm">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h3 class="tc-title-section mb-0">Hipóteses Candidatas Oficiais (@flow.Hypotheses.Count)</h3>
+                        <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddHypothesis">
+                            <i class="bi bi-plus-circle me-1"></i>
+                            <span>Adicionar Hipótese</span>
+                        </button>
+                    </div>
+
+                    @if (flow.Hypotheses.Count == 0)
+                    {
+                        <div class="tc-empty-state tc-empty-state-compact p-3">
+                            <div class="tc-empty-title small">Nenhuma hipótese vinculada a este fluxo</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var hyp in flow.Hypotheses)
+                            {
+                                <div class="tc-card p-3 mb-0 border-start border-3 border-warning">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <strong class="text-dark">@hyp.Title</strong>
+                                        @if (!string.IsNullOrEmpty(hyp.AssociatedComponentName))
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary">
+                                                <i class="bi bi-cpu me-1"></i>@hyp.AssociatedComponentName
+                                            </span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(hyp.Description))
+                                    {
+                                        <p class="tc-caption text-muted mb-0 mt-1">@hyp.Description</p>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- 2. VERIFICAÇÕES / CHECKS DO FLUXO -->
+                <div class="tc-card p-4 shadow-sm">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h3 class="tc-title-section mb-0">Verificações / Perguntas Adaptativas (@flow.Checks.Count)</h3>
+                        <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddCheck">
+                            <i class="bi bi-plus-circle me-1"></i>
+                            <span>Adicionar Verificação</span>
+                        </button>
+                    </div>
+
+                    @if (flow.Checks.Count == 0)
+                    {
+                        <div class="tc-empty-state tc-empty-state-compact p-3">
+                            <div class="tc-empty-title small">Nenhuma verificação cadastrada neste fluxo</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var chk in flow.Checks)
+                            {
+                                <div class="tc-card p-3 mb-0 border">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="tc-code-inline fw-bold text-primary">@chk.Code</span>
+                                            <strong class="text-dark">@chk.Title</strong>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-light text-dark border">Risco: @chk.RiskLevel</span>
+                                            <span class="badge bg-light text-dark border">Custo: @chk.Cost</span>
+                                            <button type="button" class="tc-btn tc-btn-outline tc-btn-sm py-0 px-2"
+                                                    data-bs-toggle="modal" data-bs-target="#modalAddOption"
+                                                    onclick="document.getElementById('targetCheckId').value = '@chk.Id'; document.getElementById('targetCheckTitle').innerText = '@chk.Code - @chk.Title';">
+                                                <i class="bi bi-plus me-1"></i>Opção
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <p class="tc-body small text-dark mb-2">@chk.QuestionText</p>
+
+                                    <!-- OPÇÕES DA VERIFICAÇÃO -->
+                                    <div class="bg-light p-2 rounded border small">
+                                        <span class="tc-caption text-muted d-block fw-semibold mb-1">Opções de Resposta e Impactos:</span>
+                                        @if (chk.Options.Count == 0)
+                                        {
+                                            <span class="tc-caption text-danger">Nenhuma opção configurada ainda.</span>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex flex-column gap-1">
+                                                @foreach (var opt in chk.Options)
+                                                {
+                                                    <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
+                                                        <span class="text-dark">• @opt.OptionText</span>
+                                                        <div>
+                                                            @foreach (var imp in opt.Impacts)
+                                                            {
+                                                                var badge = imp.ImpactType == "Favors" ? "badge bg-success-subtle text-success" : "badge bg-danger-subtle text-danger";
+                                                                <span class="@badge me-1">
+                                                                    @imp.ImpactType: @imp.FlowHypothesisTitle (+@imp.Weight)
+                                                                </span>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: NOVO FLUXO DE DIAGNÓSTICO -->
+<div class="modal fade" id="modalCreateFlow" tabindex="-1" aria-labelledby="modalCreateFlowLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="CreateFlow">
+                <div class="modal-header tc-modal-header">
+                    <h5 class="modal-title tc-modal-title" id="modalCreateFlowLabel">
+                        <i class="bi bi-diagram-3 me-2 text-primary"></i>Novo Fluxo de Diagnóstico
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body tc-modal-body">
+                    <div class="tc-form-group mb-3">
+                        <label asp-for="NewFlowCodeInput" class="tc-form-label required">Código do Fluxo:</label>
+                        <input asp-for="NewFlowCodeInput" class="tc-input text-uppercase font-monospace" placeholder="Ex.: FLOW-PERF-TIMEOUT" required />
+                    </div>
+                    <div class="tc-form-group mb-3">
+                        <label asp-for="NewFlowNameInput" class="tc-form-label required">Nome do Fluxo:</label>
+                        <input asp-for="NewFlowNameInput" class="tc-input" placeholder="Ex.: Degradação de Performance e Timeouts" required />
+                    </div>
+                    <div class="tc-form-group mb-3">
+                        <label asp-for="NewFlowKeywordsInput" class="tc-form-label required">Palavras-chave de Entrada (CSV):</label>
+                        <input asp-for="NewFlowKeywordsInput" class="tc-input" placeholder="Ex.: lentidão,timeout,504,travamento,socket" required />
+                        <span class="tc-caption text-muted">Termos que casam automaticamente relatos com este fluxo.</span>
+                    </div>
+                    <div class="tc-form-group mb-3">
+                        <label asp-for="NewFlowDescriptionInput" class="tc-form-label">Descrição / Escopo:</label>
+                        <textarea asp-for="NewFlowDescriptionInput" class="tc-textarea" rows="2" placeholder="Descreva a finalidade deste fluxo..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer tc-modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">Criar Fluxo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ADICIONAR HIPÓTESE AO FLUXO -->
+@if (Model.SelectedFlowDetails != null)
+{
+    <div class="modal fade" id="modalAddHypothesis" tabindex="-1" aria-labelledby="modalAddHypothesisLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="AddHypothesis" asp-route-flowId="@Model.SelectedFlowDetails.Id">
+                    <div class="modal-header tc-modal-header">
+                        <h5 class="modal-title tc-modal-title" id="modalAddHypothesisLabel">
+                            <i class="bi bi-lightbulb me-2 text-warning"></i>Adicionar Hipótese Candidata
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body tc-modal-body">
+                        <div class="tc-form-group mb-3">
+                            <label asp-for="NewHypothesisTitleInput" class="tc-form-label required">Título da Hipótese:</label>
+                            <input asp-for="NewHypothesisTitleInput" class="tc-input" placeholder="Ex.: Esgotamento de conexões no pool" required />
+                        </div>
+                        <div class="tc-form-group mb-3">
+                            <label asp-for="NewHypothesisComponentIdInput" class="tc-form-label">Componente Associado (Opcional):</label>
+                            <select asp-for="NewHypothesisComponentIdInput" class="tc-select">
+                                <option value="">-- Sem componente específico --</option>
+                                @foreach (var comp in Model.AvailableComponents)
+                                {
+                                    <option value="@comp.Id">@comp.Name (@(comp.Code ?? comp.ComponentType))</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="tc-form-group mb-3">
+                            <label asp-for="NewHypothesisDescriptionInput" class="tc-form-label">Descrição Técnica:</label>
+                            <textarea asp-for="NewHypothesisDescriptionInput" class="tc-textarea" rows="2" placeholder="Detalhes técnicos da suspeita..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer tc-modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary">Salvar Hipótese</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADICIONAR VERIFICAÇÃO / CHECK -->
+    <div class="modal fade" id="modalAddCheck" tabindex="-1" aria-labelledby="modalAddCheckLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="AddCheck" asp-route-flowId="@Model.SelectedFlowDetails.Id">
+                    <div class="modal-header tc-modal-header">
+                        <h5 class="modal-title tc-modal-title" id="modalAddCheckLabel">
+                            <i class="bi bi-question-circle me-2 text-primary"></i>Adicionar Verificação
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body tc-modal-body">
+                        <div class="tc-form-group mb-3">
+                            <label asp-for="NewCheckCodeInput" class="tc-form-label required">Código do Check:</label>
+                            <input asp-for="NewCheckCodeInput" class="tc-input text-uppercase font-monospace" placeholder="Ex.: CHK-POOL-SIZE" required />
+                        </div>
+                        <div class="tc-form-group mb-3">
+                            <label asp-for="NewCheckTitleInput" class="tc-form-label required">Título da Verificação:</label>
+                            <input asp-for="NewCheckTitleInput" class="tc-input" placeholder="Ex.: Checagem de Tamanho do Pool" required />
+                        </div>
+                        <div class="tc-form-group mb-3">
+                            <label asp-for="NewCheckQuestionInput" class="tc-form-label required">Pergunta Apresentada ao Operador:</label>
+                            <textarea asp-for="NewCheckQuestionInput" class="tc-textarea" rows="2" placeholder="Qual o valor da métrica ou estado observado...?" required></textarea>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="NewCheckRiskInput" class="tc-form-label">Risco de Execução:</label>
+                                <select asp-for="NewCheckRiskInput" class="tc-select">
+                                    <option value="Low">Low (Seguro em produção)</option>
+                                    <option value="Medium">Medium (Atenção redobrada)</option>
+                                    <option value="High">High (Crítico)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="NewCheckCostInput" class="tc-form-label">Custo Operacional:</label>
+                                <input asp-for="NewCheckCostInput" type="number" min="1" max="10" class="tc-input" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer tc-modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary">Salvar Verificação</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADICIONAR OPÇÃO COM IMPACTO -->
+    <div class="modal fade" id="modalAddOption" tabindex="-1" aria-labelledby="modalAddOptionLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="AddOption" asp-route-flowId="@Model.SelectedFlowDetails.Id">
+                    <input type="hidden" id="targetCheckId" name="checkId" />
+
+                    <div class="modal-header tc-modal-header">
+                        <h5 class="modal-title tc-modal-title" id="modalAddOptionLabel">
+                            <i class="bi bi-ui-checks me-2 text-primary"></i>Nova Opção de Resposta
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body tc-modal-body">
+                        <div class="tc-caption text-primary fw-semibold mb-2" id="targetCheckTitle"></div>
+
+                        <div class="tc-form-group mb-3">
+                            <label asp-for="NewOptionTextInput" class="tc-form-label required">Texto da Opção:</label>
+                            <input asp-for="NewOptionTextInput" class="tc-input" placeholder="Ex.: Sim, atinge mais de 90% de ocupação" required />
+                        </div>
+
+                        <hr class="my-3" />
+                        <h6 class="fw-semibold text-dark small mb-2"><i class="bi bi-shuffle me-1"></i>Impacto na Discriminação</h6>
+
+                        <div class="tc-form-group mb-3">
+                            <label asp-for="NewOptionTargetHypothesisIdInput" class="tc-form-label required">Hipótese Afetada:</label>
+                            <select asp-for="NewOptionTargetHypothesisIdInput" class="tc-select" required>
+                                <option value="">-- Selecione uma hipótese do fluxo --</option>
+                                @foreach (var hyp in Model.SelectedFlowDetails.Hypotheses)
+                                {
+                                    <option value="@hyp.Id">@hyp.Title</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="NewOptionImpactTypeInput" class="tc-form-label">Tipo de Efeito:</label>
+                                <select asp-for="NewOptionImpactTypeInput" class="tc-select">
+                                    <option value="Favors">Favors (Favorece)</option>
+                                    <option value="Discards">Discards (Descarta/Refuta)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="NewOptionImpactWeightInput" class="tc-form-label">Peso do Impacto:</label>
+                                <input asp-for="NewOptionImpactWeightInput" type="number" step="0.5" min="0.5" max="5.0" class="tc-input" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer tc-modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary">Salvar Opção com Impacto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

@@ -7,7 +7,8 @@ public record RegisterHypothesisCommand(
     long CaseId,
     string Title,
     string? Description = null,
-    long? ComponentId = null
+    long? ComponentId = null,
+    string? SourceType = "Human"
 );
 
 public record RegisterHypothesisRequest(
