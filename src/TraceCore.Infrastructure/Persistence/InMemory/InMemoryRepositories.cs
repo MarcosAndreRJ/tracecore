@@ -58,6 +58,8 @@ public class InMemoryDataStore
     public ConcurrentDictionary<long, KnowledgeUsage> KnowledgeUsages { get; } = new();
     public ConcurrentDictionary<long, SearchableContentEntry> SearchableContentEntries { get; } = new();
     public ConcurrentDictionary<long, LlmProviderConfig> LlmProviderConfigs { get; } = new();
+    public ConcurrentDictionary<long, LlmProvider> LlmProviders { get; } = new();
+    public ConcurrentDictionary<long, LlmModelConfig> LlmModelConfigs { get; } = new();
     public ConcurrentDictionary<long, AiInteraction> AiInteractions { get; } = new();
     public ConcurrentDictionary<long, AiSource> AiSources { get; } = new();
     public ConcurrentDictionary<long, AiInteractionFeedback> AiInteractionFeedbacks { get; } = new();
@@ -121,6 +123,8 @@ public class InMemoryDataStore
     public long NextIntegrationId() => Interlocked.Increment(ref _integrationIdSeq);
     public long NextIntegrationRunId() => Interlocked.Increment(ref _integrationRunIdSeq);
     public long NextLlmProviderConfigId() => Interlocked.Increment(ref _llmProviderConfigIdSeq);
+    public long NextLlmProviderId() => Interlocked.Increment(ref _llmProviderIdSeq);
+    public long NextLlmModelConfigId() => Interlocked.Increment(ref _llmModelConfigIdSeq);
     public long NextAiInteractionId() => Interlocked.Increment(ref _aiInteractionIdSeq);
     public long NextAiSourceId() => Interlocked.Increment(ref _aiSourceIdSeq);
     public long NextAiInteractionFeedbackId() => Interlocked.Increment(ref _aiInteractionFeedbackIdSeq);
@@ -171,6 +175,8 @@ public class InMemoryDataStore
     private long _integrationIdSeq = 0;
     private long _integrationRunIdSeq = 0;
     private long _llmProviderConfigIdSeq = 0;
+    private long _llmProviderIdSeq = 0;
+    private long _llmModelConfigIdSeq = 0;
     private long _aiInteractionIdSeq = 0;
     private long _aiSourceIdSeq = 0;
     private long _aiInteractionFeedbackIdSeq = 0;
@@ -229,6 +235,8 @@ public class InMemoryDataStore
         KnowledgeUsages.Clear();
         SearchableContentEntries.Clear();
         LlmProviderConfigs.Clear();
+        LlmProviders.Clear();
+        LlmModelConfigs.Clear();
         AiInteractions.Clear();
         AiSources.Clear();
         AiInteractionFeedbacks.Clear();
@@ -275,6 +283,8 @@ public class InMemoryDataStore
         _integrationIdSeq = 0;
         _integrationRunIdSeq = 0;
         _llmProviderConfigIdSeq = 0;
+        _llmProviderIdSeq = 0;
+        _llmModelConfigIdSeq = 0;
         _aiInteractionIdSeq = 0;
         _aiSourceIdSeq = 0;
         _aiInteractionFeedbackIdSeq = 0;
@@ -499,6 +509,75 @@ public class InMemoryDataStore
         { Id = NextIntegrationId() };
         ticket.OwnerDepartmentName = supportDept?.Name;
         Integrations[ticket.Id] = ticket;
+
+        // Seed LlmProviders (nova arquitetura Fase 17)
+        var anthropicProvider = new LlmProvider(
+            "Anthropic",
+            "anthropic",
+            LlmProtocols.AnthropicMessages,
+            "https://api.anthropic.com/v1",
+            LlmAuthenticationTypes.HeaderApiKey,
+            true,  // hasGenerationCapability
+            true,  // hasEmbeddingCapability
+            null) { Id = NextLlmProviderId() };
+        LlmProviders[anthropicProvider.Id] = anthropicProvider;
+
+        var openaiProvider = new LlmProvider(
+            "OpenAI",
+            "openai",
+            LlmProtocols.OpenAICompatible,
+            "https://api.openai.com/v1",
+            LlmAuthenticationTypes.BearerApiKey,
+            true,
+            true,
+            null) { Id = NextLlmProviderId() };
+        LlmProviders[openaiProvider.Id] = openaiProvider;
+
+        // Seed LlmModelConfigs (configuração de uso por propósito)
+        var anthropicGenConfig = new LlmModelConfig(
+            "Generation",
+            anthropicProvider.Id,
+            "claude-sonnet-4-5-20250929",
+            true,
+            null) { Id = NextLlmModelConfigId() };
+        LlmModelConfigs[anthropicGenConfig.Id] = anthropicGenConfig;
+
+        var anthropicEmbConfig = new LlmModelConfig(
+            "Embedding",
+            anthropicProvider.Id,
+            "voyage-3",
+            true,
+            null) { Id = NextLlmModelConfigId() };
+        LlmModelConfigs[anthropicEmbConfig.Id] = anthropicEmbConfig;
+
+        var openaiGenConfig = new LlmModelConfig(
+            "Generation",
+            openaiProvider.Id,
+            "gpt-4o-mini",
+            false,
+            null) { Id = NextLlmModelConfigId() };
+        LlmModelConfigs[openaiGenConfig.Id] = openaiGenConfig;
+
+        var openaiEmbConfig = new LlmModelConfig(
+            "Embedding",
+            openaiProvider.Id,
+            "text-embedding-3-small",
+            false,
+            null) { Id = NextLlmModelConfigId() };
+        LlmModelConfigs[openaiEmbConfig.Id] = openaiEmbConfig;
+
+        // Seed legacy LlmProviderConfigs para compatibilidade
+        var legacyConfigs = new[]
+        {
+            new LlmProviderConfig("Generation", "Anthropic", "claude-sonnet-4-5-20250929", true, null) { Id = NextLlmProviderConfigId() },
+            new LlmProviderConfig("Embedding", "Anthropic", "voyage-3", true, null) { Id = NextLlmProviderConfigId() },
+            new LlmProviderConfig("Generation", "OpenAI", "gpt-4o-mini", false, null) { Id = NextLlmProviderConfigId() },
+            new LlmProviderConfig("Embedding", "OpenAI", "text-embedding-3-small", false, null) { Id = NextLlmProviderConfigId() }
+        };
+        foreach (var c in legacyConfigs)
+        {
+            LlmProviderConfigs[c.Id] = c;
+        }
     }
 }
 
@@ -3551,6 +3630,143 @@ public class InMemoryLlmProviderConfigRepository : ILlmProviderConfigRepository
     {
         config.UpdatedAt = DateTime.UtcNow;
         _store.LlmProviderConfigs[config.Id] = config;
+        return Task.CompletedTask;
+    }
+}
+
+public class InMemoryLlmProviderRepository : ILlmProviderRepository
+{
+    private readonly InMemoryDataStore _store;
+
+    public InMemoryLlmProviderRepository(InMemoryDataStore store)
+    {
+        _store = store;
+    }
+
+    public Task<LlmProvider?> GetByIdAsync(long id, CancellationToken ct = default)
+    {
+        _store.LlmProviders.TryGetValue(id, out var provider);
+        return Task.FromResult(provider);
+    }
+
+    public Task<LlmProvider?> GetByCodeAsync(string code, CancellationToken ct = default)
+    {
+        var provider = _store.LlmProviders.Values.FirstOrDefault(p =>
+            p.Code.Equals(code?.Trim().ToLowerInvariant(), StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(provider);
+    }
+
+    public Task<IReadOnlyList<LlmProvider>> GetAllAsync(CancellationToken ct = default)
+    {
+        IReadOnlyList<LlmProvider> list = _store.LlmProviders.Values
+            .OrderBy(p => p.Name)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<IReadOnlyList<LlmProvider>> GetByProtocolAsync(string protocol, CancellationToken ct = default)
+    {
+        IReadOnlyList<LlmProvider> list = _store.LlmProviders.Values
+            .Where(p => p.Protocol.Equals(protocol, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(p => p.Name)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<IReadOnlyList<LlmProvider>> GetByCapabilityAsync(string capability, CancellationToken ct = default)
+    {
+        var list = _store.LlmProviders.Values
+            .Where(p => capability.Equals("Generation", StringComparison.OrdinalIgnoreCase)
+                ? p.HasGenerationCapability
+                : p.HasEmbeddingCapability)
+            .OrderBy(p => p.Name)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<LlmProvider>>(list);
+    }
+
+    public Task<long> AddAsync(LlmProvider provider, CancellationToken ct = default)
+    {
+        provider.Id = _store.NextLlmProviderId();
+        provider.CreatedAt = DateTime.UtcNow;
+        _store.LlmProviders[provider.Id] = provider;
+        return Task.FromResult(provider.Id);
+    }
+
+    public Task UpdateAsync(LlmProvider provider, CancellationToken ct = default)
+    {
+        provider.UpdatedAt = DateTime.UtcNow;
+        _store.LlmProviders[provider.Id] = provider;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> ExistsByCodeAsync(string code, CancellationToken ct = default)
+    {
+        var exists = _store.LlmProviders.Values.Any(p =>
+            p.Code.Equals(code?.Trim().ToLowerInvariant(), StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(exists);
+    }
+}
+
+public class InMemoryLlmModelConfigRepository : ILlmModelConfigRepository
+{
+    private readonly InMemoryDataStore _store;
+
+    public InMemoryLlmModelConfigRepository(InMemoryDataStore store)
+    {
+        _store = store;
+    }
+
+    public Task<LlmModelConfig?> GetActiveByPurposeAsync(string purpose, CancellationToken ct = default)
+    {
+        var config = _store.LlmModelConfigs.Values.FirstOrDefault(c =>
+            c.Purpose.Equals(purpose, StringComparison.OrdinalIgnoreCase) && c.IsActive);
+        return Task.FromResult(config);
+    }
+
+    public Task<LlmModelConfig?> GetByIdAsync(long id, CancellationToken ct = default)
+    {
+        _store.LlmModelConfigs.TryGetValue(id, out var config);
+        return Task.FromResult(config);
+    }
+
+    public Task<IReadOnlyList<LlmModelConfig>> GetAllAsync(CancellationToken ct = default)
+    {
+        IReadOnlyList<LlmModelConfig> list = _store.LlmModelConfigs.Values
+            .OrderBy(c => c.Purpose)
+            .ThenBy(c => c.ModelName)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<IReadOnlyList<LlmModelConfig>> GetByProviderAsync(long providerId, CancellationToken ct = default)
+    {
+        IReadOnlyList<LlmModelConfig> list = _store.LlmModelConfigs.Values
+            .Where(c => c.ProviderId == providerId)
+            .OrderBy(c => c.Purpose)
+            .ThenBy(c => c.ModelName)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<LlmModelConfig?> GetByPurposeAndProviderAsync(string purpose, long providerId, CancellationToken ct = default)
+    {
+        var config = _store.LlmModelConfigs.Values.FirstOrDefault(c =>
+            c.Purpose.Equals(purpose, StringComparison.OrdinalIgnoreCase) && c.ProviderId == providerId);
+        return Task.FromResult(config);
+    }
+
+    public Task<long> AddAsync(LlmModelConfig config, CancellationToken ct = default)
+    {
+        config.Id = _store.NextLlmModelConfigId();
+        config.CreatedAt = DateTime.UtcNow;
+        _store.LlmModelConfigs[config.Id] = config;
+        return Task.FromResult(config.Id);
+    }
+
+    public Task UpdateAsync(LlmModelConfig config, CancellationToken ct = default)
+    {
+        config.UpdatedAt = DateTime.UtcNow;
+        _store.LlmModelConfigs[config.Id] = config;
         return Task.CompletedTask;
     }
 }

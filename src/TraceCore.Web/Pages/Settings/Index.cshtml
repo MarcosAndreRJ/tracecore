@@ -1,0 +1,120 @@
+@page
+@model TraceCore.Web.Pages.Settings.IndexModel
+@using TraceCore.Application.DTOs
+@{
+    ViewData["Title"] = "Configurações - TraceCore";
+    var generationActive = Model.GenerationActive;
+    var embeddingActive = Model.EmbeddingActive;
+}
+
+<div class="tc-breadcrumb">
+    <span class="tc-breadcrumb-item"><a asp-page="/Index">Início</a></span>
+    <span class="tc-breadcrumb-item active">Configurações</span>
+</div>
+
+<div class="tc-page-header">
+    <div>
+        <h1 class="tc-page-header-title">
+            <i class="bi bi-gear-fill text-primary" aria-hidden="true"></i>
+            <span>Configurações</span>
+        </h1>
+        <p class="tc-page-header-subtitle">Gerencie as configurações da plataforma TraceCore</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6 col-12">
+        <div class="tc-card h-100">
+            <div class="tc-card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="tc-avatar tc-avatar-md" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                        <i class="bi bi-cpu-fill text-white"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-semibold">Inteligência Artificial</h5>
+                        <p class="text-muted small mb-0">Provedores de LLM, protocolos e embeddings do copiloto</p>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <div class="tc-stat-card py-2">
+                            <div class="tc-stat-label">Geração</div>
+                            <div class="tc-stat-value fs-6 fw-semibold">@(generationActive?.ProviderName ?? "Nenhum")</div>
+                            <div class="text-muted" style="font-size:0.75rem;">@(generationActive?.ModelName ?? "sem provedor ativo")</div>
+                            @if (generationActive != null)
+                            {
+                                @if (generationActive.CredentialConfigured)
+                                {
+                                    <span class="tc-badge tc-badge-sm tc-badge-verified mt-1">credencial ok</span>
+                                }
+                                else
+                                {
+                                    <span class="tc-badge tc-badge-sm tc-badge-stale mt-1">sem credencial</span>
+                                }
+                            }
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="tc-stat-card py-2">
+                            <div class="tc-stat-label">Embedding</div>
+                            <div class="tc-stat-value fs-6 fw-semibold">@(embeddingActive?.ProviderName ?? "Nenhum")</div>
+                            <div class="text-muted" style="font-size:0.75rem;">@(embeddingActive?.ModelName ?? "sem provedor ativo")</div>
+                            @if (embeddingActive != null)
+                            {
+                                @if (embeddingActive.CredentialConfigured)
+                                {
+                                    <span class="tc-badge tc-badge-sm tc-badge-verified mt-1">credencial ok</span>
+                                }
+                                else
+                                {
+                                    <span class="tc-badge tc-badge-sm tc-badge-stale mt-1">sem credencial</span>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">@Model.TotalProviders provedor(es) cadastrado(s)</span>
+                    <a asp-page="/Settings/LlmProviders/Index" class="tc-btn tc-btn-secondary tc-btn-sm">
+                        <span>Gerenciar IA</span>
+                        <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-12">
+        <div class="tc-card h-100">
+            <div class="tc-card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="tc-avatar tc-avatar-md" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <i class="bi bi-shield-check text-white"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-semibold">Segurança & Auditoria</h5>
+                        <p class="text-muted small mb-0">Rastreabilidade e logs de eventos do sistema</p>
+                    </div>
+                </div>
+
+                <div class="tc-stat-card py-3 mb-3">
+                    <div class="tc-stat-label">Credenciais em Repouso</div>
+                    <div class="tc-stat-value fs-6 text-success fw-semibold">
+                        <i class="bi bi-lock-fill me-1"></i> ASP.NET Core Data Protection
+                    </div>
+                    <div class="text-muted" style="font-size:0.75rem;">Nenhuma credencial de IA gravada no banco de dados</div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Módulo de Auditoria</span>
+                    <a asp-page="/Audit/Index" class="tc-btn tc-btn-secondary tc-btn-sm">
+                        <span>Ver Auditoria</span>
+                        <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

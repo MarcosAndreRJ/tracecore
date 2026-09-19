@@ -1,5 +1,6 @@
 using System.Reflection;
 using FluentMigrator.Runner;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TraceCore.Application.Services;
@@ -27,6 +28,20 @@ public static class DependencyInjection
 
         // Fase 15 (M10): Serviço de verificação automática de saúde de integrações
         services.AddScoped<IIntegrationHealthCheckService, IntegrationHealthCheckService>();
+
+        // Fase 17 (Configurações): Catálogo de modelos (singleton — lista estática em memória)
+        services.AddSingleton<ILlmModelCatalog, LlmModelCatalog>();
+
+        // Fase 17 (Configurações): Secret Store usando ASP.NET Core Data Protection.
+        // App_Data/Secrets/ — fora de wwwroot e fora do controle de versão.
+        // IDataProtectionProvider é registrado pelo AddDataProtection() abaixo — chamado
+        // antes do bloco de provider para garantir disponibilidade em ambos (MySql e InMemory).
+        var storagePath = configuration["Storage:BasePath"] ?? "App_Data/Storage";
+        var appDataRoot = System.IO.Path.GetDirectoryName(storagePath) ?? "App_Data";
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(new System.IO.DirectoryInfo(
+                System.IO.Path.Combine(appDataRoot, "DataProtection-Keys")));
+        services.AddSingleton<ISecretStore, ProtectedFileSecretStore>();
 
         // Bloco 7.A.0 (ADR — Persistência): MySQL é o provider operacional padrão.
         // InMemory NUNCA é selecionado silenciosamente — só quando explicitamente
@@ -78,6 +93,8 @@ public static class DependencyInjection
             services.AddScoped<IManagementAnalyticsRepository, MySqlManagementAnalyticsRepository>();
             services.AddScoped<ISearchableContentRepository, MySqlSearchableContentRepository>();
             services.AddScoped<ILlmProviderConfigRepository, MySqlLlmProviderConfigRepository>();
+            services.AddScoped<ILlmProviderRepository, MySqlLlmProviderRepository>();
+            services.AddScoped<ILlmModelConfigRepository, MySqlLlmModelConfigRepository>();
             services.AddScoped<IAiInteractionRepository, MySqlAiInteractionRepository>();
             services.AddScoped<ILlmProviderResolver, LlmProviderResolver>();
 
@@ -116,7 +133,10 @@ public static class DependencyInjection
             services.AddScoped<IIntegrationRepository, InMemoryIntegrationRepository>();
             services.AddScoped<ISearchableContentRepository, InMemorySearchableContentRepository>();
             services.AddScoped<ILlmProviderConfigRepository, InMemoryLlmProviderConfigRepository>();
+            services.AddScoped<ILlmProviderRepository, InMemoryLlmProviderRepository>();
+            services.AddScoped<ILlmModelConfigRepository, InMemoryLlmModelConfigRepository>();
             services.AddScoped<IAiInteractionRepository, InMemoryAiInteractionRepository>();
+            services.AddSingleton<ISecretStore, InMemorySecretStore>();
             services.AddScoped<ILlmProviderResolver, LlmProviderResolver>();
         }
         else

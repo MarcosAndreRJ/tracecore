@@ -15,20 +15,33 @@ namespace TraceCore.Infrastructure.Services.Llm;
 /// </summary>
 public class AnthropicEmbeddingProvider : IEmbeddingProvider
 {
-    private const string BaseUrl = "https://api.anthropic.com/v1/embeddings";
+    private const string DefaultBaseUrl = "https://api.anthropic.com/v1";
     private const string ApiVersion = "2023-06-01";
 
     private readonly HttpClient _httpClient;
+    private readonly string _baseUrl;
     private readonly string _apiKey;
 
     public AnthropicEmbeddingProvider(HttpClient httpClient, string apiKey, string modelName)
+        : this(httpClient, DefaultBaseUrl, modelName, apiKey, "Anthropic")
     {
-        _httpClient = httpClient;
-        _apiKey = apiKey ?? throw new ArgumentException("API Key da Anthropic é obrigatória.", nameof(apiKey));
-        ModelName = !string.IsNullOrWhiteSpace(modelName) ? modelName.Trim() : "voyage-3";
     }
 
-    public string ProviderCode => "Anthropic";
+    public AnthropicEmbeddingProvider(
+        HttpClient httpClient,
+        string baseUrl,
+        string modelName,
+        string apiKey,
+        string providerCode = "Anthropic")
+    {
+        _httpClient = httpClient;
+        _baseUrl = baseUrl?.TrimEnd('/') ?? DefaultBaseUrl;
+        _apiKey = apiKey ?? throw new ArgumentException("API Key da Anthropic é obrigatória.", nameof(apiKey));
+        ModelName = !string.IsNullOrWhiteSpace(modelName) ? modelName.Trim() : "voyage-3";
+        ProviderCode = !string.IsNullOrWhiteSpace(providerCode) ? providerCode : "Anthropic";
+    }
+
+    public string ProviderCode { get; }
     public string ModelName { get; }
 
     public async Task<float[]> EmbedAsync(string text, CancellationToken ct = default)
@@ -39,7 +52,11 @@ public class AnthropicEmbeddingProvider : IEmbeddingProvider
             input = new[] { text }
         };
 
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, BaseUrl);
+        var url = _baseUrl.EndsWith("/embeddings", StringComparison.OrdinalIgnoreCase)
+            ? _baseUrl
+            : $"{_baseUrl}/embeddings";
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url);
         httpRequest.Headers.Add("x-api-key", _apiKey);
         httpRequest.Headers.Add("anthropic-version", ApiVersion);
         httpRequest.Content = new StringContent(

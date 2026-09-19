@@ -311,8 +311,8 @@
                             @if (User.HasClaim("permission", "configuracao.gerenciar"))
                             {
                                 <li class="tc-sidebar-item">
-                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Settings/LlmProviders", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-                                       asp-page="/Settings/LlmProviders">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Settings", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Settings/Index">
                                         <i class="bi bi-gear"></i>
                                         <span>Configurações</span>
                                     </a>

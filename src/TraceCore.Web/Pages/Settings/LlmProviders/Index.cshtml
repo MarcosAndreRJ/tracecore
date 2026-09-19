@@ -2,32 +2,30 @@
 @model TraceCore.Web.Pages.Settings.LlmProviders.IndexModel
 @using TraceCore.Application.DTOs
 @{
-    ViewData["Title"] = "Provedores de IA - TraceCore";
-    var generationActive = Model.Configs.FirstOrDefault(c => c.Purpose.Equals("Generation", StringComparison.OrdinalIgnoreCase) && c.IsActive);
-    var embeddingActive = Model.Configs.FirstOrDefault(c => c.Purpose.Equals("Embedding", StringComparison.OrdinalIgnoreCase) && c.IsActive);
+    ViewData["Title"] = "Inteligência Artificial - Configurações - TraceCore";
+    var genProviders = Model.Providers.Where(p => p.HasGenerationCapability && p.Status == "Active").ToList();
+    var embProviders = Model.Providers.Where(p => p.HasEmbeddingCapability && p.Status == "Active").ToList();
 }
 
 <div class="tc-breadcrumb">
     <span class="tc-breadcrumb-item"><a asp-page="/Index">Início</a></span>
-    <span class="tc-breadcrumb-item active">Configurações</span>
-    <span class="tc-breadcrumb-item active">Provedores de IA</span>
+    <span class="tc-breadcrumb-item"><a asp-page="/Settings/Index">Configurações</a></span>
+    <span class="tc-breadcrumb-item active">Inteligência Artificial</span>
 </div>
 
 <div class="tc-page-header">
     <div>
         <h1 class="tc-page-header-title">
             <i class="bi bi-cpu text-primary" aria-hidden="true"></i>
-            <span>Provedores de IA</span>
+            <span>Inteligência Artificial</span>
         </h1>
-        <p class="tc-page-header-subtitle">Configuração dos provedores de LLM e embedding do copiloto (Módulo M12)</p>
+        <p class="tc-page-header-subtitle">Gestão desacoplada de provedores de IA, protocolos e modelos de uso (Módulo M12)</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        <form method="post" asp-page-handler="IndexEmbeddings">
-            <button type="submit" class="tc-btn tc-btn-primary">
-                <i class="bi bi-database-add me-1"></i>
-                <span>Indexar embeddings</span>
-            </button>
-        </form>
+        <button type="button" class="tc-btn tc-btn-primary" data-bs-toggle="modal" data-bs-target="#modalProvider" onclick="openNewProviderModal()">
+            <i class="bi bi-plus-lg me-1"></i>
+            <span>Adicionar provedor</span>
+        </button>
     </div>
 </div>
 
@@ -37,7 +35,6 @@
         <i class="bi bi-check-circle-fill me-2"></i>@Html.Raw(Model.SuccessMessage)
     </div>
 }
-
 @if (!string.IsNullOrEmpty(Model.ErrorMessage))
 {
     <div class="tc-alert tc-alert-danger mb-4" role="alert">
@@ -45,132 +42,580 @@
     </div>
 }
 
+<div id="tc-test-alert" class="tc-alert mb-4 d-none" role="alert"></div>
+
 <div class="tc-alert tc-alert-info mb-4" role="alert">
-    <i class="bi bi-info-circle-fill me-2"></i>
-    <strong>Credencial fora do banco.</strong>
-    As API Keys destes provedores <strong>nunca</strong> são persistidas no banco de dados —
-    elas moram em configuração de ambiente (User Secrets em desenvolvimento; variável de
-    ambiente/secret store em staging e produção). Esta tela apenas mostra se a credencial
-    <strong>está presente ou ausente</strong>. Enquanto o provedor ativo não tiver credencial,
-    o copiloto informa que a abstração está pronta, mas não realiza chamadas.
+    <i class="bi bi-shield-lock-fill me-2"></i>
+    <strong>Desacoplamento e Segurança.</strong>
+    Os provedores e modelos são 100% dinâmicos: você pode cadastrar qualquer endpoint compatível (OpenAI, DeepSeek, Ollama, vLLM, LM Studio, etc.) sem alterar código.
+    As credenciais são gerenciadas exclusivamente pelo <code>ISecretStore</code> criptografado e <strong>nunca</strong> são armazenadas no banco ou exibidas em tela.
 </div>
 
-@if (generationActive != null || embeddingActive != null)
-{
-    <div class="row g-4 mb-4">
-        <div class="col-md-3 col-12">
-            <div class="tc-stat-card">
-                <div class="tc-stat-label">Provedor de geração</div>
-                <div class="tc-stat-value">@(generationActive?.ProviderCode ?? "—")</div>
-                <div class="text-muted small">@(generationActive?.ModelName ?? "nenhum ativo")</div>
-            </div>
-        </div>
-        <div class="col-md-3 col-12">
-            <div class="tc-stat-card">
-                <div class="tc-stat-label">Provedor de embedding</div>
-                <div class="tc-stat-value">@(embeddingActive?.ProviderCode ?? "—")</div>
-                <div class="text-muted small">@(embeddingActive?.ModelName ?? "nenhum ativo")</div>
-            </div>
-        </div>
-        <div class="col-md-6 col-12">
-            <div class="tc-stat-card">
-                <div class="tc-stat-label">Efeito desta configuração</div>
-                <div class="tc-stat-value fs-6">Similaridade por cosseno sobre o conjunto pré-filtrado (ADR-P006)</div>
-                <div class="text-muted small">Vetores em MySQL — sem infraestrutura externa de busca vetorial dedicada</div>
+<!-- Abas de Navegação -->
+<ul class="nav nav-tabs tc-tabs mb-4" id="aiConfigTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-providers-link" data-bs-toggle="tab" data-bs-target="#tab-providers" type="button" role="tab">
+            <i class="bi bi-hdd-network me-1"></i> Provedores Cadastrados (@Model.Providers.Count)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-models-link" data-bs-toggle="tab" data-bs-target="#tab-models" type="button" role="tab">
+            <i class="bi bi-sliders me-1"></i> Uso dos Modelos (Propósito)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-indexing-link" data-bs-toggle="tab" data-bs-target="#tab-indexing" type="button" role="tab">
+            <i class="bi bi-database-gear me-1"></i> Indexação de Embeddings
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="aiConfigTabsContent">
+
+    <!-- ABA 1: PROVEDORES -->
+    <div class="tab-pane fade show active" id="tab-providers" role="tabpanel">
+        <div class="tc-card">
+            <div class="tc-card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Código</th>
+                                <th>Protocolo</th>
+                                <th>Base URL</th>
+                                <th>Autenticação</th>
+                                <th>Capacidades</th>
+                                <th>Credencial</th>
+                                <th>Status</th>
+                                <th class="text-end">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Providers.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="9" class="text-center py-4 text-muted">
+                                        Nenhum provedor de IA cadastrado. Clique em "Adicionar provedor" para começar.
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var p in Model.Providers)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@p.Name</td>
+                                    <td><code>@p.Code</code></td>
+                                    <td>
+                                        <span class="badge bg-secondary">@p.Protocol</span>
+                                    </td>
+                                    <td class="small text-muted" style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="@p.BaseUrl">
+                                        @p.BaseUrl
+                                    </td>
+                                    <td>
+                                        <span class="tc-badge tc-badge-sm @(p.AuthenticationType == "None" ? "tc-badge-secondary" : "tc-badge-verified")">
+                                            @p.AuthenticationType
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            @if (p.HasGenerationCapability)
+                                            {
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.7rem;">Geração</span>
+                                            }
+                                            @if (p.HasEmbeddingCapability)
+                                            {
+                                                <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size:0.7rem;">Embedding</span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (p.AuthenticationType == "None")
+                                        {
+                                            <span class="text-muted small"><i class="bi bi-dash"></i> dispensada</span>
+                                        }
+                                        else if (p.CredentialConfigured)
+                                        {
+                                            <span class="tc-badge tc-badge-sm tc-badge-verified"><i class="bi bi-shield-check me-1"></i>configurada</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="tc-badge tc-badge-sm tc-badge-stale"><i class="bi bi-shield-x me-1"></i>ausente</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (p.Status == "Active")
+                                        {
+                                            <span class="badge bg-success-subtle text-success">Ativo</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary-subtle text-muted">Inativo</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-secondary" title="Editar provedor"
+                                                    onclick="openEditProviderModal(@p.Id, '@Html.Raw(p.Name)', '@p.Code', '@p.Protocol', '@Html.Raw(p.BaseUrl)', '@p.AuthenticationType', @p.HasGenerationCapability.ToString().ToLower(), @p.HasEmbeddingCapability.ToString().ToLower(), '@p.Status')">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            @if (p.AuthenticationType != "None")
+                                            {
+                                                <button type="button" class="btn btn-outline-secondary" title="Gerenciar credencial"
+                                                        onclick="openCredentialModal('@p.Code', '@Html.Raw(p.Name)', @p.CredentialConfigured.ToString().ToLower())">
+                                                    <i class="bi bi-key"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
-}
 
-<div class="tc-card">
-    <div class="tc-card-body">
-        <table class="table table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>Propósito</th>
-                    <th>Provedor</th>
-                    <th>Modelo</th>
-                    <th>Credencial</th>
-                    <th>Status</th>
-                    <th class="text-end">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var config in Model.Configs)
-                {
-                    <tr class="@(config.IsActive ? "table-active" : "")">
-                        <td>
-                            <span class="fw-semibold">@config.Purpose</span>
-                            @if (config.IsActive)
+    <!-- ABA 2: USO DOS MODELOS POR PROPÓSITO -->
+    <div class="tab-pane fade" id="tab-models" role="tabpanel">
+        <div class="row g-4">
+            
+            <!-- Propósito: Geração -->
+            <div class="col-md-6 col-12">
+                <div class="tc-card h-100">
+                    <div class="tc-card-body">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="tc-avatar tc-avatar-sm" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                                    <i class="bi bi-chat-dots-fill text-white"></i>
+                                </div>
+                                <h5 class="mb-0 fw-semibold">Geração (Copiloto & Raciocínio)</h5>
+                            </div>
+                            @if (Model.GenerationActive != null)
                             {
-                                <span class="tc-badge tc-badge-sm tc-badge-verified ms-1">ativa</span>
-                            }
-                        </td>
-                        <td>@config.ProviderCode</td>
-                        <td>
-                            <form method="post" asp-page-handler="UpdateModel" class="d-flex gap-2">
-                                <input type="hidden" name="ModelInput.ConfigId" value="@config.Id" />
-                                <input type="text" name="ModelInput.ModelName" value="@config.ModelName" class="form-control form-control-sm" style="max-width: 260px;" />
-                                <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm" title="Salvar modelo">
-                                    <i class="bi bi-check-lg"></i>
-                                </button>
-                            </form>
-                        </td>
-                        <td>
-                            @if (config.CredentialConfigured)
-                            {
-                                <span class="tc-badge tc-badge-sm tc-badge-open">credencial presente</span>
+                                <span class="badge bg-success-subtle text-success">Ativo: @Model.GenerationActive.ProviderName</span>
                             }
                             else
                             {
-                                <span class="tc-badge tc-badge-sm tc-badge-stale" title="Configure a API Key em User Secrets / variável de ambiente (Llm:ProviderCode:ApiKey)">sem credencial</span>
+                                <span class="badge bg-warning-subtle text-warning">Nenhum ativo</span>
                             }
-                        </td>
-                        <td>
-                            @if (config.IsActive)
-                            {
-                                <span class="tc-badge tc-badge-sm tc-badge-open">Ativo</span>
-                            }
-                            else
-                            {
-                                <span class="tc-badge tc-badge-sm tc-badge-stale">Inativo</span>
-                            }
-                        </td>
-                        <td class="text-end">
-                            @if (!config.IsActive)
-                            {
-                                <form method="post" asp-page-handler="Activate" class="d-inline">
-                                    <input type="hidden" name="ActivateConfigId" value="@config.Id" />
-                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm">
-                                        <i class="bi bi-play-fill me-1"></i>
-                                        <span>Ativar</span>
+                        </div>
+
+                        <p class="text-muted small mb-3">
+                            Define o provedor e modelo utilizados pelo Copiloto de IA para assistência investigativa e síntese de relatórios.
+                        </p>
+
+                        @if (Model.GenerationActive != null)
+                        {
+                            <div class="p-3 bg-light rounded mb-3 border">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-semibold">@Model.GenerationActive.ProviderName</span>
+                                    <span class="badge bg-secondary">@Model.GenerationActive.Protocol</span>
+                                </div>
+                                <div class="text-muted small">Modelo ativo: <code>@Model.GenerationActive.ModelName</code></div>
+                                <div class="mt-2 d-flex justify-content-between align-items-center">
+                                    <span>
+                                        @if (Model.GenerationActive.CredentialConfigured)
+                                        {
+                                            <span class="tc-badge tc-badge-sm tc-badge-verified"><i class="bi bi-check-lg me-1"></i>Credencial OK</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="tc-badge tc-badge-sm tc-badge-stale"><i class="bi bi-exclamation-circle me-1"></i>Credencial pendente</span>
+                                        }
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            onclick="testConnection(@Model.GenerationActive.Id, null, null)">
+                                        <i class="bi bi-broadcast me-1"></i> Testar Conexão
                                     </button>
-                                </form>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-</div>
+                                </div>
+                            </div>
+                        }
 
-<div class="row g-4 mt-1">
-    <div class="col-12">
+                        <form method="post" asp-page-handler="SaveGenerationModel">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Selecionar Provedor</label>
+                                <select name="GenUsageInput.ProviderId" class="form-select" required onchange="updateGenModelSuggestions(this)">
+                                    <option value="">-- Selecione um provedor com capacidade de Geração --</option>
+                                    @foreach (var p in genProviders)
+                                    {
+                                        <option value="@p.Id" selected="@(Model.GenerationActive?.ProviderId == p.Id)" data-code="@p.Code">
+                                            @p.Name (@p.Protocol - @p.Code)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Identificador do Modelo</label>
+                                <input type="text" name="GenUsageInput.ModelName" value="@Model.GenUsageInput.ModelName"
+                                       class="form-control" list="genModelSuggestions"
+                                       placeholder="ex: deepseek-chat, qwen3:14b, gpt-4o-mini, claude-3-7-sonnet" required />
+                                <datalist id="genModelSuggestions">
+                                    @foreach (var m in Model.GenerationSuggestions)
+                                    {
+                                        <option value="@m.ModelId">@m.DisplayName</option>
+                                    }
+                                </datalist>
+                                <div class="form-text">
+                                    Digite livremente o ID do modelo aceito pelo provedor cadastrado.
+                                </div>
+                            </div>
+
+                            <button type="submit" class="tc-btn tc-btn-primary w-100">
+                                <i class="bi bi-check-circle me-1"></i> Salvar e Ativar para Geração
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Propósito: Embedding -->
+            <div class="col-md-6 col-12">
+                <div class="tc-card h-100">
+                    <div class="tc-card-body">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="tc-avatar tc-avatar-sm" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">
+                                    <i class="bi bi-vector-pen text-white"></i>
+                                </div>
+                                <h5 class="mb-0 fw-semibold">Embeddings (Busca Semântica & RAG)</h5>
+                            </div>
+                            @if (Model.EmbeddingActive != null)
+                            {
+                                <span class="badge bg-success-subtle text-success">Ativo: @Model.EmbeddingActive.ProviderName</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning-subtle text-warning">Nenhum ativo</span>
+                            }
+                        </div>
+
+                        <p class="text-muted small mb-3">
+                            Define o provedor e modelo de vetorização para busca vetorial de conteúdo e artigos da base oficial.
+                        </p>
+
+                        @if (Model.EmbeddingActive != null)
+                        {
+                            <div class="p-3 bg-light rounded mb-3 border">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-semibold">@Model.EmbeddingActive.ProviderName</span>
+                                    <span class="badge bg-secondary">@Model.EmbeddingActive.Protocol</span>
+                                </div>
+                                <div class="text-muted small">Modelo ativo: <code>@Model.EmbeddingActive.ModelName</code></div>
+                                <div class="mt-2 d-flex justify-content-between align-items-center">
+                                    <span>
+                                        @if (Model.EmbeddingActive.CredentialConfigured)
+                                        {
+                                            <span class="tc-badge tc-badge-sm tc-badge-verified"><i class="bi bi-check-lg me-1"></i>Credencial OK</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="tc-badge tc-badge-sm tc-badge-stale"><i class="bi bi-exclamation-circle me-1"></i>Credencial pendente</span>
+                                        }
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-outline-info"
+                                            onclick="testConnection(@Model.EmbeddingActive.Id, null, null)">
+                                        <i class="bi bi-broadcast me-1"></i> Testar Conexão
+                                    </button>
+                                </div>
+                            </div>
+                        }
+
+                        <form method="post" asp-page-handler="SaveEmbeddingModel">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Selecionar Provedor</label>
+                                <select name="EmbUsageInput.ProviderId" class="form-select" required>
+                                    <option value="">-- Selecione um provedor com capacidade de Embedding --</option>
+                                    @foreach (var p in embProviders)
+                                    {
+                                        <option value="@p.Id" selected="@(Model.EmbeddingActive?.ProviderId == p.Id)">
+                                            @p.Name (@p.Protocol - @p.Code)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Identificador do Modelo</label>
+                                <input type="text" name="EmbUsageInput.ModelName" value="@Model.EmbUsageInput.ModelName"
+                                       class="form-control" list="embModelSuggestions"
+                                       placeholder="ex: text-embedding-3-small, nomic-embed-text, bge-large-en-v1.5" required />
+                                <datalist id="embModelSuggestions">
+                                    @foreach (var m in Model.EmbeddingSuggestions)
+                                    {
+                                        <option value="@m.ModelId">@m.DisplayName</option>
+                                    }
+                                </datalist>
+                                <div class="form-text">
+                                    Digite livremente o ID do modelo de embedding suportado pelo endpoint.
+                                </div>
+                            </div>
+
+                            <button type="submit" class="tc-btn tc-btn-primary w-100">
+                                <i class="bi bi-check-circle me-1"></i> Salvar e Ativar para Embedding
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ABA 3: INDEXAÇÃO DE EMBEDDINGS -->
+    <div class="tab-pane fade" id="tab-indexing" role="tabpanel">
         <div class="tc-card">
             <div class="tc-card-body">
-                <h6 class="mb-2">
-                    <i class="bi bi-search me-1"></i>
-                    Indexação de embeddings
-                </h6>
-                <p class="text-muted small mb-0">
-                    Gera ou regenera vetores do conteúdo elegível (artigos validados, casos e
-                    documentação com visibilidade pública/interna) para o modelo de embedding ativo.
-                    A operação é <strong>idempotente</strong>: conteúdo já vetorizado para o modelo
-                    atual não é reprocessado, e conteúdo alterado é re-vetorizado automaticamente.
-                    Conteúdo confidencial/restrito nunca é enviado ao provedor externo (BR-102).
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <div class="tc-avatar tc-avatar-md" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <i class="bi bi-database-check text-white"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1 fw-semibold">Indexação Idempotente de Conteúdo Oficial</h5>
+                        <p class="text-muted small mb-0">Vetorização controlada conforme BR-083 e diretriz DEV-AI-003.</p>
+                    </div>
+                </div>
+
+                <div class="tc-alert tc-alert-secondary mb-4">
+                    <p class="mb-1"><strong>Como funciona a indexação:</strong></p>
+                    <ul class="mb-0 ps-3 small">
+                        <li>Apenas conteúdos oficiais aprovados (artigos da base de conhecimento com versão validada e completa) são elegíveis.</li>
+                        <li>O processo é idempotente: registros já vetorizados para o modelo ativo atual são preservados.</li>
+                        <li>Nenhum processo roda oculto em segundo plano; a ação é explicitamente solicitada pelo administrador.</li>
+                    </ul>
+                </div>
+
+                <form method="post" asp-page-handler="IndexEmbeddings">
+                    <button type="submit" class="tc-btn tc-btn-primary">
+                        <i class="bi bi-play-circle me-1"></i> Executar Indexação de Embeddings
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL: CADASTRAR / EDITAR PROVEDOR -->
+<div class="modal fade" id="modalProvider" tabindex="-1" aria-labelledby="modalProviderTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="SaveProvider">
+                <input type="hidden" id="provId" name="ProviderForm.Id" value="0" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalProviderTitle">
+                        <i class="bi bi-hdd-network me-2"></i><span>Adicionar Provedor de IA</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Nome de Exibição <span class="text-danger">*</span></label>
+                            <input type="text" id="provName" name="ProviderForm.Name" class="form-control"
+                                   placeholder="ex: OpenAI Produção, Ollama Local, DeepSeek" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Código Identificador <span class="text-danger">*</span></label>
+                            <input type="text" id="provCode" name="ProviderForm.Code" class="form-control"
+                                   placeholder="ex: openai-prod, ollama-local, deepseek" required />
+                            <div class="form-text">Código alfanumérico único para referenciar este provedor.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Protocolo <span class="text-danger">*</span></label>
+                            <select id="provProtocol" name="ProviderForm.Protocol" class="form-select" required>
+                                @foreach (var proto in Model.SupportedProtocols)
+                                {
+                                    <option value="@proto">@proto</option>
+                                }
+                            </select>
+                            <div class="form-text">Define como o TraceCore formata os requests HTTP.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Autenticação <span class="text-danger">*</span></label>
+                            <select id="provAuth" name="ProviderForm.AuthenticationType" class="form-select" required onchange="toggleApiKeyField(this.value)">
+                                @foreach (var auth in Model.SupportedAuthenticationTypes)
+                                {
+                                    <option value="@auth">@auth</option>
+                                }
+                            </select>
+                            <div class="form-text">Use <code>None</code> para servidores locais sem token (ex: Ollama).</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Base URL <span class="text-danger">*</span></label>
+                            <input type="url" id="provBaseUrl" name="ProviderForm.BaseUrl" class="form-control"
+                                   placeholder="ex: http://localhost:11434/v1 ou https://api.deepseek.com" required />
+                            <div class="form-text">
+                                Endpoint base (HTTP ou HTTPS). Para servidores locais na mesma máquina, use <code>http://localhost:11434/v1</code>.
+                            </div>
+                        </div>
+
+                        <div class="col-12" id="divApiKeyField">
+                            <label class="form-label fw-semibold">API Key / Token de Acesso</label>
+                            <input type="password" id="provApiKey" name="ProviderForm.ApiKey" class="form-control"
+                                   placeholder="Deixe em branco para manter a credencial atual" autocomplete="new-password" />
+                            <div class="form-text">Gravada criptografada no SecretStore. O valor nunca será exibido.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Capacidades Suportadas <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="provCapGen" name="ProviderForm.HasGenerationCapability" value="true" checked />
+                                    <label class="form-check-label" for="provCapGen">
+                                        Geração de Texto (Copiloto, Raciocínio, Tools)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="provCapEmb" name="ProviderForm.HasEmbeddingCapability" value="true" />
+                                    <label class="form-check-label" for="provCapEmb">
+                                        Embeddings (Vetorização para Busca Semântica)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select id="provStatus" name="ProviderForm.Status" class="form-select">
+                                <option value="Active">Ativo</option>
+                                <option value="Inactive">Inativo</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary">Salvar Provedor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: GERENCIAR CREDENCIAL -->
+<div class="modal fade" id="modalCredential" tabindex="-1" aria-labelledby="modalCredTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCredTitle">
+                    <i class="bi bi-key-fill text-warning me-2"></i><span>Credencial do Provedor</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">
+                    Provedor: <strong id="credProviderLabel"></strong> (código: <code id="credCodeLabel"></code>)
                 </p>
+
+                <form method="post" asp-page-handler="SaveCredential" id="formSaveCred">
+                    <input type="hidden" id="credInputCode" name="CredInput.ProviderCode" />
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nova API Key</label>
+                        <input type="password" name="CredInput.ApiKey" class="form-control" placeholder="Cole a chave aqui..." required autocomplete="off" />
+                        <div class="form-text">A chave será protegida usando ASP.NET Core Data Protection em <code>App_Data/Secrets/</code>.</div>
+                    </div>
+                    <button type="submit" class="tc-btn tc-btn-primary w-100 mb-2">Salvar Credencial</button>
+                </form>
+
+                <form method="post" asp-page-handler="DeleteCredential" id="formDelCred">
+                    <input type="hidden" id="delCredInputCode" name="CredInput.ProviderCode" />
+                    <button type="submit" class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('Deseja realmente remover a credencial salva para este provedor?');">
+                        <i class="bi bi-trash me-1"></i> Remover Credencial Salva
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+function openNewProviderModal() {
+    document.getElementById('provId').value = '0';
+    document.getElementById('provName').value = '';
+    document.getElementById('provCode').value = '';
+    document.getElementById('provCode').removeAttribute('readonly');
+    document.getElementById('provBaseUrl').value = '';
+    document.getElementById('provApiKey').value = '';
+    document.getElementById('provCapGen').checked = true;
+    document.getElementById('provCapEmb').checked = false;
+    document.getElementById('provStatus').value = 'Active';
+    document.getElementById('modalProviderTitle').innerHTML = '<i class="bi bi-plus-lg me-2"></i>Adicionar Provedor de IA';
+    toggleApiKeyField(document.getElementById('provAuth').value);
+}
+
+function openEditProviderModal(id, name, code, protocol, baseUrl, authType, hasGen, hasEmb, status) {
+    document.getElementById('provId').value = id;
+    document.getElementById('provName').value = name;
+    document.getElementById('provCode').value = code;
+    document.getElementById('provCode').setAttribute('readonly', 'readonly');
+    document.getElementById('provProtocol').value = protocol;
+    document.getElementById('provBaseUrl').value = baseUrl;
+    document.getElementById('provAuth').value = authType;
+    document.getElementById('provCapGen').checked = hasGen;
+    document.getElementById('provCapEmb').checked = hasEmb;
+    document.getElementById('provStatus').value = status;
+    document.getElementById('provApiKey').value = '';
+    document.getElementById('modalProviderTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Provedor de IA';
+    toggleApiKeyField(authType);
+    new bootstrap.Modal(document.getElementById('modalProvider')).show();
+}
+
+function openCredentialModal(code, name, isConfigured) {
+    document.getElementById('credInputCode').value = code;
+    document.getElementById('delCredInputCode').value = code;
+    document.getElementById('credProviderLabel').textContent = name;
+    document.getElementById('credCodeLabel').textContent = code;
+    document.getElementById('formDelCred').style.display = isConfigured ? 'block' : 'none';
+    new bootstrap.Modal(document.getElementById('modalCredential')).show();
+}
+
+function toggleApiKeyField(authType) {
+    const div = document.getElementById('divApiKeyField');
+    if (authType === 'None') {
+        div.style.display = 'none';
+    } else {
+        div.style.display = 'block';
+    }
+}
+
+async function testConnection(modelConfigId, providerCode, purpose) {
+    const alertBox = document.getElementById('tc-test-alert');
+    alertBox.className = 'tc-alert tc-alert-info mb-4';
+    alertBox.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Testando conexão com o provedor...';
+    alertBox.classList.remove('d-none');
+
+    const formData = new FormData();
+    if (modelConfigId) formData.append('modelConfigId', modelConfigId);
+    if (providerCode) formData.append('providerCode', providerCode);
+    if (purpose) formData.append('purpose', purpose);
+
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+    try {
+        const response = await fetch('?handler=TestConnection', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'RequestVerificationToken': token || ''
+            }
+        });
+        const data = await response.json();
+        if (data.success) {
+            alertBox.className = 'tc-alert tc-alert-success mb-4';
+            alertBox.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>' + data.message;
+        } else {
+            alertBox.className = 'tc-alert tc-alert-danger mb-4';
+            alertBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + data.message;
+        }
+    } catch (err) {
+        alertBox.className = 'tc-alert tc-alert-danger mb-4';
+        alertBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Falha na requisição de teste de conexão.';
+    }
+}
+</script>
+}

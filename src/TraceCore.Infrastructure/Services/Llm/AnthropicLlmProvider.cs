@@ -17,27 +17,44 @@ namespace TraceCore.Infrastructure.Services.Llm;
 /// </summary>
 public class AnthropicLlmProvider : ILlmProvider
 {
-    private const string BaseUrl = "https://api.anthropic.com/v1/messages";
+    private const string DefaultBaseUrl = "https://api.anthropic.com/v1";
     private const string ApiVersion = "2023-06-01";
 
     private readonly HttpClient _httpClient;
+    private readonly string _baseUrl;
     private readonly string _apiKey;
 
     public AnthropicLlmProvider(HttpClient httpClient, string apiKey, string modelName)
+        : this(httpClient, DefaultBaseUrl, modelName, apiKey, "Anthropic")
     {
-        _httpClient = httpClient;
-        _apiKey = apiKey ?? throw new ArgumentException("API Key da Anthropic é obrigatória.", nameof(apiKey));
-        ModelName = !string.IsNullOrWhiteSpace(modelName) ? modelName.Trim() : "claude-sonnet-4-5-20250929";
     }
 
-    public string ProviderCode => "Anthropic";
+    public AnthropicLlmProvider(
+        HttpClient httpClient,
+        string baseUrl,
+        string modelName,
+        string apiKey,
+        string providerCode = "Anthropic")
+    {
+        _httpClient = httpClient;
+        _baseUrl = (baseUrl?.TrimEnd('/') ?? DefaultBaseUrl);
+        _apiKey = apiKey ?? throw new ArgumentException("API Key da Anthropic é obrigatória.", nameof(apiKey));
+        ModelName = !string.IsNullOrWhiteSpace(modelName) ? modelName.Trim() : "claude-sonnet-4-5-20250929";
+        ProviderCode = !string.IsNullOrWhiteSpace(providerCode) ? providerCode : "Anthropic";
+    }
+
+    public string ProviderCode { get; }
     public string ModelName { get; }
 
     public async Task<LlmGenerationResult> GenerateAsync(LlmGenerationRequest request, CancellationToken ct = default)
     {
         var payload = BuildPayload(request);
 
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, BaseUrl);
+        var url = _baseUrl.EndsWith("/messages", StringComparison.OrdinalIgnoreCase)
+            ? _baseUrl
+            : $"{_baseUrl}/messages";
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url);
         httpRequest.Headers.Add("x-api-key", _apiKey);
         httpRequest.Headers.Add("anthropic-version", ApiVersion);
         httpRequest.Content = new StringContent(

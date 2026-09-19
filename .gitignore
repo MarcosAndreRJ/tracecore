@@ -488,3 +488,6 @@ TraceCore.slnx
 a p p s e t t i n g s * . L o c a l . j s o n 
  
  
+# Fase 17: Segredos criptografados do ISecretStore (ProtectedFileSecretStore)
+**/App_Data/Secrets/
+**/App_Data/DataProtection-Keys/
