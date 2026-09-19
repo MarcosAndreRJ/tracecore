@@ -33,17 +33,28 @@ public class CatalogService : ICatalogService
         return await _catalogRepository.GetProductByIdAsync(id, ct);
     }
 
-    public async Task<long> CreateProductAsync(string name, string? code, string? description, bool isExternal, CancellationToken ct = default)
+    public async Task<long> CreateProductAsync(string name, string? code, string? description, bool isExternal, long? currentUserId = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("O nome do produto é obrigatório.", nameof(name));
 
         var product = new Product(name, code, description, "Active", isExternal);
         var id = await _catalogRepository.AddProductAsync(product, ct);
+        product.Id = id;
+
+        await _auditService.RecordAsync(
+            action: "product.create",
+            entityType: "products",
+            entityId: id.ToString(),
+            actorUserId: currentUserId,
+            after: new { product.Id, product.Name, product.Code, product.Description, product.Status, product.IsExternal },
+            ct: ct
+        );
+
         return id;
     }
 
-    public async Task UpdateProductAsync(long id, string name, string? code, string? description, string status, bool isExternal, CancellationToken ct = default)
+    public async Task UpdateProductAsync(long id, string name, string? code, string? description, string status, bool isExternal, long? currentUserId = null, CancellationToken ct = default)
     {
         var product = await _catalogRepository.GetProductByIdAsync(id, ct);
         if (product == null)
@@ -52,6 +63,8 @@ public class CatalogService : ICatalogService
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("O nome do produto é obrigatório.", nameof(name));
 
+        var before = new { product.Id, product.Name, product.Code, product.Description, product.Status, product.IsExternal };
+
         product.Name = name.Trim();
         product.Code = string.IsNullOrWhiteSpace(code) ? null : code.Trim();
         product.Description = description?.Trim();
@@ -59,6 +72,16 @@ public class CatalogService : ICatalogService
         product.IsExternal = isExternal;
 
         await _catalogRepository.UpdateProductAsync(product, ct);
+
+        await _auditService.RecordAsync(
+            action: "product.update",
+            entityType: "products",
+            entityId: id.ToString(),
+            actorUserId: currentUserId,
+            before: before,
+            after: new { product.Id, product.Name, product.Code, product.Description, product.Status, product.IsExternal },
+            ct: ct
+        );
     }
 
     public async Task<IReadOnlyList<ProductVersion>> GetVersionsByProductIdAsync(long productId, CancellationToken ct = default)
@@ -66,14 +89,25 @@ public class CatalogService : ICatalogService
         return await _catalogRepository.GetVersionsByProductIdAsync(productId, ct);
     }
 
-    public async Task<long> CreateVersionAsync(long productId, string versionLabel, CancellationToken ct = default)
+    public async Task<long> CreateVersionAsync(long productId, string versionLabel, long? currentUserId = null, CancellationToken ct = default)
     {
         var product = await _catalogRepository.GetProductByIdAsync(productId, ct);
         if (product == null)
             throw new KeyNotFoundException($"Produto com ID {productId} não encontrado.");
 
         var version = new ProductVersion(productId, versionLabel);
-        return await _catalogRepository.AddProductVersionAsync(version, ct);
+        var id = await _catalogRepository.AddProductVersionAsync(version, ct);
+
+        await _auditService.RecordAsync(
+            action: "product_version.create",
+            entityType: "product_versions",
+            entityId: id.ToString(),
+            actorUserId: currentUserId,
+            after: new { Id = id, ProductId = productId, VersionLabel = versionLabel },
+            ct: ct
+        );
+
+        return id;
     }
 
     public async Task<IReadOnlyList<ComponentEntity>> GetAllComponentsAsync(long? productId = null, CancellationToken ct = default)
@@ -86,7 +120,7 @@ public class CatalogService : ICatalogService
         return await _catalogRepository.GetComponentByIdAsync(id, ct);
     }
 
-    public async Task<long> CreateComponentAsync(string name, string componentType, long? productId, string? code, string? description, long? ownerDepartmentId, CancellationToken ct = default)
+    public async Task<long> CreateComponentAsync(string name, string componentType, long? productId, string? code, string? description, long? ownerDepartmentId, long? currentUserId = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("O nome do componente é obrigatório.", nameof(name));
@@ -101,10 +135,22 @@ public class CatalogService : ICatalogService
         }
 
         var component = new ComponentEntity(name, componentType, productId, code, description, ownerDepartmentId);
-        return await _catalogRepository.AddComponentAsync(component, ct);
+        var id = await _catalogRepository.AddComponentAsync(component, ct);
+        component.Id = id;
+
+        await _auditService.RecordAsync(
+            action: "component.create",
+            entityType: "components",
+            entityId: id.ToString(),
+            actorUserId: currentUserId,
+            after: new { component.Id, component.Name, component.ComponentType, component.ProductId, component.Code, component.OwnerDepartmentId, component.Status },
+            ct: ct
+        );
+
+        return id;
     }
 
-    public async Task UpdateComponentAsync(long id, string name, string componentType, long? productId, string? code, string? description, long? ownerDepartmentId, string status, CancellationToken ct = default)
+    public async Task UpdateComponentAsync(long id, string name, string componentType, long? productId, string? code, string? description, long? ownerDepartmentId, string status, long? currentUserId = null, CancellationToken ct = default)
     {
         var component = await _catalogRepository.GetComponentByIdAsync(id, ct);
         if (component == null)
@@ -122,6 +168,8 @@ public class CatalogService : ICatalogService
                 throw new ArgumentException($"Departamento com ID {ownerDepartmentId.Value} não existe.", nameof(ownerDepartmentId));
         }
 
+        var before = new { component.Id, component.Name, component.ComponentType, component.ProductId, component.Code, component.OwnerDepartmentId, component.Status };
+
         component.Name = name.Trim();
         component.ComponentType = componentType.Trim();
         component.ProductId = productId;
@@ -131,6 +179,16 @@ public class CatalogService : ICatalogService
         component.Status = string.IsNullOrWhiteSpace(status) ? "Active" : status.Trim();
 
         await _catalogRepository.UpdateComponentAsync(component, ct);
+
+        await _auditService.RecordAsync(
+            action: "component.update",
+            entityType: "components",
+            entityId: id.ToString(),
+            actorUserId: currentUserId,
+            before: before,
+            after: new { component.Id, component.Name, component.ComponentType, component.ProductId, component.Code, component.OwnerDepartmentId, component.Status },
+            ct: ct
+        );
     }
 
     public async Task<IReadOnlyList<ComponentDependency>> GetComponentDependenciesAsync(long? componentId = null, CancellationToken ct = default)
@@ -138,7 +196,7 @@ public class CatalogService : ICatalogService
         return await _catalogRepository.GetComponentDependenciesAsync(componentId, ct);
     }
 
-    public async Task<long> AddComponentDependencyAsync(long sourceComponentId, long targetComponentId, string dependencyType, string criticality, string? description, CancellationToken ct = default)
+    public async Task<long> AddComponentDependencyAsync(long sourceComponentId, long targetComponentId, string dependencyType, string criticality, string? description, long? currentUserId = null, CancellationToken ct = default)
     {
         if (sourceComponentId == targetComponentId)
             throw new InvalidOperationException("Um componente não pode depender de si mesmo.");
@@ -152,12 +210,34 @@ public class CatalogService : ICatalogService
             throw new KeyNotFoundException($"Componente de destino com ID {targetComponentId} não encontrado.");
 
         var dependency = new ComponentDependency(sourceComponentId, targetComponentId, dependencyType, criticality, description);
-        return await _catalogRepository.AddComponentDependencyAsync(dependency, ct);
+        var id = await _catalogRepository.AddComponentDependencyAsync(dependency, ct);
+
+        await _auditService.RecordAsync(
+            action: "component.dependency_create",
+            entityType: "component_dependencies",
+            entityId: id.ToString(),
+            actorUserId: currentUserId,
+            after: new { Id = id, SourceComponentId = sourceComponentId, TargetComponentId = targetComponentId, DependencyType = dependencyType, Criticality = criticality },
+            ct: ct
+        );
+
+        return id;
     }
 
-    public async Task<bool> DeleteComponentDependencyAsync(long id, CancellationToken ct = default)
+    public async Task<bool> DeleteComponentDependencyAsync(long id, long? currentUserId = null, CancellationToken ct = default)
     {
-        return await _catalogRepository.DeleteComponentDependencyAsync(id, ct);
+        var deleted = await _catalogRepository.DeleteComponentDependencyAsync(id, ct);
+        if (deleted)
+        {
+            await _auditService.RecordAsync(
+                action: "component.dependency_delete",
+                entityType: "component_dependencies",
+                entityId: id.ToString(),
+                actorUserId: currentUserId,
+                ct: ct
+            );
+        }
+        return deleted;
     }
 
     public async Task<IReadOnlyList<ComponentOwner>> GetComponentOwnersAsync(long? componentId = null, CancellationToken ct = default)
@@ -165,7 +245,7 @@ public class CatalogService : ICatalogService
         return await _catalogRepository.GetComponentOwnersAsync(componentId, ct);
     }
 
-    public async Task<long> AddComponentOwnerAsync(long componentId, long departmentId, string ownershipRole, CancellationToken ct = default)
+    public async Task<long> AddComponentOwnerAsync(long componentId, long departmentId, string ownershipRole, long? currentUserId = null, CancellationToken ct = default)
     {
         var component = await _catalogRepository.GetComponentByIdAsync(componentId, ct);
         if (component == null)
@@ -176,11 +256,33 @@ public class CatalogService : ICatalogService
             throw new KeyNotFoundException($"Departamento com ID {departmentId} não encontrado.");
 
         var owner = new ComponentOwner(componentId, departmentId, ownershipRole);
-        return await _catalogRepository.AddComponentOwnerAsync(owner, ct);
+        var id = await _catalogRepository.AddComponentOwnerAsync(owner, ct);
+
+        await _auditService.RecordAsync(
+            action: "component.owner_add",
+            entityType: "component_owners",
+            entityId: id.ToString(),
+            actorUserId: currentUserId,
+            after: new { Id = id, ComponentId = componentId, DepartmentId = departmentId, OwnershipRole = ownershipRole },
+            ct: ct
+        );
+
+        return id;
     }
 
-    public async Task<bool> DeleteComponentOwnerAsync(long id, CancellationToken ct = default)
+    public async Task<bool> DeleteComponentOwnerAsync(long id, long? currentUserId = null, CancellationToken ct = default)
     {
-        return await _catalogRepository.DeleteComponentOwnerAsync(id, ct);
+        var deleted = await _catalogRepository.DeleteComponentOwnerAsync(id, ct);
+        if (deleted)
+        {
+            await _auditService.RecordAsync(
+                action: "component.owner_delete",
+                entityType: "component_owners",
+                entityId: id.ToString(),
+                actorUserId: currentUserId,
+                ct: ct
+            );
+        }
+        return deleted;
     }
 }

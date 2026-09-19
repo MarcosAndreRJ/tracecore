@@ -119,4 +119,35 @@ Status: **aceito**.
 4. **Governança Factual da Base de Conhecimento**: Métricas de eficácia extraídas exclusivamente dos desfechos auditados em `KnowledgeUsage` (`Worked`, `PartiallyWorked`, `DidNotWork`), sem porcentagens artificiais de "redução de tempo". Mapeamento explícito de artigos nunca revisados (`LastReviewedAt IS NULL`) e casos resolvidos sem solução documentada.
 5. **Drill-down Unificado**: Todo card e gráfico de KPI compartilha o mesmo modelo de filtro (`AnalyticsFilterDto`) e direciona diretamente para `/Cases/Index` com os parâmetros equivalentes na query string.
 
+### ADR — Auditoria Ampliada, Imutabilidade e Padronização de Ações (Fase 11)
+Status: **aceito**.
+1. **Padrão de Nomenclatura Unificado**: Adoção estrita da convenção corporativa em inglês, minúsculo, no formato `entidade.verbo[_objeto]` (ex.: `user.create`, `product.create`, `component.dependency_create`, `case.reopen`). Preservada compatibilidade retroativa para filtros de ações legadas.
+2. **Imutabilidade e Append-Only (BR-004 / BR-100)**: A entidade `AuditEvent` e seu repositório `IAuditEventRepository` permanecem 100% append-only, sem nenhum método de alteração ou exclusão de registros.
+3. **Sanitização Universal de Segredos (BR-101)**: Chamadas centralizadas na fachada `IAuditService.RecordAsync`, mascarando preventivamente campos sensíveis (`password`, `token`, `secret`, `hash`) com `***REDACTED***` em payloads antes da persistência no banco.
+4. **Fechamento Integral de Gaps**: Auditoria implementada em Catálogo Técnico (`CatalogService`), Casos (`CaseService`), Investigação (`CaseInvestigationService` com relações N:N entre evidências e hipóteses) e Conhecimento.
+5. **Consulta Paginada e Drill-Down**: Criação do painel `/Audit/Index` protegido pela permissão `auditoria.visualizar`, com filtros combinados e links seguros para detalhamento de entidades quando aplicável.
 
+### ADR — Preparação Estrutural de Dados para IA e Governança Semântica (Fase 12)
+Status: **aceito**.
+1. **Desacoplamento de Modelos Generativos (M11 / §12.26)**: Nenhuma chamada a LLM, geração de embeddings ou vetorização é realizada nesta fase. A entidade `SearchableContentEntry` modela exclusivamente o armazenamento estruturado, hash SHA-256 e status de governança, mantendo o campo `EmbeddingVersion` como reservado (`null`).
+2. **Normalização com Preservação Estrita de Literais Técnicos (§12.8 / §12.9)**: O pipeline em `ContentPreparationService` normaliza espaços e quebras de linha preservando rigorosamente identificadores técnicos, códigos de erro (`ORA-12541`, `HTTP 500`), versões (`v8.2.1`) e trechos de logs.
+3. **Representação Estruturada de Casos e Conhecimento**:
+   - Casos: iteração ativa, sintomas, componentes afetados, evidências estruturadas com hipóteses associadas e resolução/causa raiz confirmada.
+   - Conhecimento: código, resumo, problema, causa raiz, validação, riscos, rollback, aplicabilidades e tecnologias.
+4. **Idempotência e Deduplicação por Hash SHA-256 (§12.23)**: A chave natural `(source_type, source_id, source_version_id)` garante que reprocessamentos sucessivos atualizem a mesma entrada sem criar duplicatas, mantendo estabilidade de hash.
+5. **Prontidão Explicável e Ausência de Scores Numéricos (§12.15)**: O status de prontidão para IA (`Ready`, `NeedsMetadata`, `NeedsReview`, `NotEligible`) é 100% explicável e derivado de regras determinísticas de preenchimento, validação e prazos de revisão.
+6. **Visibilidade de Segurança Desacoplada de Silos (§12.16)**: O campo `Visibility` é derivado exclusivamente da confidencialidade do item (`Public`, `Internal`, `Confidential`, `Restricted`), sem filtros artificiais por `DepartmentId`.
+7. **Painel de Qualidade e Prontidão (`/ContentQuality/Index`)**: Monitoramento em tempo real da prontidão com reaproveitamento de componentes visuais existentes (`_AIContentBadge`, `_KnowledgeProvenance`, `_SourceReferenceChip`, `_ConfidenceIndicator`).
+
+### ADR — Integrações Automáticas, Health-Checks e Falha Segura (Fase 15)
+Status: **aceito**.
+1. **Health-Checks Reais e Isolamento de Conectores (M10)**: Implementação de sondagem genérica de saúde em `IIntegrationHealthCheckService` suportando HTTP (GET/POST/HEAD com verificação de status code esperado) e TCP (ping de socket no host e porta). As ADRs P005 (conectores proprietários de ticketing) e P010 (conectores proprietários de SAP) continuam abertas; o TraceCore gerencia catálogo, endpoints de saúde e histórico sem dependência de fornecedores de software terceiros.
+2. **Princípio de Falha Segura (§26 do Documento de Visão)**: Qualquer falha de conectividade, porta fechada, timeout ou status code diferente do esperado obrigatoriamente registra a execução como `Status = "Failed"`, gravando o motivo detalhado em `ErrorMessage`. Nenhuma rotina de integração jamais mascara erro de rede ou finge sucesso operacional.
+3. **Auditabilidade e Origem das Execuções**: A tabela `integration_runs` armazena `triggered_by`, diferenciando execuções disparadas pelo sistema (`Automated`) de logs manuais inseridos por operadores (`Manual`).
+4. **Automação no Diagnóstico Guiado (BR-073)**: Verificações do tipo `AutomatedCheck` podem referenciar uma `IntegrationId`. Quando o motor heurístico alcança este passo, o health-check é acionado de forma síncrona sem intervenção humana, gravando o resultado na linha do tempo como `StepType = AutomatedCheck` e recalculando os impactos nas hipóteses. Se a verificação não possuir integração associada, o motor recai suavemente para pergunta manual ao operador, sem interrupção do fluxo.
+
+### ADR — Inteligência Analítica Determinística e Grounding de IA (Fase 16)
+Status: **aceito**.
+1. **Rastreabilidade e Grounding Estrito (§31 do Documento de Visão)**: Proibição inegociável de modelos de linguagem ou algoritmos generativos inventarem, estimarem ou calcularem métricas operacionais. Todos os indicadores numéricos (variação percentual, MTTR, correlação de componentes e efetividade de soluções) são computados de forma puramente determinística por consultas agregadas no banco via `IManagementAnalyticsService`.
+2. **Transparência Amostral e Suficiência Estatística**: Todo método analítico retorna o tamanho real da amostra ($N$). Se $N < 3$ (para tendências e soluções) ou $N < 5$ (para componentes), o sistema declara expressamente `HasSufficientData = false`. A IA e a interface são proibidas de emitir conclusões peremptórias sobre amostras insuficientes, declarando explicitamente que os dados são inconclusivos.
+3. **Ferramenta de Leitura Estrita do Copiloto (M12)**: A ferramenta `AnalyzeManagementTrend` é cadastrada exclusivamente em `AiToolDefinitions.ReadingTools` (read-only, sem requisição de confirmação humana). Ao responder sobre tendências ou métricas, o Copiloto invoca a ferramenta do TraceCore, sintetiza a narrativa e exibe um painel lateral com os dados brutos oficiais (`ToolResults`), mantendo o número 100% citável e rastreável.

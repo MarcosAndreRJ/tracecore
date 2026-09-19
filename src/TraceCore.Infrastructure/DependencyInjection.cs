@@ -2,6 +2,7 @@ using System.Reflection;
 using FluentMigrator.Runner;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TraceCore.Application.Services;
 using TraceCore.Domain.Repositories;
 using TraceCore.Domain.Services;
 using TraceCore.Infrastructure.Migrations;
@@ -9,6 +10,7 @@ using TraceCore.Infrastructure.Persistence;
 using TraceCore.Infrastructure.Persistence.InMemory;
 using TraceCore.Infrastructure.Persistence.Repositories;
 using TraceCore.Infrastructure.Services;
+using TraceCore.Infrastructure.Services.Llm;
 
 namespace TraceCore.Infrastructure;
 
@@ -18,6 +20,13 @@ public static class DependencyInjection
     {
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
+
+        // HttpClient compartilhado pelos provedores de IA (sem headers globais — cada
+        // chamada define a própria autenticação; Fase 13 / DEV-AI-003).
+        services.AddHttpClient();
+
+        // Fase 15 (M10): Serviço de verificação automática de saúde de integrações
+        services.AddScoped<IIntegrationHealthCheckService, IntegrationHealthCheckService>();
 
         // Bloco 7.A.0 (ADR — Persistência): MySQL é o provider operacional padrão.
         // InMemory NUNCA é selecionado silenciosamente — só quando explicitamente
@@ -66,6 +75,11 @@ public static class DependencyInjection
             services.AddScoped<ICaseRelationRepository, MySqlCaseRelationRepository>();
             services.AddScoped<IDiagnosticFlowRepository, MySqlDiagnosticFlowRepository>();
             services.AddScoped<IIntegrationRepository, MySqlIntegrationRepository>();
+            services.AddScoped<IManagementAnalyticsRepository, MySqlManagementAnalyticsRepository>();
+            services.AddScoped<ISearchableContentRepository, MySqlSearchableContentRepository>();
+            services.AddScoped<ILlmProviderConfigRepository, MySqlLlmProviderConfigRepository>();
+            services.AddScoped<IAiInteractionRepository, MySqlAiInteractionRepository>();
+            services.AddScoped<ILlmProviderResolver, LlmProviderResolver>();
 
             // FluentMigrator setup
             services.AddFluentMigratorCore()
@@ -98,7 +112,12 @@ public static class DependencyInjection
             services.AddScoped<ISearchRepository, InMemorySearchRepository>();
             services.AddScoped<ICaseRelationRepository, InMemoryCaseRelationRepository>();
             services.AddScoped<IDiagnosticFlowRepository, InMemoryDiagnosticFlowRepository>();
+            services.AddScoped<IManagementAnalyticsRepository, InMemoryManagementAnalyticsRepository>();
             services.AddScoped<IIntegrationRepository, InMemoryIntegrationRepository>();
+            services.AddScoped<ISearchableContentRepository, InMemorySearchableContentRepository>();
+            services.AddScoped<ILlmProviderConfigRepository, InMemoryLlmProviderConfigRepository>();
+            services.AddScoped<IAiInteractionRepository, InMemoryAiInteractionRepository>();
+            services.AddScoped<ILlmProviderResolver, LlmProviderResolver>();
         }
         else
         {

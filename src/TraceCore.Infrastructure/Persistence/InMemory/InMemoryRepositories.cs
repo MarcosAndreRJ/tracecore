@@ -56,6 +56,11 @@ public class InMemoryDataStore
     public List<(long KnowledgeItemId, long TechnologyId)> KnowledgeTechnologies { get; } = new();
     public List<(long KnowledgeItemId, long TagId)> KnowledgeTags { get; } = new();
     public ConcurrentDictionary<long, KnowledgeUsage> KnowledgeUsages { get; } = new();
+    public ConcurrentDictionary<long, SearchableContentEntry> SearchableContentEntries { get; } = new();
+    public ConcurrentDictionary<long, LlmProviderConfig> LlmProviderConfigs { get; } = new();
+    public ConcurrentDictionary<long, AiInteraction> AiInteractions { get; } = new();
+    public ConcurrentDictionary<long, AiSource> AiSources { get; } = new();
+    public ConcurrentDictionary<long, AiInteractionFeedback> AiInteractionFeedbacks { get; } = new();
 
     public List<UserDepartment> UserDepartments { get; } = new();
     public List<UserRole> UserRoles { get; } = new();
@@ -115,6 +120,10 @@ public class InMemoryDataStore
     public long NextCaseHypothesisEvidenceId() => Interlocked.Increment(ref _caseHypothesisEvidenceIdSeq);
     public long NextIntegrationId() => Interlocked.Increment(ref _integrationIdSeq);
     public long NextIntegrationRunId() => Interlocked.Increment(ref _integrationRunIdSeq);
+    public long NextLlmProviderConfigId() => Interlocked.Increment(ref _llmProviderConfigIdSeq);
+    public long NextAiInteractionId() => Interlocked.Increment(ref _aiInteractionIdSeq);
+    public long NextAiSourceId() => Interlocked.Increment(ref _aiSourceIdSeq);
+    public long NextAiInteractionFeedbackId() => Interlocked.Increment(ref _aiInteractionFeedbackIdSeq);
     public long NextCaseRelationId() => Interlocked.Increment(ref _caseRelationIdSeq);
     public long NextDiagnosticFlowId() => Interlocked.Increment(ref _diagnosticFlowIdSeq);
     public long NextDiagnosticFlowHypothesisId() => Interlocked.Increment(ref _diagnosticFlowHypothesisIdSeq);
@@ -134,7 +143,9 @@ public class InMemoryDataStore
     public long NextSearchSessionId() => Interlocked.Increment(ref _searchSessionIdSeq);
     public long NextSearchQueryId() => Interlocked.Increment(ref _searchQueryIdSeq);
     public long NextSearchResultInteractionId() => Interlocked.Increment(ref _searchResultInteractionIdSeq);
+    public long NextSearchableContentId() => Interlocked.Increment(ref _searchableContentIdSeq);
 
+    private long _searchableContentIdSeq = 0;
     private long _rootCauseIdSeq = 0;
     private long _caseResolutionIdSeq = 0;
     private long _knowledgeItemIdSeq = 0;
@@ -159,6 +170,10 @@ public class InMemoryDataStore
     private long _diagnosticCheckImpactIdSeq = 0;
     private long _integrationIdSeq = 0;
     private long _integrationRunIdSeq = 0;
+    private long _llmProviderConfigIdSeq = 0;
+    private long _aiInteractionIdSeq = 0;
+    private long _aiSourceIdSeq = 0;
+    private long _aiInteractionFeedbackIdSeq = 0;
 
     public InMemoryDataStore()
     {
@@ -212,6 +227,11 @@ public class InMemoryDataStore
         lock (KnowledgeTechnologies) KnowledgeTechnologies.Clear();
         lock (KnowledgeTags) KnowledgeTags.Clear();
         KnowledgeUsages.Clear();
+        SearchableContentEntries.Clear();
+        LlmProviderConfigs.Clear();
+        AiInteractions.Clear();
+        AiSources.Clear();
+        AiInteractionFeedbacks.Clear();
         lock (SearchSessions) SearchSessions.Clear();
         lock (SearchQueries) SearchQueries.Clear();
         lock (SearchResultInteractions) SearchResultInteractions.Clear();
@@ -254,6 +274,11 @@ public class InMemoryDataStore
         _componentOwnerIdSeq = 0;
         _integrationIdSeq = 0;
         _integrationRunIdSeq = 0;
+        _llmProviderConfigIdSeq = 0;
+        _aiInteractionIdSeq = 0;
+        _aiSourceIdSeq = 0;
+        _aiInteractionFeedbackIdSeq = 0;
+        _searchableContentIdSeq = 0;
         Seed();
     }
 
@@ -279,7 +304,9 @@ public class InMemoryDataStore
             ("cliente.gerenciar", "Gerenciar clientes, unidades e contextos técnicos"),
             ("catalogo.gerenciar", "Gerenciar produtos, componentes, dependências e ownership no catálogo técnico"),
             ("diagnostico.configurar", "Permite criar e gerenciar fluxos de diagnóstico guiado, hipóteses candidatas e verificações"),
-            ("integracao.gerenciar", "Permite cadastrar integrações, alterar status e registrar execuções manuais no catálogo de integrações")
+            ("integracao.gerenciar", "Permite cadastrar integrações, alterar status e registrar execuções manuais no catálogo de integrações"),
+            ("ia.usar", "Permite usar o copiloto de IA (perguntas assistidas sobre a base de conhecimento)"),
+            ("configuracao.gerenciar", "Permite gerenciar configurações da plataforma, incluindo provedores de IA e modelos")
         };
 
         var permLookup = new Dictionary<string, Permission>();
@@ -314,11 +341,11 @@ public class InMemoryDataStore
         // 3. Roles
         var roleDefs = new (string Name, string Desc, string[] Codes)[]
         {
-            ("Usuário Técnico", "Pesquisa conhecimento e registra casos", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "caso.diagnosticar" }),
-            ("Especialista", "Atua no diagnóstico e validação", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "caso.diagnosticar" }),
-            ("Revisor", "Revisa e publica artigos na base", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "solucao.publicar", "caso.diagnosticar" }),
-            ("Gestor", "Acompanha indicadores e métricas", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "auditoria.visualizar", "caso.diagnosticar" }),
-            ("Admin Funcional", "Administra catálogo e usuários", new[] { "caso.visualizar", "caso.criar", "caso.editar", "caso.encerrar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "usuario.gerenciar", "auditoria.visualizar", "caso.diagnosticar", "cliente.gerenciar", "catalogo.gerenciar", "diagnostico.configurar", "integracao.gerenciar" }),
+            ("Usuário Técnico", "Pesquisa conhecimento e registra casos", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "caso.diagnosticar", "ia.usar" }),
+            ("Especialista", "Atua no diagnóstico e validação", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "caso.diagnosticar", "ia.usar" }),
+            ("Revisor", "Revisa e publica artigos na base", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "solucao.publicar", "caso.diagnosticar", "ia.usar" }),
+            ("Gestor", "Acompanha indicadores e métricas", new[] { "caso.visualizar", "caso.criar", "caso.editar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "auditoria.visualizar", "caso.diagnosticar", "ia.usar" }),
+            ("Admin Funcional", "Administra catálogo e usuários", new[] { "caso.visualizar", "caso.criar", "caso.editar", "caso.encerrar", "solucao.criar", "solucao.validar", "solucao.publicar", "analytics.visualizar", "analytics.departamento", "usuario.gerenciar", "auditoria.visualizar", "caso.diagnosticar", "cliente.gerenciar", "catalogo.gerenciar", "diagnostico.configurar", "integracao.gerenciar", "ia.usar" }),
             ("Admin Segurança", "Gestão de acessos, papéis e segurança", new[] { "usuario.gerenciar", "permissao.gerenciar", "auditoria.visualizar", "analytics.visualizar", "caso.visualizar" })
         };
 
@@ -850,6 +877,63 @@ public class InMemoryAuditEventRepository : IAuditEventRepository
             .OrderByDescending(a => a.OccurredAt)
             .ToList();
         return Task.FromResult(list);
+    }
+
+    public Task<(IReadOnlyList<AuditEvent> Items, int TotalCount)> SearchAsync(
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        long? actorUserId = null,
+        string? action = null,
+        string? entityType = null,
+        string? entityId = null,
+        string? searchTerm = null,
+        int skip = 0,
+        int take = 50,
+        CancellationToken ct = default)
+    {
+        var query = _store.AuditEvents.Values.AsEnumerable();
+
+        if (fromDate.HasValue)
+            query = query.Where(a => a.OccurredAt >= fromDate.Value);
+
+        if (toDate.HasValue)
+            query = query.Where(a => a.OccurredAt <= toDate.Value);
+
+        if (actorUserId.HasValue)
+            query = query.Where(a => a.ActorUserId == actorUserId.Value);
+
+        if (!string.IsNullOrWhiteSpace(action))
+            query = query.Where(a => a.Action.Equals(action.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(entityType))
+            query = query.Where(a => a.EntityType.Equals(entityType.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(entityId))
+            query = query.Where(a => a.EntityId.Equals(entityId.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim();
+            query = query.Where(a =>
+                (a.Action != null && a.Action.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (a.EntityType != null && a.EntityType.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (a.EntityId != null && a.EntityId.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (a.CorrelationId != null && a.CorrelationId.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (a.UserAgentSummary != null && a.UserAgentSummary.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (a.MetadataJson != null && a.MetadataJson.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (a.BeforeJson != null && a.BeforeJson.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (a.AfterJson != null && a.AfterJson.Contains(term, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+
+        var totalCount = query.Count();
+        IReadOnlyList<AuditEvent> items = query
+            .OrderByDescending(a => a.OccurredAt)
+            .Skip(Math.Max(0, skip))
+            .Take(Math.Clamp(take, 1, 500))
+            .ToList();
+
+        return Task.FromResult((items, totalCount));
     }
 }
 
@@ -2659,6 +2743,875 @@ public class InMemoryDiagnosticFlowRepository : IDiagnosticFlowRepository
         impact.Id = _store.NextDiagnosticCheckImpactId();
         _store.DiagnosticCheckImpacts[impact.Id] = impact;
         return Task.FromResult(impact.Id);
+    }
+}
+
+public class InMemoryManagementAnalyticsRepository : IManagementAnalyticsRepository
+{
+    private readonly InMemoryDataStore _store;
+
+    public InMemoryManagementAnalyticsRepository(InMemoryDataStore store)
+    {
+        _store = store;
+    }
+
+    private IEnumerable<Case> FilterCases(AnalyticsFilterCriteria criteria)
+    {
+        var cases = _store.Cases.Values.AsEnumerable();
+
+        if (criteria.FromUtc.HasValue)
+            cases = cases.Where(c => c.OpenedAt >= criteria.FromUtc.Value);
+        if (criteria.ToUtc.HasValue)
+            cases = cases.Where(c => c.OpenedAt <= criteria.ToUtc.Value);
+        if (criteria.ClientId.HasValue)
+            cases = cases.Where(c => c.ClientId == criteria.ClientId.Value);
+        if (criteria.ClientUnitId.HasValue)
+            cases = cases.Where(c => c.ClientUnitId == criteria.ClientUnitId.Value);
+        if (criteria.ProductId.HasValue)
+            cases = cases.Where(c => c.ProductId == criteria.ProductId.Value);
+        if (criteria.ProductVersionId.HasValue)
+            cases = cases.Where(c => c.ProductVersionId == criteria.ProductVersionId.Value);
+        if (criteria.EnvironmentId.HasValue)
+            cases = cases.Where(c => c.EnvironmentId == criteria.EnvironmentId.Value);
+        if (criteria.ComponentId.HasValue)
+            cases = cases.Where(c => c.AffectedComponents.Any(cc => cc.ComponentId == criteria.ComponentId.Value));
+        if (criteria.DepartmentId.HasValue)
+            cases = cases.Where(c => c.CurrentDepartmentId == criteria.DepartmentId.Value);
+        if (!string.IsNullOrWhiteSpace(criteria.Severity))
+            cases = cases.Where(c => string.Equals(c.Severity, criteria.Severity.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(criteria.Status))
+            cases = cases.Where(c => string.Equals(c.Status, criteria.Status.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        return cases;
+    }
+
+    public Task<OverviewRawMetrics> GetOverviewMetricsAsync(AnalyticsFilterCriteria criteria, CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria).ToList();
+
+        int total = cases.Count;
+        int open = cases.Count(c => string.Equals(c.Status, "Open", StringComparison.OrdinalIgnoreCase) || string.Equals(c.Status, "Reopened", StringComparison.OrdinalIgnoreCase));
+        int resolved = cases.Count(c => string.Equals(c.Status, "Resolved", StringComparison.OrdinalIgnoreCase));
+
+        int recurrent = cases.Count(c => _store.CaseRelations.Values.Any(cr => 
+            (cr.SourceCaseId == c.Id || cr.TargetCaseId == c.Id) &&
+            (string.Equals(cr.RelationType, "Recurrence", StringComparison.OrdinalIgnoreCase) || string.Equals(cr.RelationType, "CommonCause", StringComparison.OrdinalIgnoreCase))));
+
+        int unconfirmedRoot = cases.Count(c => string.Equals(c.Status, "Resolved", StringComparison.OrdinalIgnoreCase) &&
+            !_store.CaseResolutions.Values.Any(r => r.CaseId == c.Id && r.RootCauseId.HasValue && r.RootCauseConfirmed));
+
+        int undocumentedKnowledge = cases.Count(c => string.Equals(c.Status, "Resolved", StringComparison.OrdinalIgnoreCase) &&
+            !_store.KnowledgeItems.Values.Any(ki => ki.ProvenanceCaseId == c.Id));
+
+        return Task.FromResult(new OverviewRawMetrics
+        {
+            TotalCases = total,
+            OpenCases = open,
+            ResolvedCases = resolved,
+            RecurrentCases = recurrent,
+            UnconfirmedRootCauseCases = unconfirmedRoot,
+            UndocumentedKnowledgeCases = undocumentedKnowledge
+        });
+    }
+
+    public Task<IReadOnlyList<double>> GetResolvedIterationDurationsMinutesAsync(AnalyticsFilterCriteria criteria, CancellationToken ct = default)
+    {
+        var caseIds = FilterCases(criteria).Select(c => c.Id).ToHashSet();
+
+        var durations = _store.CaseIterations.Values
+            .Where(ci => caseIds.Contains(ci.CaseId) && string.Equals(ci.Status, "Resolved", StringComparison.OrdinalIgnoreCase) && ci.ClosedAt.HasValue)
+            .Select(ci => (ci.ClosedAt!.Value - ci.OpenedAt).TotalMinutes)
+            .Where(m => m >= 0)
+            .OrderBy(m => m)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<double>>(durations);
+    }
+
+    public Task<IReadOnlyList<TimeEvolutionRawItem>> GetTimeEvolutionAsync(AnalyticsFilterCriteria criteria, string grouping = "day", CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria).ToList();
+
+        var groups = cases.GroupBy(c =>
+        {
+            var dt = c.OpenedAt;
+            return grouping switch
+            {
+                "month" => new DateTime(dt.Year, dt.Month, 1),
+                "week" => dt.Date.AddDays(-(int)dt.DayOfWeek),
+                _ => dt.Date
+            };
+        }).OrderBy(g => g.Key);
+
+        var list = groups.Select(g => new TimeEvolutionRawItem
+        {
+            DateBucket = g.Key,
+            OpenedCount = g.Count(),
+            ResolvedCount = g.Count(c => string.Equals(c.Status, "Resolved", StringComparison.OrdinalIgnoreCase))
+        }).ToList();
+
+        return Task.FromResult<IReadOnlyList<TimeEvolutionRawItem>>(list);
+    }
+
+    public Task<IReadOnlyList<EntityCountRawItem>> GetTopProductsAsync(AnalyticsFilterCriteria criteria, int limit = 5, CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria).Where(c => c.ProductId.HasValue).ToList();
+
+        var list = cases.GroupBy(c => c.ProductId!.Value)
+            .Select(g =>
+            {
+                var p = _store.Products.TryGetValue(g.Key, out var prod) ? prod : null;
+                return new EntityCountRawItem
+                {
+                    Id = g.Key,
+                    Label = p?.Name ?? $"Produto #{g.Key}",
+                    Count = g.Count()
+                };
+            })
+            .OrderByDescending(x => x.Count)
+            .Take(limit)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<EntityCountRawItem>>(list);
+    }
+
+    public Task<IReadOnlyList<EntityCountRawItem>> GetTopComponentsAsync(AnalyticsFilterCriteria criteria, int limit = 5, CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria).ToList();
+        var compCounts = new Dictionary<long, int>();
+
+        foreach (var c in cases)
+        {
+            foreach (var cc in c.AffectedComponents)
+            {
+                compCounts[cc.ComponentId] = compCounts.GetValueOrDefault(cc.ComponentId) + 1;
+            }
+        }
+
+        var list = compCounts.Select(kvp =>
+        {
+            var comp = _store.Components.TryGetValue(kvp.Key, out var entity) ? entity : null;
+            return new EntityCountRawItem
+            {
+                Id = kvp.Key,
+                Label = comp?.Name ?? $"Componente #{kvp.Key}",
+                SecondaryLabel = comp?.Code,
+                Count = kvp.Value
+            };
+        })
+        .OrderByDescending(x => x.Count)
+        .Take(limit)
+        .ToList();
+
+        return Task.FromResult<IReadOnlyList<EntityCountRawItem>>(list);
+    }
+
+    public Task<IReadOnlyList<EntityCountRawItem>> GetTopRootCausesAsync(AnalyticsFilterCriteria criteria, int limit = 5, CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria).Where(c => string.Equals(c.Status, "Resolved", StringComparison.OrdinalIgnoreCase)).ToList();
+        var causeCounts = new Dictionary<long, int>();
+
+        foreach (var c in cases)
+        {
+            var res = _store.CaseResolutions.Values.FirstOrDefault(r => r.CaseId == c.Id);
+            long causeId = res?.RootCauseId ?? 0;
+            causeCounts[causeId] = causeCounts.GetValueOrDefault(causeId) + 1;
+        }
+
+        var list = causeCounts.Select(kvp =>
+        {
+            string label = "Sem causa raiz definida";
+            string? code = null;
+            if (kvp.Key > 0 && _store.RootCauses.TryGetValue(kvp.Key, out var rc))
+            {
+                label = rc.Name;
+                code = rc.Code;
+            }
+
+            return new EntityCountRawItem
+            {
+                Id = kvp.Key > 0 ? kvp.Key : 0,
+                Label = label,
+                SecondaryLabel = code,
+                Count = kvp.Value
+            };
+        })
+        .OrderByDescending(x => x.Count)
+        .Take(limit)
+        .ToList();
+
+        return Task.FromResult<IReadOnlyList<EntityCountRawItem>>(list);
+    }
+
+    public Task<IReadOnlyList<EntityCountRawItem>> GetTopRecurrencesAsync(AnalyticsFilterCriteria criteria, int limit = 5, CancellationToken ct = default)
+    {
+        var caseIds = FilterCases(criteria).Select(c => c.Id).ToHashSet();
+
+        var list = _store.CaseRelations.Values
+            .Where(cr => (caseIds.Contains(cr.SourceCaseId) || caseIds.Contains(cr.TargetCaseId)) &&
+                         (string.Equals(cr.RelationType, "Recurrence", StringComparison.OrdinalIgnoreCase) || string.Equals(cr.RelationType, "CommonCause", StringComparison.OrdinalIgnoreCase)))
+            .GroupBy(cr => cr.RelationType)
+            .Select(g => new EntityCountRawItem
+            {
+                Label = g.Key,
+                SecondaryLabel = "Relação identificada",
+                Count = g.Count()
+            })
+            .OrderByDescending(x => x.Count)
+            .Take(limit)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<EntityCountRawItem>>(list);
+    }
+
+    public Task<IReadOnlyList<AttentionCaseRawItem>> GetAttentionCasesAsync(AnalyticsFilterCriteria criteria, int limit = 10, CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria).ToList();
+        var result = new List<AttentionCaseRawItem>();
+        var now = DateTime.UtcNow;
+
+        foreach (var c in cases)
+        {
+            int iterations = _store.CaseIterations.Values.Count(ci => ci.CaseId == c.Id);
+            bool hasRoot = _store.CaseResolutions.Values.Any(r => r.CaseId == c.Id && r.RootCauseId.HasValue && r.RootCauseConfirmed);
+            bool hasKnowledge = _store.KnowledgeItems.Values.Any(ki => ki.ProvenanceCaseId == c.Id);
+            bool isRecurrent = _store.CaseRelations.Values.Any(cr => (cr.SourceCaseId == c.Id || cr.TargetCaseId == c.Id) && (string.Equals(cr.RelationType, "Recurrence", StringComparison.OrdinalIgnoreCase) || string.Equals(cr.RelationType, "CommonCause", StringComparison.OrdinalIgnoreCase)));
+
+            string reason = string.Empty;
+
+            if ((c.Status == "Open" || c.Status == "Reopened") && (c.Severity == "Critical" || c.Severity == "High") && (now - c.OpenedAt).TotalDays >= 2)
+            {
+                reason = "Crítico/Alto pendente há vários dias";
+            }
+            else if (iterations > 1)
+            {
+                reason = "Caso reaberto com múltiplas iterações";
+            }
+            else if (isRecurrent && !hasRoot)
+            {
+                reason = "Incidente recorrente sem causa raiz confirmada";
+            }
+            else if (c.Status == "Resolved" && !hasKnowledge)
+            {
+                reason = "Resolvido sem artigo na Base de Conhecimento";
+            }
+
+            if (!string.IsNullOrEmpty(reason))
+            {
+                result.Add(new AttentionCaseRawItem
+                {
+                    Id = c.Id,
+                    CaseNumber = c.CaseNumber,
+                    Title = !string.IsNullOrWhiteSpace(c.NormalizedSummary) ? c.NormalizedSummary : c.OriginalReport,
+                    Status = c.Status,
+                    Severity = c.Severity,
+                    OpenedAt = c.OpenedAt,
+                    ActiveDays = (int)(now - c.OpenedAt).TotalDays,
+                    IterationCount = iterations,
+                    HasRootCause = hasRoot,
+                    HasKnowledge = hasKnowledge,
+                    AttentionReason = reason
+                });
+            }
+        }
+
+        var list = result.OrderByDescending(r => r.OpenedAt).Take(limit).ToList();
+        return Task.FromResult<IReadOnlyList<AttentionCaseRawItem>>(list);
+    }
+
+    public Task<IReadOnlyList<DepartmentRawMetrics>> GetDepartmentMetricsAsync(AnalyticsFilterCriteria criteria, CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria).ToList();
+        var departments = _store.Departments.Values.ToList();
+        var list = new List<DepartmentRawMetrics>();
+
+        foreach (var dep in departments)
+        {
+            var depCases = cases.Where(c => c.CurrentDepartmentId == dep.Id || c.AffectedComponents.Any(cc => _store.ComponentOwners.Values.Any(co => co.ComponentId == cc.ComponentId && co.DepartmentId == dep.Id))).ToList();
+
+            int active = depCases.Count(c => c.Status == "Open" || c.Status == "Reopened");
+            int resolved = depCases.Count(c => c.Status == "Resolved");
+            int reopened = depCases.Count(c => _store.CaseIterations.Values.Count(ci => ci.CaseId == c.Id) > 1);
+            int recurrent = depCases.Count(c => _store.CaseRelations.Values.Any(cr => (cr.SourceCaseId == c.Id || cr.TargetCaseId == c.Id) && (cr.RelationType == "Recurrence" || cr.RelationType == "CommonCause")));
+
+            int knowledgeCount = _store.KnowledgeItems.Values.Count(ki => ki.OwnerDepartmentId == dep.Id);
+            int stepsCount = _store.DiagnosticSteps.Values.Count(ds => _store.UserDepartments.Any(ud => ud.UserId == ds.PerformedBy && ud.DepartmentId == dep.Id));
+
+            list.Add(new DepartmentRawMetrics
+            {
+                DepartmentId = dep.Id,
+                DepartmentName = dep.Name,
+                ActiveCasesCount = active,
+                ResolvedCasesCount = resolved,
+                ReopenedCasesCount = reopened,
+                RecurrentCasesCount = recurrent,
+                KnowledgeCreatedCount = knowledgeCount,
+                DiagnosticStepsCount = stepsCount
+            });
+        }
+
+        return Task.FromResult<IReadOnlyList<DepartmentRawMetrics>>(list);
+    }
+
+    public Task<IReadOnlyList<double>> GetDepartmentIterationDurationsMinutesAsync(long departmentId, AnalyticsFilterCriteria criteria, CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria)
+            .Where(c => c.CurrentDepartmentId == departmentId || c.AffectedComponents.Any(cc => _store.ComponentOwners.Values.Any(co => co.ComponentId == cc.ComponentId && co.DepartmentId == departmentId)))
+            .Select(c => c.Id)
+            .ToHashSet();
+
+        var durations = _store.CaseIterations.Values
+            .Where(ci => cases.Contains(ci.CaseId) && string.Equals(ci.Status, "Resolved", StringComparison.OrdinalIgnoreCase) && ci.ClosedAt.HasValue)
+            .Select(ci => (ci.ClosedAt!.Value - ci.OpenedAt).TotalMinutes)
+            .Where(m => m >= 0)
+            .OrderBy(m => m)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<double>>(durations);
+    }
+
+    public Task<IReadOnlyList<UserRawMetrics>> GetUserMetricsAsync(AnalyticsFilterCriteria criteria, CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria).ToList();
+        var users = _store.Users.Values.Where(u => u.Status == UserStatus.Active).ToList();
+
+        var list = users.Select(u =>
+        {
+            int opened = cases.Count(c => c.CreatedBy == u.Id);
+            int resolved = _store.CaseResolutions.Values.Count(r => r.ResolvedBy == u.Id && cases.Any(c => c.Id == r.CaseId));
+            int steps = _store.DiagnosticSteps.Values.Count(ds => ds.PerformedBy == u.Id && _store.DiagnosticSessions.TryGetValue(ds.DiagnosticSessionId, out var sess) && cases.Any(c => c.Id == sess.CaseId));
+            int hypotheses = _store.CaseHypotheses.Values.Count(h => h.CreatedBy == u.Id && cases.Any(c => c.Id == h.CaseId));
+            int evidences = _store.CaseEvidences.Values.Count(e => e.CreatedBy == u.Id && cases.Any(c => c.Id == e.CaseId));
+            int knowledgeAuthored = _store.KnowledgeItems.Values.Count(ki => ki.CreatedBy == u.Id);
+            int knowledgeUsed = _store.KnowledgeUsages.Values.Count(ku => ku.UsedBy == u.Id);
+
+            var userCases = cases.Where(c => c.CurrentOwnerUserId == u.Id || c.CreatedBy == u.Id).ToList();
+            var topProdId = userCases.Where(c => c.ProductId.HasValue).GroupBy(c => c.ProductId!.Value).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault();
+            string? topProd = topProdId > 0 && _store.Products.TryGetValue(topProdId, out var prod) ? prod.Name : null;
+
+            var topCompId = userCases.SelectMany(c => c.AffectedComponents).GroupBy(cc => cc.ComponentId).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault();
+            string? topComp = topCompId > 0 && _store.Components.TryGetValue(topCompId, out var comp) ? comp.Name : null;
+
+            return new UserRawMetrics
+            {
+                UserId = u.Id,
+                UserName = u.Name,
+                UserEmail = u.Email,
+                OpenedCasesCount = opened,
+                ResolvedCasesCount = resolved,
+                DiagnosticStepsCount = steps,
+                HypothesesCreatedCount = hypotheses,
+                EvidencesCreatedCount = evidences,
+                KnowledgeAuthoredCount = knowledgeAuthored,
+                KnowledgeUsedCount = knowledgeUsed,
+                TopProduct = topProd,
+                TopComponent = topComp
+            };
+        }).OrderBy(u => u.UserName).ToList();
+
+        return Task.FromResult<IReadOnlyList<UserRawMetrics>>(list);
+    }
+
+    public Task<KnowledgeRawMetrics> GetKnowledgeMetricsAsync(AnalyticsFilterCriteria criteria, CancellationToken ct = default)
+    {
+        var items = _store.KnowledgeItems.Values.ToList();
+        var usages = _store.KnowledgeUsages.Values.ToList();
+        var now = DateTime.UtcNow;
+
+        int published = items.Count(ki => ki.Status == "Published");
+        int deprecated = items.Count(ki => ki.Status == "Deprecated");
+        int neverReviewed = items.Count(ki => ki.Status == "Published" && !ki.LastReviewedAt.HasValue);
+        int overdue = items.Count(ki => ki.Status == "Published" && ki.ReviewDueAt.HasValue && ki.ReviewDueAt.Value < now);
+
+        int totalUsages = usages.Count;
+        int worked = usages.Count(u => string.Equals(u.Outcome, "Worked", StringComparison.OrdinalIgnoreCase));
+        int partial = usages.Count(u => string.Equals(u.Outcome, "PartiallyWorked", StringComparison.OrdinalIgnoreCase));
+        int didNotWork = usages.Count(u => string.Equals(u.Outcome, "DidNotWork", StringComparison.OrdinalIgnoreCase));
+        int inconclusive = usages.Count(u => string.Equals(u.Outcome, "Inconclusive", StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(new KnowledgeRawMetrics
+        {
+            TotalPublished = published,
+            TotalDeprecated = deprecated,
+            NeverReviewedCount = neverReviewed,
+            ReviewOverdueCount = overdue,
+            TotalUsagesCount = totalUsages,
+            WorkedUsagesCount = worked,
+            PartiallyWorkedUsagesCount = partial,
+            DidNotWorkUsagesCount = didNotWork,
+            InconclusiveUsagesCount = inconclusive
+        });
+    }
+
+    public Task<IReadOnlyList<EntityCountRawItem>> GetTopUsedKnowledgeAsync(AnalyticsFilterCriteria criteria, int limit = 5, CancellationToken ct = default)
+    {
+        var list = _store.KnowledgeUsages.Values
+            .GroupBy(u => u.KnowledgeItemId)
+            .Select(g =>
+            {
+                var item = _store.KnowledgeItems.TryGetValue(g.Key, out var ki) ? ki : null;
+                return new EntityCountRawItem
+                {
+                    Id = g.Key,
+                    Label = item?.Title ?? $"Conhecimento #{g.Key}",
+                    SecondaryLabel = item?.KnowledgeCode,
+                    Count = g.Count()
+                };
+            })
+            .OrderByDescending(x => x.Count)
+            .Take(limit)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<EntityCountRawItem>>(list);
+    }
+
+    public Task<(string VersionLabel, DateTime? ReleasedAt, int BeforeCount, int AfterCount)> GetTrendAfterVersionRawAsync(
+        long productVersionId,
+        long? rootCauseId,
+        string? errorCode,
+        long? componentId,
+        int intervalDays,
+        CancellationToken ct = default)
+    {
+        _store.ProductVersions.TryGetValue(productVersionId, out var ver);
+        if (ver == null || !ver.ReleasedAt.HasValue)
+        {
+            return Task.FromResult((ver?.VersionLabel ?? string.Empty, ver?.ReleasedAt, 0, 0));
+        }
+
+        var releasedAt = ver.ReleasedAt.Value;
+        var startBefore = releasedAt.AddDays(-intervalDays);
+        var endAfter = releasedAt.AddDays(intervalDays);
+
+        var query = _store.Cases.Values.AsEnumerable();
+
+        if (rootCauseId.HasValue)
+        {
+            query = query.Where(c => _store.CaseResolutions.Values.Any(cr => cr.CaseId == c.Id && cr.RootCauseId == rootCauseId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(errorCode))
+        {
+            query = query.Where(c => string.Equals(c.ErrorCode, errorCode.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (componentId.HasValue)
+        {
+            query = query.Where(c => c.AffectedComponents.Any(cc => cc.ComponentId == componentId.Value));
+        }
+
+        var cases = query.ToList();
+        int before = cases.Count(c => c.OpenedAt >= startBefore && c.OpenedAt < releasedAt);
+        int after = cases.Count(c => c.OpenedAt >= releasedAt && c.OpenedAt <= endAfter);
+
+        return Task.FromResult((ver.VersionLabel, (DateTime?)releasedAt, before, after));
+    }
+
+    public Task<(int TotalCases, IReadOnlyList<(long ComponentId, string ComponentName, int Count)> ComponentCounts)> GetComponentAssociationRawAsync(
+        AnalyticsFilterCriteria criteria,
+        long? rootCauseId,
+        CancellationToken ct = default)
+    {
+        var cases = FilterCases(criteria);
+        if (rootCauseId.HasValue)
+        {
+            cases = cases.Where(c => _store.CaseResolutions.Values.Any(cr => cr.CaseId == c.Id && cr.RootCauseId == rootCauseId.Value));
+        }
+
+        var casesList = cases.ToList();
+        int total = casesList.Count;
+
+        if (total == 0)
+        {
+            return Task.FromResult<(int, IReadOnlyList<(long, string, int)>)>((0, Array.Empty<(long, string, int)>()));
+        }
+
+        var counts = casesList
+            .SelectMany(c => c.AffectedComponents.Select(cc => cc.ComponentId).Distinct())
+            .GroupBy(id => id)
+            .Select(g =>
+            {
+                var compName = _store.Components.TryGetValue(g.Key, out var comp) ? comp.Name : $"Componente #{g.Key}";
+                return (ComponentId: g.Key, ComponentName: compName, Count: g.Count());
+            })
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        return Task.FromResult<(int, IReadOnlyList<(long, string, int)>)>((total, counts));
+    }
+
+    public Task<(string SolutionTitle, string ScopeLabel, IReadOnlyList<double> DurationsWithMinutes, IReadOnlyList<double> DurationsWithoutMinutes)> GetSolutionEffectivenessRawAsync(
+        long knowledgeItemId,
+        AnalyticsFilterCriteria criteria,
+        CancellationToken ct = default)
+    {
+        _store.KnowledgeItems.TryGetValue(knowledgeItemId, out var ki);
+        if (ki == null)
+        {
+            return Task.FromResult((string.Empty, "Escopo não encontrado", (IReadOnlyList<double>)Array.Empty<double>(), (IReadOnlyList<double>)Array.Empty<double>()));
+        }
+
+        string? deptName = ki.OwnerDepartmentId.HasValue && _store.Departments.TryGetValue(ki.OwnerDepartmentId.Value, out var dept) ? dept.Name : null;
+        string scopeLabel = !string.IsNullOrEmpty(deptName) ? $"Departamento: {deptName}" : "Escopo Geral";
+
+        var cases = FilterCases(criteria);
+        var casesList = cases.ToList();
+        var caseIdsWithUsage = _store.KnowledgeUsages.Values
+            .Where(ku => ku.KnowledgeItemId == knowledgeItemId)
+            .Select(ku => ku.CaseId)
+            .ToHashSet();
+
+        var casesWith = casesList.Where(c => caseIdsWithUsage.Contains(c.Id)).Select(c => c.Id).ToHashSet();
+        var casesWithout = casesList.Where(c => !caseIdsWithUsage.Contains(c.Id)).Select(c => c.Id).ToHashSet();
+
+        var durationsWith = _store.CaseIterations.Values
+            .Where(ci => casesWith.Contains(ci.CaseId) && ci.ClosedAt.HasValue)
+            .Select(ci => (ci.ClosedAt!.Value - ci.OpenedAt).TotalMinutes)
+            .Where(m => m >= 0)
+            .OrderBy(m => m)
+            .ToList();
+
+        var durationsWithout = _store.CaseIterations.Values
+            .Where(ci => casesWithout.Contains(ci.CaseId) && ci.ClosedAt.HasValue)
+            .Select(ci => (ci.ClosedAt!.Value - ci.OpenedAt).TotalMinutes)
+            .Where(m => m >= 0)
+            .OrderBy(m => m)
+            .ToList();
+
+        return Task.FromResult<(string, string, IReadOnlyList<double>, IReadOnlyList<double>)>((ki.Title, scopeLabel, durationsWith, durationsWithout));
+    }
+}
+
+public class InMemorySearchableContentRepository : ISearchableContentRepository
+{
+    private readonly InMemoryDataStore _store;
+
+    public InMemorySearchableContentRepository(InMemoryDataStore store)
+    {
+        _store = store;
+    }
+
+    public Task<long> UpsertAsync(SearchableContentEntry entry, CancellationToken ct = default)
+    {
+        var existing = _store.SearchableContentEntries.Values.FirstOrDefault(e =>
+            e.SourceType.Equals(entry.SourceType, StringComparison.OrdinalIgnoreCase) &&
+            e.SourceId == entry.SourceId &&
+            e.SourceVersionId == entry.SourceVersionId);
+
+        if (existing != null)
+        {
+            // Se o conteúdo mudou (hash diferente), o embedding antigo fica stale:
+            // limpa os campos para a indexação idempotente gerar um vetor novo (Fase 13).
+            bool contentChanged = !string.Equals(existing.ContentHash, entry.ContentHash, StringComparison.OrdinalIgnoreCase);
+
+            existing.Title = entry.Title;
+            existing.NormalizedContent = entry.NormalizedContent;
+            existing.ContentHash = entry.ContentHash;
+            existing.ValidationStatus = entry.ValidationStatus;
+            existing.QualityStatus = entry.QualityStatus;
+            existing.Visibility = entry.Visibility;
+            existing.ClientId = entry.ClientId;
+            existing.ProductId = entry.ProductId;
+            existing.ComponentIdsJson = entry.ComponentIdsJson;
+            existing.MetadataJson = entry.MetadataJson;
+            existing.UpdatedAt = DateTime.UtcNow;
+            existing.SourceUpdatedAt = entry.SourceUpdatedAt;
+
+            if (contentChanged)
+            {
+                existing.EmbeddingVectorJson = null;
+                existing.EmbeddingModel = null;
+                existing.EmbeddingGeneratedAt = null;
+                existing.IndexedAt = null;
+            }
+
+            entry.Id = existing.Id;
+            return Task.FromResult(existing.Id);
+        }
+        else
+        {
+            entry.Id = _store.NextSearchableContentId();
+            entry.CreatedAt = DateTime.UtcNow;
+            entry.UpdatedAt = DateTime.UtcNow;
+            _store.SearchableContentEntries[entry.Id] = entry;
+            return Task.FromResult(entry.Id);
+        }
+    }
+
+    public Task<SearchableContentEntry?> GetByIdAsync(long id, CancellationToken ct = default)
+    {
+        _store.SearchableContentEntries.TryGetValue(id, out var entry);
+        return Task.FromResult(entry);
+    }
+
+    public Task<SearchableContentEntry?> GetBySourceAsync(string sourceType, long sourceId, long? sourceVersionId, CancellationToken ct = default)
+    {
+        var entry = _store.SearchableContentEntries.Values.FirstOrDefault(e =>
+            e.SourceType.Equals(sourceType, StringComparison.OrdinalIgnoreCase) &&
+            e.SourceId == sourceId &&
+            e.SourceVersionId == sourceVersionId);
+        return Task.FromResult(entry);
+    }
+
+    public Task<(IReadOnlyList<SearchableContentEntry> Items, int TotalCount)> SearchAsync(
+        string? sourceType = null,
+        string? validationStatus = null,
+        string? qualityStatus = null,
+        string? visibility = null,
+        long? clientId = null,
+        long? productId = null,
+        string? searchTerm = null,
+        int skip = 0,
+        int take = 50,
+        CancellationToken ct = default)
+    {
+        var query = _store.SearchableContentEntries.Values.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(sourceType))
+            query = query.Where(e => e.SourceType.Equals(sourceType.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(validationStatus))
+            query = query.Where(e => e.ValidationStatus.Equals(validationStatus.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(qualityStatus))
+            query = query.Where(e => e.QualityStatus.Equals(qualityStatus.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(visibility))
+            query = query.Where(e => e.Visibility.Equals(visibility.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (clientId.HasValue)
+            query = query.Where(e => e.ClientId == clientId.Value);
+
+        if (productId.HasValue)
+            query = query.Where(e => e.ProductId == productId.Value);
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim();
+            query = query.Where(e =>
+                (e.Title != null && e.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (e.NormalizedContent != null && e.NormalizedContent.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (e.MetadataJson != null && e.MetadataJson.Contains(term, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+
+        var totalCount = query.Count();
+        IReadOnlyList<SearchableContentEntry> items = query
+            .OrderByDescending(e => e.UpdatedAt)
+            .Skip(Math.Max(0, skip))
+            .Take(Math.Clamp(take, 1, 500))
+            .ToList();
+
+        return Task.FromResult((items, totalCount));
+    }
+
+    public Task<IReadOnlyDictionary<string, int>> GetCountByQualityStatusAsync(CancellationToken ct = default)
+    {
+        IReadOnlyDictionary<string, int> dict = _store.SearchableContentEntries.Values
+            .GroupBy(e => e.QualityStatus, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+        return Task.FromResult(dict);
+    }
+
+    public Task<IReadOnlyDictionary<string, int>> GetCountBySourceTypeAsync(CancellationToken ct = default)
+    {
+        IReadOnlyDictionary<string, int> dict = _store.SearchableContentEntries.Values
+            .GroupBy(e => e.SourceType, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+        return Task.FromResult(dict);
+    }
+
+    // ---- Fase 13 (M12): recuperação assistida por IA ----
+
+    public Task<IReadOnlyList<SearchableContentEntry>> GetRagCandidatesAsync(
+        IReadOnlyList<string> visibilities,
+        string? searchTerm,
+        int limit,
+        CancellationToken ct = default)
+    {
+        var query = _store.SearchableContentEntries.Values.AsEnumerable();
+
+        if (visibilities != null && visibilities.Count > 0)
+        {
+            var allowed = new HashSet<string>(visibilities, StringComparer.OrdinalIgnoreCase);
+            query = query.Where(e => allowed.Contains(e.Visibility));
+        }
+
+        query = query.Where(e =>
+            (e.ValidationStatus.Equals("Validated", StringComparison.OrdinalIgnoreCase) ||
+             e.ValidationStatus.Equals("PendingValidation", StringComparison.OrdinalIgnoreCase)) &&
+            (e.QualityStatus.Equals("Complete", StringComparison.OrdinalIgnoreCase) ||
+             e.QualityStatus.Equals("Validated", StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrWhiteSpace(e.EmbeddingVectorJson));
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim();
+            query = query.Where(e =>
+                (e.Title != null && e.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (e.NormalizedContent != null && e.NormalizedContent.Contains(term, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        IReadOnlyList<SearchableContentEntry> items = query
+            .OrderByDescending(e => e.UpdatedAt)
+            .Take(Math.Clamp(limit, 1, 500))
+            .ToList();
+        return Task.FromResult(items);
+    }
+
+    public Task<IReadOnlyList<SearchableContentEntry>> GetPendingEmbeddingAsync(
+        string embeddingModel,
+        int limit,
+        CancellationToken ct = default)
+    {
+        IReadOnlyList<SearchableContentEntry> items = _store.SearchableContentEntries.Values
+            .Where(e =>
+                e.ValidationStatus.Equals("Validated", StringComparison.OrdinalIgnoreCase) &&
+                (e.QualityStatus.Equals("Complete", StringComparison.OrdinalIgnoreCase) ||
+                 e.QualityStatus.Equals("Validated", StringComparison.OrdinalIgnoreCase)) &&
+                (e.Visibility.Equals("Public", StringComparison.OrdinalIgnoreCase) ||
+                 e.Visibility.Equals("Internal", StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrWhiteSpace(e.EmbeddingVectorJson) ||
+                 string.IsNullOrWhiteSpace(e.EmbeddingModel) ||
+                 !e.EmbeddingModel.Equals(embeddingModel, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(e => e.UpdatedAt)
+            .Take(Math.Clamp(limit, 1, 1000))
+            .ToList();
+        return Task.FromResult(items);
+    }
+
+    public Task UpdateEmbeddingAsync(
+        long id,
+        string? embeddingVectorJson,
+        string embeddingModel,
+        DateTime? generatedAt,
+        CancellationToken ct = default)
+    {
+        if (_store.SearchableContentEntries.TryGetValue(id, out var entry))
+        {
+            entry.EmbeddingVectorJson = embeddingVectorJson;
+            entry.EmbeddingModel = embeddingModel;
+            entry.EmbeddingGeneratedAt = generatedAt;
+            entry.IndexedAt = generatedAt;
+            entry.UpdatedAt = generatedAt ?? DateTime.UtcNow;
+        }
+
+        return Task.CompletedTask;
+    }
+}
+
+public class InMemoryLlmProviderConfigRepository : ILlmProviderConfigRepository
+{
+    private readonly InMemoryDataStore _store;
+
+    public InMemoryLlmProviderConfigRepository(InMemoryDataStore store)
+    {
+        _store = store;
+    }
+
+    public Task<LlmProviderConfig?> GetActiveByPurposeAsync(string purpose, CancellationToken ct = default)
+    {
+        var config = _store.LlmProviderConfigs.Values.FirstOrDefault(c =>
+            c.Purpose.Equals(purpose, StringComparison.OrdinalIgnoreCase) && c.IsActive);
+        return Task.FromResult(config);
+    }
+
+    public Task<LlmProviderConfig?> GetByIdAsync(long id, CancellationToken ct = default)
+    {
+        _store.LlmProviderConfigs.TryGetValue(id, out var config);
+        return Task.FromResult(config);
+    }
+
+    public Task<IReadOnlyList<LlmProviderConfig>> GetAllAsync(CancellationToken ct = default)
+    {
+        IReadOnlyList<LlmProviderConfig> list = _store.LlmProviderConfigs.Values
+            .OrderBy(c => c.Purpose)
+            .ThenBy(c => c.ProviderCode)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<LlmProviderConfig?> GetByPurposeAndProviderAsync(string purpose, string providerCode, CancellationToken ct = default)
+    {
+        var config = _store.LlmProviderConfigs.Values.FirstOrDefault(c =>
+            c.Purpose.Equals(purpose, StringComparison.OrdinalIgnoreCase) &&
+            c.ProviderCode.Equals(providerCode, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(config);
+    }
+
+    public Task<long> AddAsync(LlmProviderConfig config, CancellationToken ct = default)
+    {
+        config.Id = _store.NextLlmProviderConfigId();
+        config.CreatedAt = DateTime.UtcNow;
+        _store.LlmProviderConfigs[config.Id] = config;
+        return Task.FromResult(config.Id);
+    }
+
+    public Task UpdateAsync(LlmProviderConfig config, CancellationToken ct = default)
+    {
+        config.UpdatedAt = DateTime.UtcNow;
+        _store.LlmProviderConfigs[config.Id] = config;
+        return Task.CompletedTask;
+    }
+}
+
+public class InMemoryAiInteractionRepository : IAiInteractionRepository
+{
+    private readonly InMemoryDataStore _store;
+
+    public InMemoryAiInteractionRepository(InMemoryDataStore store)
+    {
+        _store = store;
+    }
+
+    public Task<long> AddInteractionAsync(AiInteraction interaction, CancellationToken ct = default)
+    {
+        interaction.Id = _store.NextAiInteractionId();
+        _store.AiInteractions[interaction.Id] = interaction;
+        return Task.FromResult(interaction.Id);
+    }
+
+    public Task AddSourcesAsync(IEnumerable<AiSource> sources, CancellationToken ct = default)
+    {
+        foreach (var source in sources)
+        {
+            source.Id = _store.NextAiSourceId();
+            _store.AiSources[source.Id] = source;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<long> AddFeedbackAsync(AiInteractionFeedback feedback, CancellationToken ct = default)
+    {
+        feedback.Id = _store.NextAiInteractionFeedbackId();
+        _store.AiInteractionFeedbacks[feedback.Id] = feedback;
+        return Task.FromResult(feedback.Id);
+    }
+
+    public Task<AiInteraction?> GetByIdAsync(long id, CancellationToken ct = default)
+    {
+        _store.AiInteractions.TryGetValue(id, out var interaction);
+        return Task.FromResult(interaction);
+    }
+
+    public Task<IReadOnlyList<AiSource>> GetSourcesByInteractionIdAsync(long interactionId, CancellationToken ct = default)
+    {
+        IReadOnlyList<AiSource> list = _store.AiSources.Values
+            .Where(s => s.AiInteractionId == interactionId)
+            .OrderBy(s => s.Rank)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<IReadOnlyList<AiInteraction>> GetInteractionsByUserAsync(long userId, int take = 20, CancellationToken ct = default)
+    {
+        IReadOnlyList<AiInteraction> list = _store.AiInteractions.Values
+            .Where(i => i.UserId == userId)
+            .OrderByDescending(i => i.CreatedAt)
+            .Take(take)
+            .ToList();
+        return Task.FromResult(list);
     }
 }
 

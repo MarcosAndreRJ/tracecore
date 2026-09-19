@@ -54,6 +54,22 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string? Period { get; set; } = "all";
 
+    // Parâmetros de Drill-Down do Analytics
+    [BindProperty(SupportsGet = true)]
+    public bool? WithoutRootCause { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public bool? WithoutKnowledge { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public bool? RecurrentOnly { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public long? OwnerUserId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public long? ComponentId { get; set; }
+
     [BindProperty(SupportsGet = true)]
     public int PageNumber { get; set; } = 1;
 
@@ -126,6 +142,21 @@ public class IndexModel : PageModel
         if (DepartmentId.HasValue && DepartmentId.Value > 0)
         {
             query = query.Where(c => c.CurrentDepartmentId == DepartmentId.Value);
+        }
+
+        if (ComponentId.HasValue && ComponentId.Value > 0)
+        {
+            query = query.Where(c => c.AffectedComponents != null && c.AffectedComponents.Any(ac => ac.ComponentId == ComponentId.Value));
+        }
+
+        if (OwnerUserId.HasValue && OwnerUserId.Value > 0)
+        {
+            query = query.Where(c => c.CurrentOwnerUserId == OwnerUserId.Value || c.CreatedBy == OwnerUserId.Value);
+        }
+
+        if (WithoutRootCause.HasValue && WithoutRootCause.Value)
+        {
+            query = query.Where(c => c.Resolution == null || !c.Resolution.RootCauseId.HasValue || !c.Resolution.RootCauseConfirmed);
         }
 
         if (!string.IsNullOrWhiteSpace(Period) && Period != "all")

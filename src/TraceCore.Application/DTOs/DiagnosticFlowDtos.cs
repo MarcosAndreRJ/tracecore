@@ -51,7 +51,8 @@ public record DiagnosticCheckDto(
     int Cost,
     string RiskLevel,
     string? SkipConditionField,
-    List<DiagnosticCheckOptionDto> Options
+    List<DiagnosticCheckOptionDto> Options,
+    long? IntegrationId = null
 );
 
 public record DiagnosticFlowDetailsDto(
@@ -116,5 +117,6 @@ public record CreateDiagnosticCheckCommand(
     string CheckType = "Question",
     int Cost = 1,
     string RiskLevel = "Low",
-    string? SkipConditionField = null
+    string? SkipConditionField = null,
+    long? IntegrationId = null
 );

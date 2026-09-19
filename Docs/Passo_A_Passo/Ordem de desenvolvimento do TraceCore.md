@@ -684,6 +684,15 @@ Carlos utilizou a solução no caso #418.
 
 Não apenas login/logout.
 
+> **Nota de Execução Coordenada**: As Fases 11 e 12 foram executadas em conjunto na mesma rodada com objetivos estritamente distintos — a Fase 11 forneceu rastreabilidade institucional e governança append-only, e a Fase 12 estruturou os dados preparados para inteligência artificial sem vetores ou chamadas generativas.
+
+### Status da Fase 11: ✅ CONCLUÍDA
+- **Infraestrutura Imutável Append-Only**: Baseada na entidade central `AuditEvent` e tabela `audit_events`. Repositórios `IAuditEventRepository` (MySQL e InMemory) com consulta paginada dinâmica `SearchAsync`.
+- **Fachada Única `IAuditService` com BR-101**: Todos os registros de auditoria passam por `SanitizeAndSerialize`, que mascara recursivamente credenciais, tokens, hashes e senhas como `***REDACTED***`.
+- **Fechamento de Gaps de Auditoria**: Cobertura de operações críticas no Catálogo Técnico (`CatalogService`), Casos (`CaseService`), Investigação (`CaseInvestigationService`), Conhecimento (`KnowledgeService`) e Autenticação.
+- **Convenção Corporativa Padronizada**: Ações normalizadas no formato `entidade.verbo[_objeto]` (ex: `product.create`, `case.reopen`, `catalog.dependency_create`, `diagnostic_step.register`), mantendo alias de compatibilidade retroativa para eventos históricos.
+- **Interface de Auditoria (`/Audit/Index`)**: Protegida pela permissão `auditoria.visualizar`, com cards de métricas (total, atores, entidades), filtros múltiplos (período, ator, entidade, ação, correlação, texto livre), tabela responsiva, links de drill-down direto para entidades de origem e modal de inspeção de payload com visualização de diff JSON formatado e mascarado.
+
 ---
 
 # Fase 12 — Preparação para IA
@@ -710,6 +719,24 @@ Casos históricos
 Documentos
 Conteúdo sugerido por IA
 ```
+
+> **Nota de Execução Coordenada**: Executada conjuntamente com a Fase 11, estruturando o pipeline preparatório sem dependência de LLMs ou modelos de embedding. O campo `EmbeddingVersion` permanece reservado como `null` para fases futuras.
+
+### Status da Fase 12: ✅ CONCLUÍDA
+- **Modelo de Dados (Migration 18)**: Criada a tabela `searchable_content_entries` (`M20260918_18_CreateSearchableContentEntriesSchema`) com 5 índices de alta performance (`ix_searchable_source`, `ix_searchable_hash`, `ix_searchable_quality`, `ix_searchable_validation`, `ix_searchable_updated`).
+- **Repositório `ISearchableContentRepository`**: Implementações completas para MySQL (Dapper seguro) e InMemory (`InMemorySearchableContentRepository` integrado ao store compartilhado de testes).
+- **Pipeline Determinístico `ContentPreparationService`**:
+  - Normalização estruturada de casos e soluções publicadas preservando integralmente identificadores e literais técnicos (`ORA-12541`, `HTTP 500`, versões, tags, paths).
+  - Deduplicação inteligente e idempotência via hash SHA-256 (`ContentHash`).
+  - Determinação de AI Readiness e Qualidade Documental explicável (`Ready`, `NeedsMetadata`, `NeedsReview`, `NotEligible`) sem scores numéricos ou heurísticas opacas.
+  - Isolamento de visibilidade por confidencialidade (`Public`, `Internal`, `Restricted`, `Confidential`) sem silos departamentais.
+- **Interface de Qualidade & IA (`/ContentQuality/Index`)**:
+  - Integrada ao menu lateral "Inteligência" e protegida por `analytics.visualizar`.
+  - Cards de AI Readiness (Prontos para IA, Requerem Metadados, Em Revisão, Não Elegíveis).
+  - Tabela com paginação e busca textual, utilizando componentes visuais reutilizados (`_AIContentBadge`, `_KnowledgeProvenance`, `_SourceReferenceChip`, `_ConfidenceIndicator`).
+  - Modal de inspeção do conteúdo normalizado e metadados estruturados.
+  - Ação administrativa de sincronização em lote com feedback visual.
+- **Suíte de Testes Automatizados**: 7 testes de integração dedicados (`AuditAndContentPreparationIntegrationTests.cs`), garantindo imutabilidade, higienização de senhas, cobertura do catálogo, preservação de literais técnicos, idempotência por hash e métricas de prontidão. Total da suíte: **75/75 testes aprovados**.
 
 ---
 
@@ -766,15 +793,15 @@ Procedimento #17
 
 ---
 
-# Fase 15 — Integrações automáticas
+# Fase 15 — Integrações automáticas (Concluída)
 
-Depois podemos permitir que o TraceCore busque automaticamente:
+TraceCore busca e sonda automaticamente integrações técnicas cadastradas:
 
 ```text
 versão do sistema
 logs
 status das APIs
-health checks
+health checks (HTTP e TCP)
 telemetria
 serviços
 banco
@@ -787,13 +814,13 @@ Em vez de perguntar:
 
 > "A API está funcionando?"
 
-TraceCore consulta sozinho.
+TraceCore consulta sozinho via `IIntegrationHealthCheckService` e `AutomatedCheck` integrado ao motor de diagnóstico guiado (BR-073), com falha segura estrita (§26).
 
 ---
 
-# Fase 16 — Inteligência analítica
+# Fase 16 — Inteligência analítica (Concluída)
 
-Depois de existir histórico suficiente:
+Depois de existir histórico suficiente, com cálculo determinístico e rastreabilidade total (§31):
 
 ```text
 Esse problema aumentou 42% após a versão 8.4.
@@ -803,7 +830,7 @@ Esse problema aumentou 42% após a versão 8.4.
 Essa solução reduz o MTTR médio de 52 para 17 minutos.
 ```
 
-É aqui que o sistema passa de repositório para ferramenta de decisão.
+É aqui que o sistema passa de repositório para ferramenta de decisão — expondo queries determinísticas (`IManagementAnalyticsService`), validação de suficiência de amostra ($N \ge 3$ ou $N \ge 5$) e ferramenta de leitura `AnalyzeManagementTrend` para o Copiloto Operacional.
 
 ---
 
@@ -949,7 +976,7 @@ Use este como seu painel de progresso:
 
 ### Operação
 
-* [ ] Health checks
+* [x] Health checks (Sondagem automatizada HTTP/TCP, falha segura §26 e AutomatedCheck BR-073)
 * [ ] Logs estruturados
 * [ ] Métricas
 * [ ] OpenTelemetry

@@ -1,0 +1,166 @@
+@page
+@model TraceCore.Web.Pages.Analytics.UsersModel
+@{
+    ViewData["Title"] = "Analytics de Atuação dos Usuários";
+}
+
+<div class="tc-page-header mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1 class="tc-page-title mb-1"><i class="bi bi-people text-primary me-2"></i>Atuação & Colaboração dos Profissionais</h1>
+            <p class="tc-page-subtitle text-muted mb-0">Visão contextualizada sobre participação investigativa, geração de conhecimento e especialidades emergentes.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-page="/Analytics/Index" class="tc-btn tc-btn-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Dashboard Geral
+            </a>
+            <a asp-page="/Analytics/Departments" class="tc-btn tc-btn-secondary">
+                <i class="bi bi-building me-1"></i> Departamentos
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros Rápidos -->
+<div class="tc-card mb-4">
+    <div class="tc-card-body p-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4 col-sm-6">
+                <label class="tc-form-label mb-1">Período</label>
+                <select name="Period" class="tc-select">
+                    <option value="7d" selected="@(Model.Filter.Period == "7d")">Últimos 7 dias</option>
+                    <option value="30d" selected="@(Model.Filter.Period == "30d" || string.IsNullOrEmpty(Model.Filter.Period))">Últimos 30 dias</option>
+                    <option value="90d" selected="@(Model.Filter.Period == "90d")">Últimos 90 dias</option>
+                    <option value="6m" selected="@(Model.Filter.Period == "6m")">Últimos 6 meses</option>
+                    <option value="12m" selected="@(Model.Filter.Period == "12m")">Últimos 12 meses</option>
+                    <option value="all" selected="@(Model.Filter.Period == "all")">Todo o histórico</option>
+                </select>
+            </div>
+
+            <div class="col-md-4 col-sm-6">
+                <label class="tc-form-label mb-1">Departamento</label>
+                <select name="DepartmentId" class="tc-select">
+                    <option value="">Todos os departamentos</option>
+                    @foreach (var dep in Model.AvailableDepartments)
+                    {
+                        <option value="@dep.Id" selected="@(Model.Filter.DepartmentId == dep.Id)">@dep.Name</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-4 col-sm-12 d-flex gap-2">
+                <button type="submit" class="tc-btn tc-btn-primary flex-grow-1">
+                    <i class="bi bi-funnel me-1"></i> Filtrar
+                </button>
+                <a asp-page="/Analytics/Users" class="tc-btn tc-btn-secondary" title="Limpar">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Alerta de Não-Gamificação e Foco Qualitativo -->
+<div class="alert alert-secondary d-flex align-items-center mb-4" role="alert">
+    <i class="bi bi-shield-lock fs-4 me-3 text-secondary"></i>
+    <div>
+        <strong>Princípio de Gestão Ética:</strong> Esta visão não é um ranking de desempenho nem uma competição de volume.
+        As métricas refletem a divisão do trabalho, engajamento na linha do tempo de investigação e os sistemas nos quais cada profissional mais atuou recentemente.
+    </div>
+</div>
+
+<!-- Tabela de Usuários -->
+<div class="tc-card mb-4">
+    <div class="tc-card-header p-3">
+        <h5 class="tc-card-title mb-0 fs-6 fw-bold">
+            <i class="bi bi-person-lines-fill me-2"></i>Participação dos Usuários Ativos
+        </h5>
+    </div>
+    <div class="tc-card-body p-0">
+        @if (Model.Analytics.Users.Count == 0)
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-people fs-1 d-block mb-2"></i>
+                <p class="mb-0">Nenhum usuário ativo com registros no período.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="tc-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th class="text-center">Casos Abertos</th>
+                            <th class="text-center">Resolvidos</th>
+                            <th class="text-center">Diagnósticos</th>
+                            <th class="text-center">Hipóteses</th>
+                            <th class="text-center">Evidências</th>
+                            <th class="text-center">Artigos Criados</th>
+                            <th class="text-center">Soluções Reutilizadas</th>
+                            <th>Foco Recente Observado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in Model.Analytics.Users)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">@u.UserName</div>
+                                    <small class="text-muted">@u.UserEmail</small>
+                                </td>
+                                <td class="text-center">
+                                    @if (u.OpenedCasesCount > 0)
+                                    {
+                                        <span class="badge bg-light text-dark border">@u.OpenedCasesCount</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">0</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (u.ResolvedCasesCount > 0)
+                                    {
+                                        <span class="badge bg-success-subtle text-success fw-bold">@u.ResolvedCasesCount</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">0</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">@u.DiagnosticStepsCount</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">@u.HypothesesCreatedCount</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">@u.EvidencesCreatedCount</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary-subtle text-primary">@u.KnowledgeAuthoredCount</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info-subtle text-info">@u.KnowledgeUsedCount</span>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(u.EmergingFocusArea))
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border">
+                                            <i class="bi bi-tag me-1"></i>@u.EmergingFocusArea
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Sem concentração específica</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

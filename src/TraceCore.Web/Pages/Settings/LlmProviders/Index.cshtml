@@ -1,0 +1,176 @@
+@page
+@model TraceCore.Web.Pages.Settings.LlmProviders.IndexModel
+@using TraceCore.Application.DTOs
+@{
+    ViewData["Title"] = "Provedores de IA - TraceCore";
+    var generationActive = Model.Configs.FirstOrDefault(c => c.Purpose.Equals("Generation", StringComparison.OrdinalIgnoreCase) && c.IsActive);
+    var embeddingActive = Model.Configs.FirstOrDefault(c => c.Purpose.Equals("Embedding", StringComparison.OrdinalIgnoreCase) && c.IsActive);
+}
+
+<div class="tc-breadcrumb">
+    <span class="tc-breadcrumb-item"><a asp-page="/Index">Início</a></span>
+    <span class="tc-breadcrumb-item active">Configurações</span>
+    <span class="tc-breadcrumb-item active">Provedores de IA</span>
+</div>
+
+<div class="tc-page-header">
+    <div>
+        <h1 class="tc-page-header-title">
+            <i class="bi bi-cpu text-primary" aria-hidden="true"></i>
+            <span>Provedores de IA</span>
+        </h1>
+        <p class="tc-page-header-subtitle">Configuração dos provedores de LLM e embedding do copiloto (Módulo M12)</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <form method="post" asp-page-handler="IndexEmbeddings">
+            <button type="submit" class="tc-btn tc-btn-primary">
+                <i class="bi bi-database-add me-1"></i>
+                <span>Indexar embeddings</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="tc-alert tc-alert-success mb-4" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@Html.Raw(Model.SuccessMessage)
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="tc-alert tc-alert-danger mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@Model.ErrorMessage
+    </div>
+}
+
+<div class="tc-alert tc-alert-info mb-4" role="alert">
+    <i class="bi bi-info-circle-fill me-2"></i>
+    <strong>Credencial fora do banco.</strong>
+    As API Keys destes provedores <strong>nunca</strong> são persistidas no banco de dados —
+    elas moram em configuração de ambiente (User Secrets em desenvolvimento; variável de
+    ambiente/secret store em staging e produção). Esta tela apenas mostra se a credencial
+    <strong>está presente ou ausente</strong>. Enquanto o provedor ativo não tiver credencial,
+    o copiloto informa que a abstração está pronta, mas não realiza chamadas.
+</div>
+
+@if (generationActive != null || embeddingActive != null)
+{
+    <div class="row g-4 mb-4">
+        <div class="col-md-3 col-12">
+            <div class="tc-stat-card">
+                <div class="tc-stat-label">Provedor de geração</div>
+                <div class="tc-stat-value">@(generationActive?.ProviderCode ?? "—")</div>
+                <div class="text-muted small">@(generationActive?.ModelName ?? "nenhum ativo")</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-12">
+            <div class="tc-stat-card">
+                <div class="tc-stat-label">Provedor de embedding</div>
+                <div class="tc-stat-value">@(embeddingActive?.ProviderCode ?? "—")</div>
+                <div class="text-muted small">@(embeddingActive?.ModelName ?? "nenhum ativo")</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-12">
+            <div class="tc-stat-card">
+                <div class="tc-stat-label">Efeito desta configuração</div>
+                <div class="tc-stat-value fs-6">Similaridade por cosseno sobre o conjunto pré-filtrado (ADR-P006)</div>
+                <div class="text-muted small">Vetores em MySQL — sem infraestrutura externa de busca vetorial dedicada</div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="tc-card">
+    <div class="tc-card-body">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Propósito</th>
+                    <th>Provedor</th>
+                    <th>Modelo</th>
+                    <th>Credencial</th>
+                    <th>Status</th>
+                    <th class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var config in Model.Configs)
+                {
+                    <tr class="@(config.IsActive ? "table-active" : "")">
+                        <td>
+                            <span class="fw-semibold">@config.Purpose</span>
+                            @if (config.IsActive)
+                            {
+                                <span class="tc-badge tc-badge-sm tc-badge-verified ms-1">ativa</span>
+                            }
+                        </td>
+                        <td>@config.ProviderCode</td>
+                        <td>
+                            <form method="post" asp-page-handler="UpdateModel" class="d-flex gap-2">
+                                <input type="hidden" name="ModelInput.ConfigId" value="@config.Id" />
+                                <input type="text" name="ModelInput.ModelName" value="@config.ModelName" class="form-control form-control-sm" style="max-width: 260px;" />
+                                <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm" title="Salvar modelo">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                            </form>
+                        </td>
+                        <td>
+                            @if (config.CredentialConfigured)
+                            {
+                                <span class="tc-badge tc-badge-sm tc-badge-open">credencial presente</span>
+                            }
+                            else
+                            {
+                                <span class="tc-badge tc-badge-sm tc-badge-stale" title="Configure a API Key em User Secrets / variável de ambiente (Llm:ProviderCode:ApiKey)">sem credencial</span>
+                            }
+                        </td>
+                        <td>
+                            @if (config.IsActive)
+                            {
+                                <span class="tc-badge tc-badge-sm tc-badge-open">Ativo</span>
+                            }
+                            else
+                            {
+                                <span class="tc-badge tc-badge-sm tc-badge-stale">Inativo</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (!config.IsActive)
+                            {
+                                <form method="post" asp-page-handler="Activate" class="d-inline">
+                                    <input type="hidden" name="ActivateConfigId" value="@config.Id" />
+                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm">
+                                        <i class="bi bi-play-fill me-1"></i>
+                                        <span>Ativar</span>
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row g-4 mt-1">
+    <div class="col-12">
+        <div class="tc-card">
+            <div class="tc-card-body">
+                <h6 class="mb-2">
+                    <i class="bi bi-search me-1"></i>
+                    Indexação de embeddings
+                </h6>
+                <p class="text-muted small mb-0">
+                    Gera ou regenera vetores do conteúdo elegível (artigos validados, casos e
+                    documentação com visibilidade pública/interna) para o modelo de embedding ativo.
+                    A operação é <strong>idempotente</strong>: conteúdo já vetorizado para o modelo
+                    atual não é reprocessado, e conteúdo alterado é re-vetorizado automaticamente.
+                    Conteúdo confidencial/restrito nunca é enviado ao provedor externo (BR-102).
+                </p>
+            </div>
+        </div>
+    </div>
+</div>

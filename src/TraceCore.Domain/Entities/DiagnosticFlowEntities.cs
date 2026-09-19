@@ -80,6 +80,7 @@ public class DiagnosticCheck
     public int Cost { get; set; } = 1;
     public string RiskLevel { get; set; } = "Low"; // "Low", "Medium", "High"
     public string? SkipConditionField { get; set; }
+    public long? IntegrationId { get; set; } // Vinculação a integrações para AutomatedCheck (Fase 15)
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public List<DiagnosticCheckOption> Options { get; set; } = [];
@@ -95,7 +96,8 @@ public class DiagnosticCheck
         int cost = 1,
         string riskLevel = "Low",
         string? skipConditionField = null,
-        DateTime? createdAt = null)
+        DateTime? createdAt = null,
+        long? integrationId = null)
     {
         if (flowId <= 0)
             throw new ArgumentException("FlowId inválido.", nameof(flowId));
@@ -115,6 +117,7 @@ public class DiagnosticCheck
         RiskLevel = string.IsNullOrWhiteSpace(riskLevel) ? "Low" : riskLevel.Trim();
         SkipConditionField = string.IsNullOrWhiteSpace(skipConditionField) ? null : skipConditionField.Trim();
         CreatedAt = createdAt ?? DateTime.UtcNow;
+        IntegrationId = integrationId;
     }
 }
 

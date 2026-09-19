@@ -465,47 +465,53 @@ Camada operacional que conduz investigação a partir do sintoma. Não é uma á
 
 Consolida fatos operacionais e estratégicos através de queries agregadas eficientes no banco (`IManagementAnalyticsRepository`), eliminando o carregamento de tabelas inteiras para memória e cálculos divergentes.
 
-Páginas e Módulos Entregues (Fase 10):
+Páginas e Módulos Entregues (Fases 10 e 16):
 - **Dashboard Geral (`/Analytics/Index`)**: KPIs de casos abertos (`Open`/`Reopened`), resolvidos, MTTR por iteração (`AVG(ClosedAt - OpenedAt)`), mediana, incidentes recorrentes (`Recurrence`/`CommonCause`), sem causa raiz confirmada e sem conhecimento publicado. Séries temporais, sistemas e componentes mais impactados e tabela de casos que requerem atenção com drill-down unificado para `/Cases/Index`.
+- **Inteligência Analítica Determinística (Fase 16 / §31)**: Consultas analíticas puras no banco via `IManagementAnalyticsService`:
+  - `GetTrendAfterVersionAsync`: variação de volume e MTTR antes vs. depois da publicação de uma versão de produto, com cálculo determinístico de mediana e suficiência de amostra.
+  - `GetComponentAssociationPercentageAsync`: distribuição percentual exata de componentes associados a causas e sintomas técnicos.
+  - `GetSolutionEffectivenessComparisonAsync`: comparação factual de mediana de MTTR de casos resolvidos com vs. sem uso de uma solução oficial, declarando expressamente insuficiência estatística quando a amostra é reduzida ($N < 3$).
 - **Departamentos (`/Analytics/Departments`)**: Visão transversal sem silos ou rankings pejorativos, mensurando volume ativo, resolvido, MTTR, reaberturas, reincidências e autoria de conhecimento cruzando casos diretos, donos de componentes afetados e operadores de diagnóstico.
 - **Usuários (`/Analytics/Users`)**: Métricas de engajamento técnico individual e colaboração (casos, resoluções, passos diagnósticos, hipóteses, evidências, autoria e reutilização de artigos), além de perfil técnico emergente baseado em dados reais de atuação recente, sem pontuações artificiais de desempenho.
 - **Conhecimento (`/Analytics/Knowledge`)**: Eficácia factual baseada em `KnowledgeUsage` (desfechos `Worked`, `PartiallyWorked`, `DidNotWork`), ciclo de revisão (nunca revisados, revisões vencidas) e lacunas de documentação (resolvidos sem artigo e recorrentes sem causa raiz).
 
 ## M09 — Auditoria e Governança
 
-Trilha de ações, histórico de alterações, publicação/revisão de conteúdo, eventos de segurança, exportações e acesso a dados restritos.
+Trilha imutável de ações, alterações estruturais e eventos de conformidade corporativa (Fase 11):
+- **Modelo Append-Only Imutável**: Entidade `AuditEvent` sem endpoints ou métodos de remoção/modificação (`IAuditEventRepository`).
+- **Sanitização de Dados Sensíveis (BR-101)**: Máscara automática de senhas, tokens, hashes e segredos (`***REDACTED***`) via `AuditService.RecordAsync`.
+- **Convenção Corporativa Unificada**: Nomenclatura no formato `entidade.verbo[_objeto]` (ex.: `user.create`, `product.create`, `component.dependency_create`, `case.reopen`).
+- **Fechamento de Gaps**: Auditoria em Catálogo Técnico (`CatalogService` com produtos, versões, componentes, dependências e owners), Casos (`CaseService`), Investigação (`CaseInvestigationService` com vínculo de evidência a hipótese) e Conhecimento.
+- **Painel de Auditoria (`/Audit/Index`)**: Consulta paginada com filtros superiores por período, ator/usuário, ação, entidade, ID e busca livre em diffs e metadados, com modal de inspeção de payload (`BeforeJson`, `AfterJson`, `MetadataJson`) e drill-down para entidades navegáveis.
 
 ## M10 — Integrações
 
-Integração com:
-- sistema de chamados;
-- SAP;
-- APIs corporativas;
-- telemetria/logs;
-- ferramentas de monitoramento;
-- diretório corporativo;
-- e-mail/notificação;
-- pipelines/repositórios, se necessário.
+Módulo de catálogo e conexões operacionais do ecossistema TraceCore (Fases 8 e 15):
+- **Catálogo Administrativo**: Cadastro centralizado de integrações (`integrations`) com status manual (`Configured`, `Active`, `Inactive`, `Error`), tipo e notas de contrato. As ADRs P005 (conectores ticketing vendor-specific) e P010 (conectores SAP vendor-specific) permanecem em aberto.
+- **Health-Check Real HTTP / TCP (Fase 15)**: Serviço `IIntegrationHealthCheckService` com suporte a sondagem determinística via HTTP (GET/POST/HEAD) e ping de socket TCP com timeout configurável.
+- **Princípio de Falha Segura (§26)**: Falhas de conexão, rede inacessível, timeout ou status code inesperado registram expressamente `Status = "Failed"` no histórico (`integration_runs`), NUNCA fingindo sucesso.
+- **Origem Auditada**: Histórico de execuções com coluna/badge de origem (`TriggeredBy = "Automated"` vs `"Manual"`).
+- **Diagnóstico Guiado Automatizado (BR-073)**: Vinculação de `DiagnosticCheck` (`CheckType = AutomatedCheck`) a uma `IntegrationId`. Quando o motor de diagnóstico alcança esse passo, o health-check executa automaticamente sem intervenção humana, gravando o passo como `AutomatedCheck` e avançando a investigação. Se não houver integração vinculada, recai suavemente para pergunta manual ao operador.
 
-Todo conector deve possuir isolamento e contrato próprio.
+## M11 — IA e Preparação Estrutural de Dados
 
-## M11 — IA e RAG
+Módulo desacoplado do núcleo da plataforma, responsável pela estruturação, governança e preparação de dados corporativos para inteligência assistiva e semântica (Fase 12):
+- **Entidade `SearchableContentEntry`**: Tabela `searchable_content_entries` com chave natural (`source_type`, `source_id`, `source_version_id`), normalização textual, hash SHA-256 e status explicáveis.
+- **Normalização com Preservação Técnica**: Pipeline determinístico em `ContentPreparationService` que preserva termos de engenharia literais (`ORA-12541`, `HTTP 500`, `/api/...`, `v8.2.1`).
+- **Ingestão Estruturada de Casos e Conhecimento**:
+  - Casos: iteração atual, sintomas, componentes afetados, evidências estruturadas com tipo e hipóteses vinculadas, resolução e causa raiz confirmada.
+  - Conhecimento: código, resumo, problema, causa raiz, validação, riscos, rollback, aplicabilidades e tecnologias vinculadas.
+- **Prontidão Explicável (Sem Scores Probabilísticos)**: Classificação transparente de prontidão para IA (`Ready`, `NeedsMetadata`, `NeedsReview`, `NotEligible`) baseada em integridade factual, sem scores numéricos ou LLMs nesta fase.
+- **Visibilidade de Segurança Desacoplada**: Acesso derivado da confidencialidade real (`Public`, `Internal`, `Confidential`, `Restricted`), sem isolamento artificial por departamento.
+- **Painel de Qualidade e Prontidão (`/ContentQuality/Index`)**: Métricas de elegibilidade em tempo real, sincronização em lote de fontes e inspeção de payloads estruturados reaproveitando os componentes visuais corporativos (`_AIContentBadge`, `_KnowledgeProvenance`, `_SourceReferenceChip`, `_ConfidenceIndicator`).
 
-Fica desacoplado do núcleo. Consome interfaces de pesquisa e conhecimento. Pode ser desabilitado sem impedir funcionamento básico da plataforma.
+## M12 — Administração e Copiloto Operacional
 
-Responsabilidades:
-- embeddings/indexação semântica;
-- recuperação híbrida;
-- montagem de contexto;
-- geração fundamentada;
-- sumarização;
-- classificação assistida;
-- avaliação/feedback;
-- governança de prompts e modelos.
-
-## M12 — Administração da Plataforma
-
-Configurações gerais, taxonomias, jobs, retenção, parâmetros, integrações, status de indexação, feature flags e manutenção.
+Configurações gerais, taxonomias, jobs, parâmetros, provedores de IA e Copiloto Operacional (Fases 13, 14 e 16):
+- **Copiloto RAG Grounded (BR-080 a BR-086)**: Pipeline assistivo disparado por ação explícita do usuário, com pré-filtro híbrido por visibilidade, ranking de cosseno e citação obrigatória de fontes oficiais.
+- **Tool Calling de Leitura (Fase 16)**: Ferramenta de leitura estrita `AnalyzeManagementTrend` em `AiToolDefinitions.ReadingTools`, permitindo ao Copiloto consultar métricas e tendências determinísticas do TraceCore.
+- **Preservação Factual (§31)**: Apresentação transparente de painel com os dados brutos calculados (`ToolResults`) e instrução de sistema que proíbe o LLM de inventar indicadores, garantindo que o número exibido venha exclusivamente da base primária do TraceCore.
+- **Atalho Contextual**: Acesso direto via query string `?Question=...` a partir das telas de Analytics e Diagnóstico.
 
 
 
@@ -1872,7 +1878,36 @@ diagnostic_check_impacts
   weight DECIMAL(5,2) NOT NULL DEFAULT 1.00
 ```
 
-## 12. Índices mínimos
+## 12. `searchable_content_entries` (Fase 12 / M11)
+
+```text
+id BIGINT PRIMARY KEY AUTO_INCREMENT
+source_type VARCHAR(50) NOT NULL (ValidatedKnowledge, HistoricalCase, Document, AiSuggestion)
+source_id BIGINT NOT NULL
+source_version_id BIGINT NULL
+title VARCHAR(500) NOT NULL
+normalized_content LONGTEXT NOT NULL
+content_hash VARCHAR(64) NOT NULL (SHA-256)
+validation_status VARCHAR(50) NOT NULL (Validated, PendingValidation, NotValidated, Rejected)
+quality_status VARCHAR(50) NOT NULL (Complete, Incomplete, NeedsReview, Validated, Obsolete)
+visibility VARCHAR(50) NOT NULL (Public, Internal, Confidential, Restricted)
+client_id BIGINT NULL (FK clients)
+product_id BIGINT NULL (FK products)
+component_ids_json TEXT NULL
+metadata_json LONGTEXT NULL
+created_at DATETIME NOT NULL
+updated_at DATETIME NOT NULL
+source_updated_at DATETIME NOT NULL
+indexed_at DATETIME NULL (reservado)
+embedding_version VARCHAR(50) NULL (reservado)
+INDEX ix_searchable_source (source_type, source_id, source_version_id)
+INDEX ix_searchable_hash (content_hash)
+INDEX ix_searchable_quality (quality_status)
+INDEX ix_searchable_validation (validation_status)
+INDEX ix_searchable_updated (updated_at DESC)
+```
+
+## 13. Índices mínimos
 
 - status + datas em `cases`;
 - cliente/produto/componente por tabelas de associação;
@@ -1882,11 +1917,14 @@ diagnostic_check_impacts
 - `knowledge_usages(knowledge_item_id, outcome, used_at)`;
 - `audit_events(entity_type, entity_id, occurred_at)`;
 - `audit_events(actor_user_id, occurred_at)`;
+- `searchable_content_entries(source_type, source_id, source_version_id)`;
+- `searchable_content_entries(content_hash)`;
+- `searchable_content_entries(quality_status, validation_status)`;
 - outbox por `status,next_attempt_at`;
 - relações e FKs nos dois sentidos de consultas frequentes;
 - fluxos e checagens por `code` e `flow_id`.
 
-## 13. Retenção
+## 14. Retenção
 
 A retenção exata depende de política corporativa. No modelo:
 - casos: longo prazo;
@@ -3338,7 +3376,38 @@ Status: **aceito**.
 4. **Governança Factual da Base de Conhecimento**: Métricas de eficácia extraídas exclusivamente dos desfechos auditados em `KnowledgeUsage` (`Worked`, `PartiallyWorked`, `DidNotWork`), sem porcentagens artificiais de "redução de tempo". Mapeamento explícito de artigos nunca revisados (`LastReviewedAt IS NULL`) e casos resolvidos sem solução documentada.
 5. **Drill-down Unificado**: Todo card e gráfico de KPI compartilha o mesmo modelo de filtro (`AnalyticsFilterDto`) e direciona diretamente para `/Cases/Index` com os parâmetros equivalentes na query string.
 
+### ADR — Auditoria Ampliada, Imutabilidade e Padronização de Ações (Fase 11)
+Status: **aceito**.
+1. **Padrão de Nomenclatura Unificado**: Adoção estrita da convenção corporativa em inglês, minúsculo, no formato `entidade.verbo[_objeto]` (ex.: `user.create`, `product.create`, `component.dependency_create`, `case.reopen`). Preservada compatibilidade retroativa para filtros de ações legadas.
+2. **Imutabilidade e Append-Only (BR-004 / BR-100)**: A entidade `AuditEvent` e seu repositório `IAuditEventRepository` permanecem 100% append-only, sem nenhum método de alteração ou exclusão de registros.
+3. **Sanitização Universal de Segredos (BR-101)**: Chamadas centralizadas na fachada `IAuditService.RecordAsync`, mascarando preventivamente campos sensíveis (`password`, `token`, `secret`, `hash`) com `***REDACTED***` em payloads antes da persistência no banco.
+4. **Fechamento Integral de Gaps**: Auditoria implementada em Catálogo Técnico (`CatalogService`), Casos (`CaseService`), Investigação (`CaseInvestigationService` com relações N:N entre evidências e hipóteses) e Conhecimento.
+5. **Consulta Paginada e Drill-Down**: Criação do painel `/Audit/Index` protegido pela permissão `auditoria.visualizar`, com filtros combinados e links seguros para detalhamento de entidades quando aplicável.
 
+### ADR — Preparação Estrutural de Dados para IA e Governança Semântica (Fase 12)
+Status: **aceito**.
+1. **Desacoplamento de Modelos Generativos (M11 / §12.26)**: Nenhuma chamada a LLM, geração de embeddings ou vetorização é realizada nesta fase. A entidade `SearchableContentEntry` modela exclusivamente o armazenamento estruturado, hash SHA-256 e status de governança, mantendo o campo `EmbeddingVersion` como reservado (`null`).
+2. **Normalização com Preservação Estrita de Literais Técnicos (§12.8 / §12.9)**: O pipeline em `ContentPreparationService` normaliza espaços e quebras de linha preservando rigorosamente identificadores técnicos, códigos de erro (`ORA-12541`, `HTTP 500`), versões (`v8.2.1`) e trechos de logs.
+3. **Representação Estruturada de Casos e Conhecimento**:
+   - Casos: iteração ativa, sintomas, componentes afetados, evidências estruturadas com hipóteses associadas e resolução/causa raiz confirmada.
+   - Conhecimento: código, resumo, problema, causa raiz, validação, riscos, rollback, aplicabilidades e tecnologias.
+4. **Idempotência e Deduplicação por Hash SHA-256 (§12.23)**: A chave natural `(source_type, source_id, source_version_id)` garante que reprocessamentos sucessivos atualizem a mesma entrada sem criar duplicatas, mantendo estabilidade de hash.
+5. **Prontidão Explicável e Ausência de Scores Numéricos (§12.15)**: O status de prontidão para IA (`Ready`, `NeedsMetadata`, `NeedsReview`, `NotEligible`) é 100% explicável e derivado de regras determinísticas de preenchimento, validação e prazos de revisão.
+6. **Visibilidade de Segurança Desacoplada de Silos (§12.16)**: O campo `Visibility` é derivado exclusivamente da confidencialidade do item (`Public`, `Internal`, `Confidential`, `Restricted`), sem filtros artificiais por `DepartmentId`.
+7. **Painel de Qualidade e Prontidão (`/ContentQuality/Index`)**: Monitoramento em tempo real da prontidão com reaproveitamento de componentes visuais existentes (`_AIContentBadge`, `_KnowledgeProvenance`, `_SourceReferenceChip`, `_ConfidenceIndicator`).
+
+### ADR — Integrações Automáticas, Health-Checks e Falha Segura (Fase 15)
+Status: **aceito**.
+1. **Health-Checks Reais e Isolamento de Conectores (M10)**: Implementação de sondagem genérica de saúde em `IIntegrationHealthCheckService` suportando HTTP (GET/POST/HEAD com verificação de status code esperado) e TCP (ping de socket no host e porta). As ADRs P005 (conectores proprietários de ticketing) e P010 (conectores proprietários de SAP) continuam abertas; o TraceCore gerencia catálogo, endpoints de saúde e histórico sem dependência de fornecedores de software terceiros.
+2. **Princípio de Falha Segura (§26 do Documento de Visão)**: Qualquer falha de conectividade, porta fechada, timeout ou status code diferente do esperado obrigatoriamente registra a execução como `Status = "Failed"`, gravando o motivo detalhado em `ErrorMessage`. Nenhuma rotina de integração jamais mascara erro de rede ou finge sucesso operacional.
+3. **Auditabilidade e Origem das Execuções**: A tabela `integration_runs` armazena `triggered_by`, diferenciando execuções disparadas pelo sistema (`Automated`) de logs manuais inseridos por operadores (`Manual`).
+4. **Automação no Diagnóstico Guiado (BR-073)**: Verificações do tipo `AutomatedCheck` podem referenciar uma `IntegrationId`. Quando o motor heurístico alcança este passo, o health-check é acionado de forma síncrona sem intervenção humana, gravando o resultado na linha do tempo como `StepType = AutomatedCheck` e recalculando os impactos nas hipóteses. Se a verificação não possuir integração associada, o motor recai suavemente para pergunta manual ao operador, sem interrupção do fluxo.
+
+### ADR — Inteligência Analítica Determinística e Grounding de IA (Fase 16)
+Status: **aceito**.
+1. **Rastreabilidade e Grounding Estrito (§31 do Documento de Visão)**: Proibição inegociável de modelos de linguagem ou algoritmos generativos inventarem, estimarem ou calcularem métricas operacionais. Todos os indicadores numéricos (variação percentual, MTTR, correlação de componentes e efetividade de soluções) são computados de forma puramente determinística por consultas agregadas no banco via `IManagementAnalyticsService`.
+2. **Transparência Amostral e Suficiência Estatística**: Todo método analítico retorna o tamanho real da amostra ($N$). Se $N < 3$ (para tendências e soluções) ou $N < 5$ (para componentes), o sistema declara expressamente `HasSufficientData = false`. A IA e a interface são proibidas de emitir conclusões peremptórias sobre amostras insuficientes, declarando explicitamente que os dados são inconclusivos.
+3. **Ferramenta de Leitura Estrita do Copiloto (M12)**: A ferramenta `AnalyzeManagementTrend` é cadastrada exclusivamente em `AiToolDefinitions.ReadingTools` (read-only, sem requisição de confirmação humana). Ao responder sobre tendências ou métricas, o Copiloto invoca a ferramenta do TraceCore, sintetiza a narrativa e exibe um painel lateral com os dados brutos oficiais (`ToolResults`), mantendo o número 100% citável e rastreável.
 
 
 ---
@@ -3692,6 +3761,31 @@ Cada KPI terá:
 - **Nunca Revisado:** Itens de conhecimento publicados onde `last_reviewed_at IS NULL`.
 - **Revisão Vencida:** Itens publicados onde `review_due_at < AGORA()`.
 - **Sem Solução Documentada:** Casos com `status = 'Resolved'` onde não existe `knowledge_items.provenance_case_id = cases.id`.
+
+---
+
+## Fórmulas Consolidadas na Fase 16 (Inteligência Analítica Determinística — §31)
+
+### KPI-014-A — Tendência e Variação Pós-Versão de Ajuste
+- **Pergunta:** Qual foi o impacto da publicação de uma versão de produto no volume e MTTR dos casos?
+- **Fórmula:** 
+  - Janela de observação simétrica: $I$ dias antes e $I$ dias depois da `product_versions.released_at` (padrão 90 dias).
+  - Variação percentual de volume: $\Delta\% = \frac{N_{depois} - N_{antes}}{N_{antes}} \times 100$ (quando $N_{antes} > 0$).
+  - Variação de MTTR: $\Delta\%_{MTTR} = \frac{\text{Mediana}_{depois} - \text{Mediana}_{antes}}{\text{Mediana}_{antes}} \times 100$.
+- **Rastreabilidade e Grounding (§31):** O indicador retorna obrigatoriamente $N_{antes}$, $N_{depois}$, $N_{total}$ e `HasSufficientData` (requer $N_{total} \ge 3$). Se $N < 3$, a IA declara expressamente que a amostra é insuficiente para uma inferência estatística, sem inventar percentuais.
+
+### KPI-016 — Associação Factual de Componentes a Sintomas e Falhas
+- **Pergunta:** Quais componentes do catálogo técnico concentram a maior proporção de ocorrências de determinado erro ou contexto?
+- **Fórmula:** $\text{Proporção}(\text{componente}) = \frac{\text{Casos do Componente}}{\text{Total de Casos Filtrados}} \times 100$.
+- **Rastreabilidade e Grounding (§31):** Retorna o ranking determinístico consolidado no banco (`case_components`), com contagem absoluta e percentual arredondado em 1 casa decimal. Requer $N \ge 5$ casos para declarar suficiência amostral.
+
+### KPI-005-A — Comparação de Efetividade de Solução (Mediana de MTTR)
+- **Pergunta:** A aplicação desta solução da base de conhecimento reduz o tempo de resolução em relação aos casos similares resolvidos sem ela?
+- **Fórmula:**
+  - $\text{Mediana Com} = \text{Mediana}(\text{Durações de casos com } \text{knowledge\_usages}(\text{item\_id}))$.
+  - $\text{Mediana Sem} = \text{Mediana}(\text{Durações de casos no mesmo escopo técnico sem } \text{knowledge\_usages}(\text{item\_id}))$.
+  - $\text{Redução\%} = \frac{\text{Mediana Sem} - \text{Mediana Com}}{\text{Mediana Sem}} \times 100$.
+- **Rastreabilidade e Grounding (§31):** Retorna obrigatoriamente $N_{com}$, $N_{sem}$ e escopo técnico considerado. Se $N_{com} < 3$ ou $N_{sem} < 3$, o sistema declara status de suficiência amostral falso (`HasSufficientData = false`), e a IA deve reportar "dados insuficientes" em vez de emitir recomendações definitivas.
 
 
 

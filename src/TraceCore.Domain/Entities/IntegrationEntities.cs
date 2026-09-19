@@ -28,6 +28,12 @@ public class Integration
     // conector, mesmo que o conector ainda não exista de fato.
     public string? ContractNotes { get; set; }
 
+    // Campos de health-check configuráveis (Fase 15 / M10)
+    public string? HealthCheckUrl { get; set; }
+    public string HealthCheckMethod { get; set; } = "Http"; // Http, Tcp
+    public int HealthCheckTimeoutSeconds { get; set; } = 5;
+    public int? HealthCheckExpectedStatusCode { get; set; } = 200;
+
     public long? CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
@@ -45,7 +51,11 @@ public class Integration
         long? ownerDepartmentId,
         string? contractNotes,
         long? createdBy,
-        string status = "Configured")
+        string status = "Configured",
+        string? healthCheckUrl = null,
+        string healthCheckMethod = "Http",
+        int healthCheckTimeoutSeconds = 5,
+        int? healthCheckExpectedStatusCode = 200)
     {
         if (string.IsNullOrWhiteSpace(code))
             throw new ArgumentException("Código da integração é obrigatório.", nameof(code));
@@ -62,14 +72,17 @@ public class Integration
         ContractNotes = contractNotes?.Trim();
         CreatedBy = createdBy;
         Status = string.IsNullOrWhiteSpace(status) ? "Configured" : status.Trim();
+        HealthCheckUrl = healthCheckUrl?.Trim();
+        HealthCheckMethod = string.IsNullOrWhiteSpace(healthCheckMethod) ? "Http" : healthCheckMethod.Trim();
+        HealthCheckTimeoutSeconds = healthCheckTimeoutSeconds > 0 ? healthCheckTimeoutSeconds : 5;
+        HealthCheckExpectedStatusCode = healthCheckExpectedStatusCode;
         CreatedAt = DateTime.UtcNow;
     }
 }
 
 /// <summary>
-/// Log de execução registrado manualmente por um usuário (ex.: "rodei a
-/// sincronização com o sistema de chamados, processou 40 registros"). Não é
-/// resultado de execução automática — não há conector real em execução.
+/// Log de execução registrado manualmente por um usuário ou automaticamente pelo
+/// serviço de verificação (Fase 15 / M10).
 /// </summary>
 public class IntegrationRun
 {
@@ -87,6 +100,9 @@ public class IntegrationRun
     public long? RecordedBy { get; set; }
     public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
 
+    // Distingue log manual de execução automática de verificação (Fase 15)
+    public string TriggeredBy { get; set; } = "Manual"; // "Manual", "Automated"
+
     public IntegrationRun() { }
 
     public IntegrationRun(
@@ -96,7 +112,8 @@ public class IntegrationRun
         long? recordsProcessed,
         string? errorMessage,
         long? recordedBy,
-        DateTime? finishedAt = null)
+        DateTime? finishedAt = null,
+        string triggeredBy = "Manual")
     {
         if (integrationId <= 0)
             throw new ArgumentException("IntegrationId inválido.", nameof(integrationId));
@@ -111,5 +128,6 @@ public class IntegrationRun
         ErrorMessage = errorMessage?.Trim();
         RecordedBy = recordedBy;
         RecordedAt = DateTime.UtcNow;
+        TriggeredBy = string.IsNullOrWhiteSpace(triggeredBy) ? "Manual" : triggeredBy.Trim();
     }
 }

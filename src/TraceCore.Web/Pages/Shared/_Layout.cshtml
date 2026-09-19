@@ -86,6 +86,16 @@
                                     </a>
                                 </li>
                             }
+                            @if (User.HasClaim("permission", "ia.usar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Copilot", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Copilot/Index">
+                                        <i class="bi bi-stars"></i>
+                                        <span>Copiloto IA</span>
+                                    </a>
+                                </li>
+                            }
                         </ul>
                     </div>
 
@@ -153,59 +163,93 @@
                     </div>
 
                     <!-- GRUPO: ECOSSISTEMA (Fase 2 / M03 / M10) -->
-                    <div class="tc-sidebar-group">
-                        <div class="tc-sidebar-group-title">Ecossistema</div>
-                        <ul class="tc-sidebar-nav">
-                            @if (User.HasClaim("permission", "catalogo.gerenciar"))
-                            {
-                                <li class="tc-sidebar-item">
-                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Components", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-                                       asp-page="/Catalog/Components/Index">
-                                        <i class="bi bi-bezier2"></i>
-                                        <span>Dependências</span>
-                                    </a>
-                                </li>
-                            }
-                            @if (User.HasClaim("permission", "integracao.gerenciar"))
-                            {
-                                <li class="tc-sidebar-item">
-                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Integrations", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-                                       asp-page="/Integrations/Index">
-                                        <i class="bi bi-arrow-left-right"></i>
-                                        <span>Integrações</span>
-                                    </a>
-                                </li>
-                            }
-                        </ul>
-                    </div>
+                    @if (User.HasClaim("permission", "catalogo.gerenciar") || User.HasClaim("permission", "integracao.gerenciar"))
+                    {
+                        <div class="tc-sidebar-group">
+                            <div class="tc-sidebar-group-title">Ecossistema</div>
+                            <ul class="tc-sidebar-nav">
+                                @if (User.HasClaim("permission", "catalogo.gerenciar"))
+                                {
+                                    <li class="tc-sidebar-item">
+                                        <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Products", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                           asp-page="/Catalog/Products/Index">
+                                            <i class="bi bi-laptop"></i>
+                                            <span>Sistemas</span>
+                                        </a>
+                                    </li>
+                                    <li class="tc-sidebar-item">
+                                        <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Components", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                           asp-page="/Catalog/Components/Index">
+                                            <i class="bi bi-cpu"></i>
+                                            <span>Componentes</span>
+                                        </a>
+                                    </li>
+                                    <li class="tc-sidebar-item">
+                                        <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Components", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                           asp-page="/Catalog/Components/Index">
+                                            <i class="bi bi-bezier2"></i>
+                                            <span>Dependências</span>
+                                        </a>
+                                    </li>
+                                }
+                                @if (User.HasClaim("permission", "integracao.gerenciar"))
+                                {
+                                    <li class="tc-sidebar-item">
+                                        <a class="tc-sidebar-link @(currentPath.StartsWith("/Integrations", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                           asp-page="/Integrations/Index">
+                                            <i class="bi bi-arrow-left-right"></i>
+                                            <span>Integrações</span>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
 
                     <!-- GRUPO: INTELIGÊNCIA (M08) -->
-                    <div class="tc-sidebar-group">
-                        <div class="tc-sidebar-group-title">Inteligência</div>
-                        <ul class="tc-sidebar-nav">
-                            @if (User.HasClaim("permission", "analytics.visualizar"))
-                            {
+                    @if (User.HasClaim("permission", "analytics.visualizar"))
+                    {
+                        <div class="tc-sidebar-group">
+                            <div class="tc-sidebar-group-title">Inteligência</div>
+                            <ul class="tc-sidebar-nav">
                                 <li class="tc-sidebar-item">
-                                    <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Analytics">
+                                    <a class="tc-sidebar-link @(currentPath.Equals("/Analytics", StringComparison.OrdinalIgnoreCase) || currentPath.Equals("/Analytics/Index", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Analytics/Index">
                                         <i class="bi bi-graph-up"></i>
-                                        <span>Analytics</span>
+                                        <span>Dashboard Geral</span>
                                     </a>
                                 </li>
-                            }
-                            <li class="tc-sidebar-item">
-                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Recorrências">
-                                    <i class="bi bi-repeat"></i>
-                                    <span>Recorrências</span>
-                                </a>
-                            </li>
-                            <li class="tc-sidebar-item">
-                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Tendências">
-                                    <i class="bi bi-activity"></i>
-                                    <span>Tendências</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Analytics/Departments", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Analytics/Departments">
+                                        <i class="bi bi-building"></i>
+                                        <span>Departamentos</span>
+                                    </a>
+                                </li>
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Analytics/Users", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Analytics/Users">
+                                        <i class="bi bi-people"></i>
+                                        <span>Usuários</span>
+                                    </a>
+                                </li>
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Analytics/Knowledge", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Analytics/Knowledge">
+                                        <i class="bi bi-journal-text"></i>
+                                        <span>Conhecimento</span>
+                                    </a>
+                                </li>
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/ContentQuality", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/ContentQuality/Index">
+                                        <i class="bi bi-stars"></i>
+                                        <span>Qualidade & IA</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    }
 
                     <!-- GRUPO: GESTÃO -->
                     <div class="tc-sidebar-group">
@@ -238,23 +282,6 @@
                                     </a>
                                 </li>
                             }
-                            @if (User.HasClaim("permission", "catalogo.gerenciar"))
-                            {
-                                <li class="tc-sidebar-item">
-                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Products", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-                                       asp-page="/Catalog/Products/Index">
-                                        <i class="bi bi-box-seam"></i>
-                                        <span>Produtos</span>
-                                    </a>
-                                </li>
-                                <li class="tc-sidebar-item">
-                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Components", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-                                       asp-page="/Catalog/Components/Index">
-                                        <i class="bi bi-diagram-3"></i>
-                                        <span>Componentes</span>
-                                    </a>
-                                </li>
-                            }
                             @if (User.HasClaim("permission", "permissao.gerenciar"))
                             {
                                 <li class="tc-sidebar-item">
@@ -274,18 +301,23 @@
                             @if (User.HasClaim("permission", "auditoria.visualizar"))
                             {
                                 <li class="tc-sidebar-item">
-                                    <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Auditoria">
-                                        <i class="bi bi-journal-text"></i>
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Audit", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Audit/Index">
+                                        <i class="bi bi-shield-check"></i>
                                         <span>Auditoria</span>
                                     </a>
                                 </li>
                             }
-                            <li class="tc-sidebar-item">
-                                <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Configurações">
-                                    <i class="bi bi-gear"></i>
-                                    <span>Configurações</span>
-                                </a>
-                            </li>
+                            @if (User.HasClaim("permission", "configuracao.gerenciar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Settings/LlmProviders", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Settings/LlmProviders">
+                                        <i class="bi bi-gear"></i>
+                                        <span>Configurações</span>
+                                    </a>
+                                </li>
+                            }
                         </ul>
                     </div>
                 </div>

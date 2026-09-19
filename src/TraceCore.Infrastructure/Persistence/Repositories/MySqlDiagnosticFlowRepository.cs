@@ -193,6 +193,7 @@ public class MySqlDiagnosticFlowRepository : IDiagnosticFlowRepository
                 cost AS Cost,
                 risk_level AS RiskLevel,
                 skip_condition_field AS SkipConditionField,
+                integration_id AS IntegrationId,
                 created_at AS CreatedAt
             FROM diagnostic_checks
             WHERE flow_id = @FlowId
@@ -261,6 +262,7 @@ public class MySqlDiagnosticFlowRepository : IDiagnosticFlowRepository
                 cost AS Cost,
                 risk_level AS RiskLevel,
                 skip_condition_field AS SkipConditionField,
+                integration_id AS IntegrationId,
                 created_at AS CreatedAt
             FROM diagnostic_checks
             WHERE id = @Id;";
@@ -309,8 +311,8 @@ public class MySqlDiagnosticFlowRepository : IDiagnosticFlowRepository
     {
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
         const string sql = @"
-            INSERT INTO diagnostic_checks (flow_id, code, title, question_text, check_type, cost, risk_level, skip_condition_field, created_at)
-            VALUES (@FlowId, @Code, @Title, @QuestionText, @CheckType, @Cost, @RiskLevel, @SkipConditionField, @CreatedAt);
+            INSERT INTO diagnostic_checks (flow_id, code, title, question_text, check_type, cost, risk_level, skip_condition_field, integration_id, created_at)
+            VALUES (@FlowId, @Code, @Title, @QuestionText, @CheckType, @Cost, @RiskLevel, @SkipConditionField, @IntegrationId, @CreatedAt);
             SELECT LAST_INSERT_ID();";
 
         long id = await conn.ExecuteScalarAsync<long>(sql, check);

@@ -18,20 +18,24 @@ public class IndexModel : PageModel
     private readonly IDiagnosticEngineService _engineService;
     private readonly ICatalogService _catalogService;
     private readonly IAuthorizationService _authorizationService;
+    private readonly IIntegrationService _integrationService;
 
     public IndexModel(
         IDiagnosticEngineService engineService,
         ICatalogService catalogService,
-        IAuthorizationService authorizationService)
+        IAuthorizationService authorizationService,
+        IIntegrationService integrationService)
     {
         _engineService = engineService;
         _catalogService = catalogService;
         _authorizationService = authorizationService;
+        _integrationService = integrationService;
     }
 
     public IReadOnlyList<DiagnosticFlowDto> Flows { get; private set; } = [];
     public DiagnosticFlowDetailsDto? SelectedFlowDetails { get; private set; }
     public IReadOnlyList<ComponentEntity> AvailableComponents { get; private set; } = [];
+    public IReadOnlyList<IntegrationDto> AvailableIntegrations { get; private set; } = [];
 
     [BindProperty(SupportsGet = true)]
     public long? SelectedFlowId { get; set; }
@@ -59,6 +63,10 @@ public class IndexModel : PageModel
     [BindProperty]
     public string NewCheckQuestionInput { get; set; } = string.Empty;
     [BindProperty]
+    public string NewCheckTypeInput { get; set; } = "Question";
+    [BindProperty]
+    public long? NewCheckIntegrationIdInput { get; set; }
+    [BindProperty]
     public int NewCheckCostInput { get; set; } = 1;
     [BindProperty]
     public string NewCheckRiskInput { get; set; } = "Low";
@@ -84,6 +92,7 @@ public class IndexModel : PageModel
 
         Flows = await _engineService.GetAllFlowsAsync(activeOnly: false);
         AvailableComponents = await _catalogService.GetAllComponentsAsync();
+        AvailableIntegrations = await _integrationService.GetIntegrationsAsync();
 
         if (SelectedFlowId.HasValue)
         {
@@ -164,8 +173,10 @@ public class IndexModel : PageModel
                 Code: NewCheckCodeInput,
                 Title: NewCheckTitleInput,
                 QuestionText: NewCheckQuestionInput,
+                CheckType: NewCheckTypeInput,
                 Cost: NewCheckCostInput,
-                RiskLevel: NewCheckRiskInput
+                RiskLevel: NewCheckRiskInput,
+                IntegrationId: NewCheckIntegrationIdInput
             ));
 
             StatusMessage = "Verificação cadastrada com sucesso no fluxo!";

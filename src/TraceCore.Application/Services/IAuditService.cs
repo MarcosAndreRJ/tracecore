@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using TraceCore.Application.DTOs;
 
 namespace TraceCore.Application.Services;
 
@@ -18,4 +19,6 @@ public interface IAuditService
         object? after = null,
         object? metadata = null,
         CancellationToken ct = default);
+
+    Task<AuditSearchResultDto> SearchAsync(AuditFilterDto filter, CancellationToken ct = default);
 }

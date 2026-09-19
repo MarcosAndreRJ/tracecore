@@ -57,6 +57,7 @@ public static class DiagnosticStepTypes
     public const string Observation = "Observation";
     public const string GuidedQuestion = "GuidedQuestion";
     public const string RecommendationIgnored = "RecommendationIgnored";
+    public const string AutomatedCheck = "AutomatedCheck";
 }
 
 /// <summary>

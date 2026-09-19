@@ -19,6 +19,7 @@ public class DiagnosticEngineService : IDiagnosticEngineService
     private readonly IDiagnosticRepository _diagnosticRepository;
     private readonly ICatalogRepository _catalogRepository;
     private readonly IAuditEventRepository _auditEventRepository;
+    private readonly IIntegrationHealthCheckService? _healthCheckService;
 
     public DiagnosticEngineService(
         IDiagnosticFlowRepository flowRepository,
@@ -26,7 +27,8 @@ public class DiagnosticEngineService : IDiagnosticEngineService
         ICaseInvestigationService investigationService,
         IDiagnosticRepository diagnosticRepository,
         ICatalogRepository catalogRepository,
-        IAuditEventRepository auditEventRepository)
+        IAuditEventRepository auditEventRepository,
+        IIntegrationHealthCheckService? healthCheckService = null)
     {
         _flowRepository = flowRepository;
         _caseRepository = caseRepository;
@@ -34,6 +36,7 @@ public class DiagnosticEngineService : IDiagnosticEngineService
         _diagnosticRepository = diagnosticRepository;
         _catalogRepository = catalogRepository;
         _auditEventRepository = auditEventRepository;
+        _healthCheckService = healthCheckService;
     }
 
     public async Task<IReadOnlyList<DiagnosticFlowDto>> GetAllFlowsAsync(bool activeOnly = true, CancellationToken ct = default)
@@ -176,9 +179,10 @@ public class DiagnosticEngineService : IDiagnosticEngineService
         var components = await _catalogRepository.GetAllComponentsAsync(ct: ct);
         var compLookup = components.ToDictionary(c => c.Id, c => c.Name);
 
-        // Mapeia histórico de respostas guiadas
+        // Mapeia histórico de respostas guiadas e verificações automáticas
         var guidedSteps = timeline.Steps
-            .Where(s => string.Equals(s.StepType, DiagnosticStepTypes.GuidedQuestion, StringComparison.OrdinalIgnoreCase))
+            .Where(s => string.Equals(s.StepType, DiagnosticStepTypes.GuidedQuestion, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(s.StepType, DiagnosticStepTypes.AutomatedCheck, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         var checks = activeFlow?.Checks ?? new List<DiagnosticCheck>();
@@ -254,13 +258,12 @@ public class DiagnosticEngineService : IDiagnosticEngineService
         {
             // Conjunto de códigos de checks já respondidos ou ignorados
             var processedCheckCodes = timeline.Steps
-                .Where(s => s.Title.Contains("[CHK-"))
+                .Where(s => s.Title.Contains('[') && s.Title.Contains(']'))
                 .Select(s =>
                 {
-                    int start = s.Title.IndexOf("[CHK-", StringComparison.Ordinal);
-                    if (start < 0) return string.Empty;
-                    int end = s.Title.IndexOf(']', start);
-                    return end > start ? s.Title.Substring(start + 1, end - start - 1) : string.Empty;
+                    int start = s.Title.IndexOf('[');
+                    int end = s.Title.IndexOf(']', start + 1);
+                    return (start >= 0 && end > start) ? s.Title.Substring(start + 1, end - start - 1) : string.Empty;
                 })
                 .Where(c => !string.IsNullOrEmpty(c))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -357,6 +360,81 @@ public class DiagnosticEngineService : IDiagnosticEngineService
 
             if (bestCheck != null)
             {
+                // BR-073 (Fase 15): Verificação automática sem intervenção humana quando IntegrationId estiver configurado
+                if (string.Equals(bestCheck.CheckType, "AutomatedCheck", StringComparison.OrdinalIgnoreCase) &&
+                    bestCheck.IntegrationId.HasValue &&
+                    _healthCheckService != null)
+                {
+                    var run = await _healthCheckService.ExecuteHealthCheckAsync(bestCheck.IntegrationId.Value, ct);
+
+                    var stepOutcome = string.Equals(run.Status, "Success", StringComparison.OrdinalIgnoreCase)
+                        ? DiagnosticStepOutcome.Worked
+                        : DiagnosticStepOutcome.DidNotWork;
+
+                    long? targetHypId = null;
+                    if (activeFlow != null)
+                    {
+                        var firstHyp = activeFlow.CandidateHypotheses.FirstOrDefault();
+                        if (firstHyp != null)
+                        {
+                            var caseHyp = timeline.Hypotheses.FirstOrDefault(h => string.Equals(h.Title.Trim(), firstHyp.Title.Trim(), StringComparison.OrdinalIgnoreCase));
+                            targetHypId = caseHyp?.Id;
+                        }
+                    }
+                    targetHypId ??= timeline.Hypotheses.FirstOrDefault(h => h.Status == "Proposed")?.Id ?? timeline.Hypotheses.FirstOrDefault()?.Id;
+                    long actorUserId = @case.CurrentOwnerUserId ?? @case.CreatedBy ?? 1;
+
+                    await _investigationService.RegisterDiagnosticStepAsync(new RegisterDiagnosticStepCommand(
+                        CaseId: caseId,
+                        HypothesisId: targetHypId,
+                        Title: $"Verificação Automática [{bestCheck.Code}]: {bestCheck.Title}",
+                        Objective: bestCheck.QuestionText,
+                        Instruction: $"Verificação automática de saúde executada sem intervenção humana (BR-073).",
+                        InputEvidenceSummary: $"Integração #{bestCheck.IntegrationId.Value}",
+                        ResultSummary: $"Status da execução: {run.Status}. {(string.IsNullOrWhiteSpace(run.ErrorMessage) ? $"Código HTTP/porta {run.RecordsProcessed ?? 200}" : run.ErrorMessage)}",
+                        Outcome: stepOutcome.ToString(),
+                        StepType: DiagnosticStepTypes.AutomatedCheck,
+                        RiskLevel: bestCheck.RiskLevel
+                    ), actorUserId, ct);
+
+                    if (bestCheck.Options.Count > 0)
+                    {
+                        var chosenOpt = stepOutcome == DiagnosticStepOutcome.Worked
+                            ? bestCheck.Options.FirstOrDefault()
+                            : (bestCheck.Options.Count > 1 ? bestCheck.Options[1] : bestCheck.Options.FirstOrDefault());
+
+                        if (chosenOpt != null)
+                        {
+                            foreach (var impact in chosenOpt.Impacts)
+                            {
+                                var candHyp = activeFlow?.CandidateHypotheses.FirstOrDefault(ch => ch.Id == impact.FlowHypothesisId);
+                                if (candHyp != null)
+                                {
+                                    var caseHyp = timeline.Hypotheses.FirstOrDefault(h => string.Equals(h.Title.Trim(), candHyp.Title.Trim(), StringComparison.OrdinalIgnoreCase));
+                                    if (caseHyp != null && caseHyp.Status == "Proposed" && impact.Weight >= 2.0m)
+                                    {
+                                        var newStatus = string.Equals(impact.ImpactType, "Favors", StringComparison.OrdinalIgnoreCase)
+                                            ? HypothesisStatus.Supported
+                                            : HypothesisStatus.Discarded;
+
+                                        await _investigationService.EvaluateHypothesisAsync(
+                                            new EvaluateHypothesisCommand(
+                                                HypothesisId: caseHyp.Id,
+                                                NewStatus: newStatus.ToString(),
+                                                Justification: $"Avaliação automática derivada de [{bestCheck.Code}] ({impact.ImpactType}, peso {impact.Weight}) via verificação de integração."
+                                            ),
+                                            actorUserId,
+                                            ct);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    return await GetEngineStateAsync(caseId, ct);
+                }
+
+                // Fallback manual suave (quando não for AutomatedCheck ou não tiver IntegrationId configurado)
                 recommendation = new DiagnosticRecommendationDto(
                     CheckId: bestCheck.Id,
                     CheckCode: bestCheck.Code,
@@ -558,7 +636,8 @@ public class DiagnosticEngineService : IDiagnosticEngineService
                     i.Weight,
                     hyps.FirstOrDefault(hyp => hyp.Id == i.FlowHypothesisId)?.Title
                 )).ToList()
-            )).ToList()
+            )).ToList(),
+            c.IntegrationId
         )).ToList();
 
         return new DiagnosticFlowDetailsDto(
@@ -632,6 +711,7 @@ public class DiagnosticEngineService : IDiagnosticEngineService
             riskLevel: command.RiskLevel,
             skipConditionField: command.SkipConditionField
         );
+        check.IntegrationId = command.IntegrationId;
 
         return await _flowRepository.AddCheckAsync(check, ct);
     }

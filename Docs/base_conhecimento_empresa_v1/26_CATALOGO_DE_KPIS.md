@@ -99,3 +99,28 @@ Cada KPI terá:
 - **Revisão Vencida:** Itens publicados onde `review_due_at < AGORA()`.
 - **Sem Solução Documentada:** Casos com `status = 'Resolved'` onde não existe `knowledge_items.provenance_case_id = cases.id`.
 
+---
+
+## Fórmulas Consolidadas na Fase 16 (Inteligência Analítica Determinística — §31)
+
+### KPI-014-A — Tendência e Variação Pós-Versão de Ajuste
+- **Pergunta:** Qual foi o impacto da publicação de uma versão de produto no volume e MTTR dos casos?
+- **Fórmula:** 
+  - Janela de observação simétrica: $I$ dias antes e $I$ dias depois da `product_versions.released_at` (padrão 90 dias).
+  - Variação percentual de volume: $\Delta\% = \frac{N_{depois} - N_{antes}}{N_{antes}} \times 100$ (quando $N_{antes} > 0$).
+  - Variação de MTTR: $\Delta\%_{MTTR} = \frac{\text{Mediana}_{depois} - \text{Mediana}_{antes}}{\text{Mediana}_{antes}} \times 100$.
+- **Rastreabilidade e Grounding (§31):** O indicador retorna obrigatoriamente $N_{antes}$, $N_{depois}$, $N_{total}$ e `HasSufficientData` (requer $N_{total} \ge 3$). Se $N < 3$, a IA declara expressamente que a amostra é insuficiente para uma inferência estatística, sem inventar percentuais.
+
+### KPI-016 — Associação Factual de Componentes a Sintomas e Falhas
+- **Pergunta:** Quais componentes do catálogo técnico concentram a maior proporção de ocorrências de determinado erro ou contexto?
+- **Fórmula:** $\text{Proporção}(\text{componente}) = \frac{\text{Casos do Componente}}{\text{Total de Casos Filtrados}} \times 100$.
+- **Rastreabilidade e Grounding (§31):** Retorna o ranking determinístico consolidado no banco (`case_components`), com contagem absoluta e percentual arredondado em 1 casa decimal. Requer $N \ge 5$ casos para declarar suficiência amostral.
+
+### KPI-005-A — Comparação de Efetividade de Solução (Mediana de MTTR)
+- **Pergunta:** A aplicação desta solução da base de conhecimento reduz o tempo de resolução em relação aos casos similares resolvidos sem ela?
+- **Fórmula:**
+  - $\text{Mediana Com} = \text{Mediana}(\text{Durações de casos com } \text{knowledge\_usages}(\text{item\_id}))$.
+  - $\text{Mediana Sem} = \text{Mediana}(\text{Durações de casos no mesmo escopo técnico sem } \text{knowledge\_usages}(\text{item\_id}))$.
+  - $\text{Redução\%} = \frac{\text{Mediana Sem} - \text{Mediana Com}}{\text{Mediana Sem}} \times 100$.
+- **Rastreabilidade e Grounding (§31):** Retorna obrigatoriamente $N_{com}$, $N_{sem}$ e escopo técnico considerado. Se $N_{com} < 3$ ou $N_{sem} < 3$, o sistema declara status de suficiência amostral falso (`HasSufficientData = false`), e a IA deve reportar "dados insuficientes" em vez de emitir recomendações definitivas.
+

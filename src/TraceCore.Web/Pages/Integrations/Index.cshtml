@@ -155,11 +155,41 @@ else
                 <div class="mt-3 pt-3 border-top">
                     <div class="row g-4">
                         <div class="col-lg-5">
-                            <div class="mb-2">
+                            <div class="mb-3">
                                 <span class="tc-caption fw-semibold text-uppercase text-muted">Sistema Alvo</span>
                                 <p class="mb-2">@integration.TargetSystemDescription</p>
                                 <span class="tc-caption fw-semibold text-uppercase text-muted">Notas de Contrato</span>
                                 <p class="mb-0 small text-secondary">@(string.IsNullOrWhiteSpace(integration.ContractNotes) ? "—" : integration.ContractNotes)</p>
+                            </div>
+
+                            <div class="p-3 bg-light rounded border">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="tc-caption fw-semibold text-uppercase text-muted">
+                                        <i class="bi bi-heart-pulse me-1 text-danger"></i>Health-Check (M10)
+                                    </span>
+                                    <button type="button" class="tc-btn tc-btn-sm tc-btn-secondary" data-bs-toggle="modal" data-bs-target="#configHealthModal-@integration.Id">
+                                        <i class="bi bi-gear me-1"></i>Configurar
+                                    </button>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(integration.HealthCheckUrl))
+                                {
+                                    <div class="small mb-1 text-truncate">
+                                        <span class="badge bg-secondary font-monospace me-1">@integration.HealthCheckMethod</span>
+                                        <span class="font-monospace" title="@integration.HealthCheckUrl">@integration.HealthCheckUrl</span>
+                                    </div>
+                                    <div class="tc-caption text-muted mb-2">
+                                        Timeout: <strong>@(integration.HealthCheckTimeoutSeconds)s</strong> • Esperado: <strong>HTTP @(integration.HealthCheckExpectedStatusCode ?? 200)</strong>
+                                    </div>
+                                    <form method="post" asp-page-handler="TestHealthCheck" asp-route-integrationId="@integration.Id" class="d-inline">
+                                        <button type="submit" class="tc-btn tc-btn-sm tc-btn-primary">
+                                            <i class="bi bi-play-circle me-1"></i>Testar Health-Check
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <p class="tc-caption text-muted mb-0">Health-check não configurado. Clique em Configurar para definir endpoint.</p>
+                                }
                             </div>
                         </div>
                         <div class="col-lg-7">
@@ -178,6 +208,7 @@ else
                                             <tr>
                                                 <th>Data</th>
                                                 <th>Status</th>
+                                                <th>Origem</th>
                                                 <th class="text-end">Registros</th>
                                                 <th>Erro / Observação</th>
                                             </tr>
@@ -196,6 +227,20 @@ else
                                                     <td>
                                                         <span class="tc-badge tc-badge-sm @runClass">@run.Status</span>
                                                     </td>
+                                                    <td>
+                                                        @if (run.TriggeredBy == "Automated")
+                                                        {
+                                                            <span class="tc-badge tc-badge-sm tc-badge-verified" title="Execução automatizada pelo sistema">
+                                                                <i class="bi bi-robot me-1"></i>Auto
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="tc-badge tc-badge-sm tc-badge-open" title="Execução manual">
+                                                                <i class="bi bi-person me-1"></i>Manual
+                                                            </span>
+                                                        }
+                                                    </td>
                                                     <td class="text-end">@(run.RecordsProcessed?.ToString("N0") ?? "—")</td>
                                                     <td class="small text-secondary">@(string.IsNullOrWhiteSpace(run.ErrorMessage) ? "—" : run.ErrorMessage)</td>
                                                 </tr>
@@ -208,6 +253,55 @@ else
                     </div>
                 </div>
             </details>
+        </div>
+
+        <div class="modal fade" id="configHealthModal-@integration.Id" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content tc-modal-content">
+                    <form method="post" asp-page-handler="ConfigureHealthCheck">
+                        <input type="hidden" name="HealthCheckInput.IntegrationId" value="@integration.Id" />
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-heart-pulse text-danger me-2"></i>Health-Check — @integration.Name
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="tc-alert tc-alert-info mb-3">
+                                <i class="bi bi-shield-check me-2"></i>
+                                Princípio de Falha Segura (§26): falhas de rede, timeout ou status diferente do esperado gravam status <strong>Failed</strong> (nunca fingir Success).
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Endpoint / URL (HTTP ou TCP)</label>
+                                <input type="text" class="tc-input" name="HealthCheckInput.HealthCheckUrl" value="@integration.HealthCheckUrl" placeholder="http://servico.local/health ou tcp://10.0.0.1:1521" />
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold">Método</label>
+                                    <select class="tc-select" name="HealthCheckInput.HealthCheckMethod">
+                                        <option value="GET" selected="@(integration.HealthCheckMethod == "GET")">GET</option>
+                                        <option value="POST" selected="@(integration.HealthCheckMethod == "POST")">POST</option>
+                                        <option value="HEAD" selected="@(integration.HealthCheckMethod == "HEAD")">HEAD</option>
+                                        <option value="TCP" selected="@(integration.HealthCheckMethod == "TCP")">TCP Ping</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-semibold">Timeout (segundos)</label>
+                                    <input type="number" class="tc-input" name="HealthCheckInput.HealthCheckTimeoutSeconds" value="@integration.HealthCheckTimeoutSeconds" min="1" max="60" />
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Status HTTP Esperado</label>
+                                <input type="number" class="tc-input" name="HealthCheckInput.HealthCheckExpectedStatusCode" value="@(integration.HealthCheckExpectedStatusCode ?? 200)" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="tc-btn tc-btn-primary">Salvar Configuração</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     }
 }

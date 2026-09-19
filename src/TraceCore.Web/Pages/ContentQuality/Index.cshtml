@@ -1,0 +1,324 @@
+@page
+@model TraceCore.Web.Pages.ContentQuality.IndexModel
+@{
+    ViewData["Title"] = "Qualidade de Conteúdo & Prontidão para IA — TraceCore";
+}
+
+<div class="tc-page-header">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+        <div>
+            <div class="tc-breadcrumb">
+                <span class="tc-breadcrumb-item"><a asp-page="/Index">Início</a></span>
+                <span class="tc-breadcrumb-separator">/</span>
+                <span class="tc-breadcrumb-item text-muted">Inteligência</span>
+                <span class="tc-breadcrumb-separator">/</span>
+                <span class="tc-breadcrumb-item active">Qualidade & IA Readiness</span>
+            </div>
+            <h1 class="tc-page-title d-flex align-items-center gap-2">
+                <i class="bi bi-stars text-primary"></i>Qualidade de Conteúdo & Prontidão para IA
+                @await Html.PartialAsync("Partials/_AIContentBadge", ("M11 Estrutural", "Módulo de Preparação Estrutural e Governança de Dados para IA"))
+            </h1>
+            <p class="tc-page-subtitle">
+                Monitoramento determinístico de integridade, normalização, deduplicação por hash SHA-256 e prontidão de dados corporativos (M11 / §12).
+            </p>
+        </div>
+        <div>
+            <form method="post" asp-page-handler="SyncAll" class="d-inline">
+                <button type="submit" class="btn btn-outline-primary" title="Executar ingestão e normalização estruturada de todos os artigos publicados e casos resolvidos">
+                    <i class="bi bi-arrow-repeat me-1"></i>Sincronizar Todas as Fontes
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- CARDS DE AI READINESS (§12.27 a §12.31) -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="tc-card p-3 border-start border-4 border-success">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="tc-caption text-muted">Prontos para IA (Ready)</span>
+                <span class="badge bg-success-subtle text-success border border-success">Elegível</span>
+            </div>
+            <h3 class="tc-stat-value mb-1 text-success">@Model.Metrics.ReadyCount</h3>
+            <p class="text-muted small mb-0">Validados, completos e com relações estruturadas.</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="tc-card p-3 border-start border-4 border-warning">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="tc-caption text-muted">Metadados Pendentes</span>
+                <span class="badge bg-warning-subtle text-warning border border-warning">Incompleto</span>
+            </div>
+            <h3 class="tc-stat-value mb-1 text-warning">@Model.Metrics.NeedsMetadataCount</h3>
+            <p class="text-muted small mb-0">Faltam validações, riscos ou componentes.</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="tc-card p-3 border-start border-4 border-info">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="tc-caption text-muted">Revisão Necessária</span>
+                <span class="badge bg-info-subtle text-info border border-info">Atenção</span>
+            </div>
+            <h3 class="tc-stat-value mb-1 text-info">@Model.Metrics.NeedsReviewCount</h3>
+            <p class="text-muted small mb-0">Revisão periódica vencida ou caso reaberto.</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="tc-card p-3 border-start border-4 border-secondary">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="tc-caption text-muted">Não Elegíveis</span>
+                <span class="badge bg-secondary-subtle text-secondary border">Descartado</span>
+            </div>
+            <h3 class="tc-stat-value mb-1 text-secondary">@Model.Metrics.NotEligibleCount</h3>
+            <p class="text-muted small mb-0">Rascunhos, depreciados ou arquivados.</p>
+        </div>
+    </div>
+</div>
+
+<!-- FILTROS DE CONSULTA -->
+<div class="tc-card mb-4 p-3">
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Tipo de Origem:</label>
+            <select class="form-select form-select-sm" name="SourceType">
+                <option value="">Todas as origens</option>
+                <option value="ValidatedKnowledge" selected="@(Model.SourceType == "ValidatedKnowledge")">Conhecimento Validado</option>
+                <option value="HistoricalCase" selected="@(Model.SourceType == "HistoricalCase")">Caso Histórico</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Status de Qualidade:</label>
+            <select class="form-select form-select-sm" name="QualityStatus">
+                <option value="">Todos os status</option>
+                <option value="Validated" selected="@(Model.QualityStatus == "Validated")">Validated</option>
+                <option value="Complete" selected="@(Model.QualityStatus == "Complete")">Complete</option>
+                <option value="Incomplete" selected="@(Model.QualityStatus == "Incomplete")">Incomplete</option>
+                <option value="NeedsReview" selected="@(Model.QualityStatus == "NeedsReview")">NeedsReview</option>
+                <option value="Obsolete" selected="@(Model.QualityStatus == "Obsolete")">Obsolete</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small fw-semibold">Validação:</label>
+            <select class="form-select form-select-sm" name="ValidationStatus">
+                <option value="">Todas</option>
+                <option value="Validated" selected="@(Model.ValidationStatus == "Validated")">Validated</option>
+                <option value="PendingValidation" selected="@(Model.ValidationStatus == "PendingValidation")">PendingValidation</option>
+                <option value="NotValidated" selected="@(Model.ValidationStatus == "NotValidated")">NotValidated</option>
+                <option value="Rejected" selected="@(Model.ValidationStatus == "Rejected")">Rejected</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small fw-semibold">Visibilidade:</label>
+            <select class="form-select form-select-sm" name="Visibility">
+                <option value="">Todas</option>
+                <option value="Public" selected="@(Model.Visibility == "Public")">Public</option>
+                <option value="Internal" selected="@(Model.Visibility == "Internal")">Internal</option>
+                <option value="Confidential" selected="@(Model.Visibility == "Confidential")">Confidential</option>
+                <option value="Restricted" selected="@(Model.Visibility == "Restricted")">Restricted</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end gap-2">
+            <button type="submit" class="btn btn-sm btn-primary w-100">
+                <i class="bi bi-filter me-1"></i>Filtrar
+            </button>
+            <a asp-page="/ContentQuality/Index" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle"></i>
+            </a>
+        </div>
+        <div class="col-12">
+            <input type="text" class="form-control form-control-sm" name="SearchTerm" 
+                   value="@Model.SearchTerm" placeholder="Buscar por título ou termos técnicos exatos (ex: ORA-12541, HTTP 500, /api/v1/auth)..." />
+        </div>
+    </form>
+</div>
+
+<!-- TABELA DE ENTRADAS PESQUISÁVEIS -->
+<div class="tc-card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 170px;">Origem</th>
+                    <th>Título da Entrada Estruturada</th>
+                    <th style="width: 150px;">Qualidade</th>
+                    <th style="width: 160px;">Prontidão (IA)</th>
+                    <th style="width: 140px;">Hash SHA-256</th>
+                    <th style="width: 110px;" class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.SearchResult.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-file-earmark-break fs-1 d-block mb-2 text-muted"></i>
+                            Nenhuma entrada de conteúdo pesquisável localizada.
+                            <div class="mt-2">
+                                Clique em <strong>Sincronizar Todas as Fontes</strong> acima para gerar a representação estruturada inicial.
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var entry in Model.SearchResult.Items)
+                    {
+                        var readinessClass = entry.ReadinessStatus switch
+                        {
+                            "Ready" => "bg-success-subtle text-success border-success",
+                            "NeedsMetadata" => "bg-warning-subtle text-warning border-warning",
+                            "NeedsReview" => "bg-info-subtle text-info border-info",
+                            _ => "bg-secondary-subtle text-secondary"
+                        };
+
+                        var provenanceType = entry.SourceType == "ValidatedKnowledge" ? "documentation" : "case";
+
+                        <tr>
+                            <td>
+                                @await Html.PartialAsync("Partials/_SourceReferenceChip", (entry.SourceType == "ValidatedKnowledge" ? "Conhecimento" : "Caso", $"#{entry.SourceId}"))
+                                <div class="mt-1">
+                                    @await Html.PartialAsync("Partials/_KnowledgeProvenance", (provenanceType, entry.SourceId.ToString(), (string?)null))
+                                </div>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(entry.SourceUrl))
+                                {
+                                    <a href="@entry.SourceUrl" class="fw-semibold text-decoration-none d-block">
+                                        @entry.Title
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="fw-semibold d-block">@entry.Title</span>
+                                }
+                                <div class="d-flex align-items-center gap-2 mt-1">
+                                    <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.75rem;">
+                                        Visibilidade: @entry.Visibility
+                                    </span>
+                                    <span class="text-muted small">
+                                        Atualizado em @entry.SourceUpdatedAt.ToString("dd/MM/yyyy HH:mm")
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border font-monospace">@entry.QualityStatus</span>
+                                <span class="badge bg-light text-secondary border font-monospace mt-1 d-inline-block">@entry.ValidationStatus</span>
+                            </td>
+                            <td>
+                                <span class="badge @readinessClass border font-monospace d-block text-center py-1">
+                                    @entry.ReadinessStatus
+                                </span>
+                                <span class="small text-muted d-block mt-1" style="font-size: 0.75rem;">
+                                    @entry.ReadinessReason
+                                </span>
+                            </td>
+                            <td>
+                                <span class="font-monospace small text-muted" title="@entry.ContentHash">
+                                    @entry.ContentHash[..Math.Min(12, entry.ContentHash.Length)]...
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-entry-@entry.Id">
+                                    <i class="bi bi-code-square me-1"></i>Payload
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- MODAL DE PAYLOAD NORMALIZADO -->
+                        <div class="modal fade" id="modal-entry-@entry.Id" tabindex="-1" aria-labelledby="modalLabel-@entry.Id" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalLabel-@entry.Id">
+                                            <i class="bi bi-file-earmark-text me-2"></i>Conteúdo Normalizado — Entrada #@entry.Id
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-sm-6">
+                                                <span class="text-muted small d-block">Origem:</span>
+                                                <span class="fw-semibold">@entry.SourceType (#@entry.SourceId)</span>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <span class="text-muted small d-block">Hash SHA-256:</span>
+                                                <span class="font-monospace small">@entry.ContentHash</span>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <span class="text-muted small d-block">Prontidão para IA:</span>
+                                                <span class="fw-semibold">@entry.ReadinessStatus (@entry.ReadinessReason)</span>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <span class="text-muted small d-block">Visibilidade:</span>
+                                                <span class="fw-semibold">@entry.Visibility</span>
+                                            </div>
+                                        </div>
+
+                                        <h6 class="fw-semibold mb-2">Representação Estruturada Normalizada (§12.8 / §12.24):</h6>
+                                        <pre class="bg-dark text-light p-3 rounded small" style="white-space: pre-wrap;"><code>@entry.NormalizedContent</code></pre>
+
+                                        @if (!string.IsNullOrEmpty(entry.MetadataJson))
+                                        {
+                                            <h6 class="fw-semibold mt-3 mb-1">Metadados Estruturados (JSON):</h6>
+                                            <pre class="bg-dark text-light p-3 rounded small mb-0"><code>@entry.MetadataJson</code></pre>
+                                        }
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PAGINAÇÃO -->
+    @if (Model.SearchResult.TotalPages > 1)
+    {
+        <div class="d-flex align-items-center justify-content-between p-3 border-top">
+            <span class="text-muted small">
+                Exibindo página @Model.SearchResult.Page de @Model.SearchResult.TotalPages (@Model.SearchResult.TotalCount registros)
+            </span>
+            <div class="d-flex gap-2">
+                @if (Model.SearchResult.HasPreviousPage)
+                {
+                    <a asp-page="/ContentQuality/Index" 
+                       asp-route-SourceType="@Model.SourceType"
+                       asp-route-ValidationStatus="@Model.ValidationStatus"
+                       asp-route-QualityStatus="@Model.QualityStatus"
+                       asp-route-Visibility="@Model.Visibility"
+                       asp-route-SearchTerm="@Model.SearchTerm"
+                       asp-route-PageNumber="@(Model.SearchResult.Page - 1)" 
+                       class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-chevron-left me-1"></i>Anterior
+                    </a>
+                }
+                @if (Model.SearchResult.HasNextPage)
+                {
+                    <a asp-page="/ContentQuality/Index" 
+                       asp-route-SourceType="@Model.SourceType"
+                       asp-route-ValidationStatus="@Model.ValidationStatus"
+                       asp-route-QualityStatus="@Model.QualityStatus"
+                       asp-route-Visibility="@Model.Visibility"
+                       asp-route-SearchTerm="@Model.SearchTerm"
+                       asp-route-PageNumber="@(Model.SearchResult.Page + 1)" 
+                       class="btn btn-sm btn-outline-secondary">
+                        Próxima<i class="bi bi-chevron-right ms-1"></i>
+                    </a>
+                }
+            </div>
+        </div>
+    }
+</div>

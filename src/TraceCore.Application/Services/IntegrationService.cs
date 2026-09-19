@@ -73,7 +73,11 @@ public class IntegrationService : IIntegrationService
             command.OwnerDepartmentId,
             command.ContractNotes,
             command.CreatedBy,
-            status: "Configured");
+            status: "Configured",
+            healthCheckUrl: command.HealthCheckUrl,
+            healthCheckMethod: command.HealthCheckMethod,
+            healthCheckTimeoutSeconds: command.HealthCheckTimeoutSeconds,
+            healthCheckExpectedStatusCode: command.HealthCheckExpectedStatusCode);
 
         return await _integrationRepository.AddIntegrationAsync(integration, ct);
     }
@@ -92,6 +96,22 @@ public class IntegrationService : IIntegrationService
         await _integrationRepository.UpdateIntegrationAsync(integration, ct);
     }
 
+    public async Task ConfigureHealthCheckAsync(ConfigureIntegrationHealthCheckCommand command, CancellationToken ct = default)
+    {
+        if (command == null)
+            throw new ArgumentException("Dados de configuração são obrigatórios.", nameof(command));
+
+        var integration = await _integrationRepository.GetIntegrationByIdAsync(command.IntegrationId, ct)
+            ?? throw new KeyNotFoundException($"Integração com ID {command.IntegrationId} não encontrada.");
+
+        integration.HealthCheckUrl = string.IsNullOrWhiteSpace(command.HealthCheckUrl) ? null : command.HealthCheckUrl.Trim();
+        integration.HealthCheckMethod = string.IsNullOrWhiteSpace(command.HealthCheckMethod) ? "Http" : command.HealthCheckMethod.Trim();
+        integration.HealthCheckTimeoutSeconds = command.HealthCheckTimeoutSeconds > 0 ? command.HealthCheckTimeoutSeconds : 5;
+        integration.HealthCheckExpectedStatusCode = command.HealthCheckExpectedStatusCode;
+
+        await _integrationRepository.UpdateIntegrationAsync(integration, ct);
+    }
+
     public async Task<long> RegisterRunAsync(RegisterIntegrationRunCommand command, CancellationToken ct = default)
     {
         if (command == null)
@@ -102,8 +122,6 @@ public class IntegrationService : IIntegrationService
         var integration = await _integrationRepository.GetIntegrationByIdAsync(command.IntegrationId, ct)
             ?? throw new KeyNotFoundException($"Integração com ID {command.IntegrationId} não encontrada.");
 
-        // Log manual registrado por um humano (ex.: "rodei a sincronização hoje às
-        // 14h"). Não é resultado de execução automática — não há conector real.
         var startedAt = command.StartedAt ?? DateTime.UtcNow;
         var run = new IntegrationRun(
             integration.Id,
@@ -112,7 +130,8 @@ public class IntegrationService : IIntegrationService
             command.RecordsProcessed,
             command.ErrorMessage,
             command.RecordedBy,
-            finishedAt: DateTime.UtcNow);
+            finishedAt: DateTime.UtcNow,
+            triggeredBy: command.TriggeredBy ?? "Manual");
 
         return await _integrationRepository.AddRunAsync(run, ct);
     }
@@ -128,7 +147,8 @@ public class IntegrationService : IIntegrationService
             r.RecordsProcessed,
             r.ErrorMessage,
             r.RecordedBy,
-            r.RecordedAt
+            r.RecordedAt,
+            r.TriggeredBy ?? "Manual"
         )).ToList();
 
         return new IntegrationDto(
@@ -141,6 +161,10 @@ public class IntegrationService : IIntegrationService
             integration.OwnerDepartmentId,
             integration.OwnerDepartmentName,
             integration.ContractNotes,
+            integration.HealthCheckUrl,
+            integration.HealthCheckMethod,
+            integration.HealthCheckTimeoutSeconds,
+            integration.HealthCheckExpectedStatusCode,
             integration.CreatedBy,
             integration.CreatedAt,
             integration.UpdatedAt,

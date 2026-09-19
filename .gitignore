@@ -480,9 +480,11 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
-D o c s /  
+D o c s / 
+ 
  # Ignore Docs documentation folder
-Docs/
+# Docs/
 TraceCore.slnx
-a p p s e t t i n g s * . L o c a l . j s o n  
+a p p s e t t i n g s * . L o c a l . j s o n 
+ 
  

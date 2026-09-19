@@ -15,11 +15,16 @@ public class IndexModel : PageModel
 {
     private readonly IIntegrationService _integrationService;
     private readonly IDepartmentService _departmentService;
+    private readonly IIntegrationHealthCheckService _healthCheckService;
 
-    public IndexModel(IIntegrationService integrationService, IDepartmentService departmentService)
+    public IndexModel(
+        IIntegrationService integrationService,
+        IDepartmentService departmentService,
+        IIntegrationHealthCheckService healthCheckService)
     {
         _integrationService = integrationService;
         _departmentService = departmentService;
+        _healthCheckService = healthCheckService;
     }
 
     public IReadOnlyList<IntegrationDto> IntegrationsList { get; private set; } = [];
@@ -33,6 +38,9 @@ public class IndexModel : PageModel
 
     [BindProperty]
     public UpdateStatusInput StatusInput { get; set; } = new();
+
+    [BindProperty]
+    public ConfigureHealthCheckInput HealthCheckInput { get; set; } = new();
 
     [TempData]
     public string? SuccessMessage { get; set; }
@@ -57,12 +65,22 @@ public class IndexModel : PageModel
         public DateTime? StartedAt { get; set; }
         public long? RecordsProcessed { get; set; }
         public string? ErrorMessage { get; set; }
+        public string? TriggeredBy { get; set; } = "Manual";
     }
 
     public record UpdateStatusInput
     {
         public long IntegrationId { get; set; }
         public string Status { get; set; } = "Configured";
+    }
+
+    public record ConfigureHealthCheckInput
+    {
+        public long IntegrationId { get; set; }
+        public string? HealthCheckUrl { get; set; }
+        public string HealthCheckMethod { get; set; } = "GET";
+        public int HealthCheckTimeoutSeconds { get; set; } = 10;
+        public int HealthCheckExpectedStatusCode { get; set; } = 200;
     }
 
     public async Task OnGetAsync()
@@ -137,13 +155,70 @@ public class IndexModel : PageModel
                 StartedAt: RunInput.StartedAt,
                 RecordsProcessed: RunInput.RecordsProcessed,
                 ErrorMessage: RunInput.ErrorMessage,
-                RecordedBy: GetCurrentUserId()));
+                RecordedBy: GetCurrentUserId(),
+                TriggeredBy: RunInput.TriggeredBy ?? "Manual"));
 
-            SuccessMessage = "Execução manual registrada no histórico da integração (log, não conexão automática).";
+            SuccessMessage = "Execução registrada no histórico da integração com sucesso.";
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Erro ao registrar execução: {ex.Message}";
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostConfigureHealthCheckAsync()
+    {
+        if (HealthCheckInput.IntegrationId <= 0)
+        {
+            ErrorMessage = "Integração inválida.";
+            return RedirectToPage();
+        }
+
+        try
+        {
+            await _integrationService.ConfigureHealthCheckAsync(new ConfigureIntegrationHealthCheckCommand(
+                IntegrationId: HealthCheckInput.IntegrationId,
+                HealthCheckUrl: string.IsNullOrWhiteSpace(HealthCheckInput.HealthCheckUrl) ? null : HealthCheckInput.HealthCheckUrl.Trim(),
+                HealthCheckMethod: HealthCheckInput.HealthCheckMethod,
+                HealthCheckTimeoutSeconds: HealthCheckInput.HealthCheckTimeoutSeconds > 0 ? HealthCheckInput.HealthCheckTimeoutSeconds : 10,
+                HealthCheckExpectedStatusCode: HealthCheckInput.HealthCheckExpectedStatusCode > 0 ? HealthCheckInput.HealthCheckExpectedStatusCode : 200
+            ));
+
+            SuccessMessage = "Configuração de Health-Check atualizada com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao configurar health-check: {ex.Message}";
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostTestHealthCheckAsync(long integrationId)
+    {
+        if (integrationId <= 0)
+        {
+            ErrorMessage = "Integração inválida para teste de health-check.";
+            return RedirectToPage();
+        }
+
+        try
+        {
+            var run = await _healthCheckService.ExecuteHealthCheckAsync(integrationId);
+            if (run.Status == "Success")
+            {
+                SuccessMessage = $"Health-check bem-sucedido! Execução gravada no histórico como 'Automated' (Run #{run.Id}).";
+            }
+            else
+            {
+                ErrorMessage = $"Health-check falhou (princípio §26 - falha segura): {run.ErrorMessage}. Execução registrada como 'Failed'.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Exceção ao testar health-check: {ex.Message}";
         }
 
         return RedirectToPage();

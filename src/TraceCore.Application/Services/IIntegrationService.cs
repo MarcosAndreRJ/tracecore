@@ -11,5 +11,6 @@ public interface IIntegrationService
     Task<IntegrationDto?> GetIntegrationByIdAsync(long id, CancellationToken ct = default);
     Task<long> CreateIntegrationAsync(CreateIntegrationCommand command, CancellationToken ct = default);
     Task UpdateIntegrationStatusAsync(long id, string status, long? updatedBy, CancellationToken ct = default);
+    Task ConfigureHealthCheckAsync(ConfigureIntegrationHealthCheckCommand command, CancellationToken ct = default);
     Task<long> RegisterRunAsync(RegisterIntegrationRunCommand command, CancellationToken ct = default);
 }

@@ -22,6 +22,11 @@ public static class DependencyInjection
         services.AddScoped<ICaseRelationService, CaseRelationService>();
         services.AddScoped<IDiagnosticEngineService, DiagnosticEngineService>();
         services.AddScoped<IIntegrationService, IntegrationService>();
+        services.AddScoped<IManagementAnalyticsService, ManagementAnalyticsService>();
+        services.AddScoped<IContentPreparationService, ContentPreparationService>();
+        services.AddScoped<IRagService, RagService>();
+        services.AddScoped<IEmbeddingIndexingService, EmbeddingIndexingService>();
+        services.AddScoped<ILlmConfigurationService, LlmConfigurationService>();
 
         return services;
     }

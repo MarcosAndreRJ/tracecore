@@ -1,0 +1,284 @@
+@page
+@model TraceCore.Web.Pages.Analytics.KnowledgeModel
+@{
+    ViewData["Title"] = "Analytics da Base de Conhecimento";
+}
+
+<div class="tc-page-header mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1 class="tc-page-title mb-1"><i class="bi bi-journal-text text-primary me-2"></i>Eficácia & Governança do Conhecimento</h1>
+            <p class="tc-page-subtitle text-muted mb-0">Reutilização factual de soluções, desfechos observados, ciclo de revisão e lacunas de documentação.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-page="/Analytics/Index" class="tc-btn tc-btn-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Dashboard Geral
+            </a>
+            <a asp-page="/Knowledge/Index" class="tc-btn tc-btn-primary">
+                <i class="bi bi-search me-1"></i> Base de Conhecimento
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Cards de KPIs do Conhecimento -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="tc-card h-100 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="text-muted small text-uppercase fw-semibold">Soluções Publicadas</span>
+                <span class="tc-icon-badge bg-primary-subtle text-primary p-2 rounded">
+                    <i class="bi bi-journal-check fs-5"></i>
+                </span>
+            </div>
+            <h2 class="tc-metric-value mb-0 fw-bold fs-3 text-primary">@Model.Analytics.TotalPublishedMetric.FormattedValue</h2>
+            <div class="text-muted small mt-2 pt-2 border-top">
+                Artigos ativos com status 'Published'
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="tc-card h-100 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="text-muted small text-uppercase fw-semibold">Nunca Revisadas</span>
+                <span class="tc-icon-badge bg-warning-subtle text-warning p-2 rounded">
+                    <i class="bi bi-calendar-x fs-5"></i>
+                </span>
+            </div>
+            <h2 class="tc-metric-value mb-0 fw-bold fs-3 text-warning">@Model.Analytics.NeverReviewedMetric.FormattedValue</h2>
+            <div class="text-muted small mt-2 pt-2 border-top">
+                Sem registro em LastReviewedAt
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="tc-card h-100 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="text-muted small text-uppercase fw-semibold">Revisão Vencida</span>
+                <span class="tc-icon-badge bg-danger-subtle text-danger p-2 rounded">
+                    <i class="bi bi-clock-history fs-5"></i>
+                </span>
+            </div>
+            <h2 class="tc-metric-value mb-0 fw-bold fs-3 text-danger">@Model.Analytics.ReviewOverdueMetric.FormattedValue</h2>
+            <div class="text-muted small mt-2 pt-2 border-top">
+                Data ReviewDueAt anterior a hoje
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="tc-card h-100 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="text-muted small text-uppercase fw-semibold">Total de Usos Reais</span>
+                <span class="tc-icon-badge bg-success-subtle text-success p-2 rounded">
+                    <i class="bi bi-arrow-repeat fs-5"></i>
+                </span>
+            </div>
+            <h2 class="tc-metric-value mb-0 fw-bold fs-3 text-success">@Model.Analytics.TotalUsagesMetric.FormattedValue</h2>
+            <div class="text-muted small mt-2 pt-2 border-top">
+                Aplicações auditadas em incidentes
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Desfechos de Utilização (Factual) e Soluções Mais Utilizadas -->
+<div class="row g-3 mb-4">
+    <!-- Desfechos Observados -->
+    <div class="col-lg-6">
+        <div class="tc-card h-100">
+            <div class="tc-card-header p-3">
+                <h5 class="tc-card-title mb-0 fs-6 fw-bold">
+                    <i class="bi bi-check2-all text-success me-2"></i>Desfecho Observado na Prática (BR-047 / BR-048)
+                </h5>
+            </div>
+            <div class="tc-card-body p-3">
+                <p class="text-muted small mb-3">
+                    Resultados factuais reportados pelos operadores quando aplicaram uma solução da base em incidentes reais:
+                </p>
+
+                <div class="d-flex flex-column gap-3">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-1 small">
+                            <span class="fw-bold text-success"><i class="bi bi-check-circle me-1"></i>Funcionou (Worked)</span>
+                            <span class="fw-bold">@Model.Analytics.SuccessOutcomesMetric.FormattedValue vezes</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            @{
+                                double total = Math.Max(1, Model.Analytics.TotalUsagesMetric.Value);
+                                double workedPct = Model.Analytics.SuccessOutcomesMetric.Value / total * 100.0;
+                            }
+                            <div class="progress-bar bg-success" style="width: @workedPct%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-1 small">
+                            <span class="fw-bold text-warning"><i class="bi bi-dash-circle me-1"></i>Funcionou Parcialmente</span>
+                            <span class="fw-bold">@Model.Analytics.PartialOutcomesMetric.FormattedValue vezes</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            @{
+                                double partialPct = Model.Analytics.PartialOutcomesMetric.Value / total * 100.0;
+                            }
+                            <div class="progress-bar bg-warning" style="width: @partialPct%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-1 small">
+                            <span class="fw-bold text-danger"><i class="bi bi-x-circle me-1"></i>Não Funcionou (DidNotWork)</span>
+                            <span class="fw-bold">@Model.Analytics.FailedOutcomesMetric.FormattedValue vezes</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            @{
+                                double failedPct = Model.Analytics.FailedOutcomesMetric.Value / total * 100.0;
+                            }
+                            <div class="progress-bar bg-danger" style="width: @failedPct%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 pt-3 border-top small text-muted">
+                    <i class="bi bi-shield-check me-1"></i><strong>Sem métricas fictícias:</strong> A eficácia de uma solução só é computada a partir de registros explícitos de utilização.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Soluções Mais Utilizadas -->
+    <div class="col-lg-6">
+        <div class="tc-card h-100">
+            <div class="tc-card-header p-3">
+                <h5 class="tc-card-title mb-0 fs-6 fw-bold">
+                    <i class="bi bi-star text-warning me-2"></i>Soluções Mais Utilizadas
+                </h5>
+            </div>
+            <div class="tc-card-body p-3">
+                @if (Model.Analytics.TopUsedKnowledge.Count == 0)
+                {
+                    <div class="text-center py-4 text-muted small">
+                        <i class="bi bi-journal-x fs-2 d-block mb-1"></i>
+                        Nenhuma utilização de conhecimento registrada ainda.
+                    </div>
+                }
+                else
+                {
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var k in Model.Analytics.TopUsedKnowledge)
+                        {
+                            <li class="mb-3 p-2 rounded border bg-light">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <a href="@k.DrillDownUrl" class="fw-bold text-decoration-none text-dark">
+                                            @k.Name
+                                        </a>
+                                        <div class="text-muted small">Código: @k.SecondaryText</div>
+                                    </div>
+                                    <span class="badge bg-success text-white">
+                                        @k.Count utilizações
+                                    </span>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lacunas de Conhecimento: Resolvidos Sem Artigo e Recorrentes Sem Causa -->
+<div class="row g-3">
+    <!-- Resolvidos Sem Conhecimento -->
+    <div class="col-lg-6">
+        <div class="tc-card h-100">
+            <div class="tc-card-header d-flex justify-content-between align-items-center p-3">
+                <div>
+                    <h5 class="tc-card-title mb-0 fs-6 fw-bold">
+                        <i class="bi bi-file-earmark-plus text-primary me-2"></i>Resolvidos Sem Artigo na Base
+                    </h5>
+                    <small class="text-muted">Oportunidades de documentação para lições aprendidas.</small>
+                </div>
+                <span class="badge bg-primary">@Model.Analytics.ResolvedWithoutKnowledgeCases.Count</span>
+            </div>
+            <div class="tc-card-body p-0">
+                @if (Model.Analytics.ResolvedWithoutKnowledgeCases.Count == 0)
+                {
+                    <div class="text-center py-4 text-muted small">
+                        <i class="bi bi-check-circle fs-3 text-success d-block mb-1"></i>
+                        Todos os casos resolvidos elegíveis possuem artigo publicado.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive" style="max-height: 280px;">
+                        <table class="tc-table table-sm mb-0">
+                            <tbody>
+                                @foreach (var c in Model.Analytics.ResolvedWithoutKnowledgeCases)
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-nowrap">#@c.CaseNumber</td>
+                                        <td class="text-truncate" style="max-width: 250px;">@c.Title</td>
+                                        <td class="text-end">
+                                            <a href="@c.CaseUrl" class="tc-btn tc-btn-primary tc-btn-sm py-0">
+                                                Publicar
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Recorrentes Sem Causa Raiz -->
+    <div class="col-lg-6">
+        <div class="tc-card h-100">
+            <div class="tc-card-header d-flex justify-content-between align-items-center p-3">
+                <div>
+                    <h5 class="tc-card-title mb-0 fs-6 fw-bold">
+                        <i class="bi bi-exclamation-octagon text-danger me-2"></i>Recorrentes Sem Causa Confirmada
+                    </h5>
+                    <small class="text-muted">Incidentes repetitivos sem diagnóstico definitivo.</small>
+                </div>
+                <span class="badge bg-danger">@Model.Analytics.RecurrentWithoutRootCauseCases.Count</span>
+            </div>
+            <div class="tc-card-body p-0">
+                @if (Model.Analytics.RecurrentWithoutRootCauseCases.Count == 0)
+                {
+                    <div class="text-center py-4 text-muted small">
+                        <i class="bi bi-check-circle fs-3 text-success d-block mb-1"></i>
+                        Nenhum incidente recorrente pendente de causa raiz.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive" style="max-height: 280px;">
+                        <table class="tc-table table-sm mb-0">
+                            <tbody>
+                                @foreach (var c in Model.Analytics.RecurrentWithoutRootCauseCases)
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-nowrap">#@c.CaseNumber</td>
+                                        <td class="text-truncate" style="max-width: 250px;">@c.Title</td>
+                                        <td class="text-end">
+                                            <a href="@c.CaseUrl" class="tc-btn tc-btn-secondary tc-btn-sm py-0">
+                                                Investigar
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

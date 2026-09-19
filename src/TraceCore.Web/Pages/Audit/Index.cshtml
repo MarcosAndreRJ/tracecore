@@ -1,0 +1,314 @@
+@page
+@model TraceCore.Web.Pages.Audit.IndexModel
+@{
+    ViewData["Title"] = "Auditoria e Conformidade — TraceCore";
+}
+
+<div class="tc-page-header">
+    <div>
+        <div class="tc-breadcrumb">
+            <span class="tc-breadcrumb-item"><a asp-page="/Index">Início</a></span>
+            <span class="tc-breadcrumb-separator">/</span>
+            <span class="tc-breadcrumb-item text-muted">Administração</span>
+            <span class="tc-breadcrumb-separator">/</span>
+            <span class="tc-breadcrumb-item active">Auditoria</span>
+        </div>
+        <h1 class="tc-page-title">
+            <i class="bi bi-shield-check me-2 text-primary"></i>Trilha de Auditoria e Conformidade
+        </h1>
+        <p class="tc-page-subtitle">
+            Registro imutável de eventos operacionais, alterações estruturais e trilha de auditoria corporativa (M09 / BR-100).
+        </p>
+    </div>
+</div>
+
+<!-- CARDS DE RESUMO -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="tc-card tc-stat-card p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="tc-caption text-muted">Total de Registros Localizados</span>
+                    <h3 class="tc-stat-value mb-0">@Model.SearchResult.TotalCount.ToString("N0")</h3>
+                </div>
+                <div class="tc-stat-icon bg-primary-subtle text-primary p-3 rounded-circle">
+                    <i class="bi bi-journal-text fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="tc-card tc-stat-card p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="tc-caption text-muted">Página Atual</span>
+                    <h3 class="tc-stat-value mb-0">@Model.SearchResult.Page / @Math.Max(1, Model.SearchResult.TotalPages)</h3>
+                </div>
+                <div class="tc-stat-icon bg-info-subtle text-info p-3 rounded-circle">
+                    <i class="bi bi-layers fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="tc-card tc-stat-card p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="tc-caption text-muted">Proteção de Dados (BR-101)</span>
+                    <h3 class="tc-stat-value mb-0 fs-5 text-success">Sanitizado & Imutável</h3>
+                </div>
+                <div class="tc-stat-icon bg-success-subtle text-success p-3 rounded-circle">
+                    <i class="bi bi-lock fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FILTROS DE CONSULTA -->
+<div class="tc-card mb-4 p-3">
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">De:</label>
+            <input type="datetime-local" class="form-control form-control-sm" name="FromDate" 
+                   value="@(Model.FromDate?.ToString("yyyy-MM-ddTHH:mm"))" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Até:</label>
+            <input type="datetime-local" class="form-control form-control-sm" name="ToDate" 
+                   value="@(Model.ToDate?.ToString("yyyy-MM-ddTHH:mm"))" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Ator / Usuário:</label>
+            <select class="form-select form-select-sm" name="ActorUserId">
+                <option value="">Todos os usuários</option>
+                @foreach (var u in Model.Users)
+                {
+                    <option value="@u.Id" selected="@(Model.ActorUserId == u.Id)">@u.Name (@u.Email)</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Ação:</label>
+            <input type="text" class="form-control form-control-sm" name="ActionFilter" 
+                   value="@Model.ActionFilter" placeholder="Ex: case.create, user.status_change" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Tipo de Entidade:</label>
+            <input type="text" class="form-control form-control-sm" name="EntityTypeFilter" 
+                   value="@Model.EntityTypeFilter" placeholder="Ex: Case, products, User" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">ID da Entidade:</label>
+            <input type="text" class="form-control form-control-sm" name="EntityIdFilter" 
+                   value="@Model.EntityIdFilter" placeholder="ID numérico ou código" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold">Busca Livre (Termo / Metadados):</label>
+            <input type="text" class="form-control form-control-sm" name="SearchTerm" 
+                   value="@Model.SearchTerm" placeholder="Buscar em texto, diff ou metadados..." />
+        </div>
+        <div class="col-md-2 d-flex align-items-end gap-2">
+            <button type="submit" class="btn btn-sm btn-primary w-100">
+                <i class="bi bi-filter me-1"></i>Filtrar
+            </button>
+            <a asp-page="/Audit/Index" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle"></i>
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- TABELA DE RESULTADOS -->
+<div class="tc-card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 170px;">Data/Hora (UTC)</th>
+                    <th style="width: 180px;">Ator</th>
+                    <th style="width: 190px;">Ação</th>
+                    <th style="width: 180px;">Entidade</th>
+                    <th>Origem / Agente</th>
+                    <th style="width: 120px;" class="text-end">Inspeção</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.SearchResult.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-shield-slash fs-1 d-block mb-2 text-muted"></i>
+                            Nenhum registro de auditoria encontrado para os critérios selecionados.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var entry in Model.SearchResult.Items)
+                    {
+                        <tr>
+                            <td>
+                                <span class="small font-monospace">@entry.OccurredAt.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                            </td>
+                            <td>
+                                @if (entry.ActorType == "System")
+                                {
+                                    <span class="badge bg-secondary-subtle text-secondary border">Sistema</span>
+                                }
+                                else if (!string.IsNullOrEmpty(entry.ActorUserName))
+                                {
+                                    <span class="fw-semibold">@entry.ActorUserName</span>
+                                    <span class="text-muted small d-block">ID: @entry.ActorUserId</span>
+                                }
+                                else if (entry.ActorUserId.HasValue)
+                                {
+                                    <span class="text-muted">Usuário #@entry.ActorUserId</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted italic">Anônimo</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border font-monospace">@entry.Action</span>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(entry.EntityUrl))
+                                {
+                                    <a href="@entry.EntityUrl" class="fw-semibold text-decoration-none">
+                                        <i class="bi bi-box-arrow-up-right me-1 small"></i>@entry.EntityType #@entry.EntityId
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span>@entry.EntityType #@entry.EntityId</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="small text-muted d-block text-truncate" style="max-width: 300px;" title="@entry.UserAgentSummary">
+                                    <i class="bi bi-laptop me-1"></i>@(entry.UserAgentSummary ?? "N/A")
+                                </span>
+                                @if (!string.IsNullOrEmpty(entry.IpAddress))
+                                {
+                                    <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.75rem;">
+                                        @entry.IpAddress
+                                    </span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-audit-@entry.Id">
+                                    <i class="bi bi-eye me-1"></i>Detalhes
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- MODAL DE INSPEÇÃO DIFF / JSON -->
+                        <div class="modal fade" id="modal-audit-@entry.Id" tabindex="-1" aria-labelledby="modalLabel-@entry.Id" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalLabel-@entry.Id">
+                                            <i class="bi bi-file-earmark-code me-2"></i>Evento #@entry.Id — @entry.Action
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-sm-6">
+                                                <span class="text-muted small d-block">Data/Hora (UTC):</span>
+                                                <span class="fw-semibold">@entry.OccurredAt.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <span class="text-muted small d-block">Entidade:</span>
+                                                <span class="fw-semibold">@entry.EntityType (ID: @entry.EntityId)</span>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <span class="text-muted small d-block">Ator:</span>
+                                                <span class="fw-semibold">@(entry.ActorUserName ?? entry.ActorType)</span>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <span class="text-muted small d-block">Correlation ID:</span>
+                                                <span class="font-monospace small">@(entry.CorrelationId ?? "N/A")</span>
+                                            </div>
+                                        </div>
+
+                                        @if (!string.IsNullOrEmpty(entry.BeforeJson))
+                                        {
+                                            <h6 class="fw-semibold text-danger mb-1"><i class="bi bi-dash-circle me-1"></i>Estado Anterior (BeforeJson):</h6>
+                                            <pre class="bg-dark text-light p-3 rounded small mb-3"><code>@entry.BeforeJson</code></pre>
+                                        }
+
+                                        @if (!string.IsNullOrEmpty(entry.AfterJson))
+                                        {
+                                            <h6 class="fw-semibold text-success mb-1"><i class="bi bi-plus-circle me-1"></i>Estado Posterior (AfterJson):</h6>
+                                            <pre class="bg-dark text-light p-3 rounded small mb-3"><code>@entry.AfterJson</code></pre>
+                                        }
+
+                                        @if (!string.IsNullOrEmpty(entry.MetadataJson))
+                                        {
+                                            <h6 class="fw-semibold text-info mb-1"><i class="bi bi-info-circle me-1"></i>Metadados Adicionais (MetadataJson):</h6>
+                                            <pre class="bg-dark text-light p-3 rounded small mb-0"><code>@entry.MetadataJson</code></pre>
+                                        }
+
+                                        @if (string.IsNullOrEmpty(entry.BeforeJson) && string.IsNullOrEmpty(entry.AfterJson) && string.IsNullOrEmpty(entry.MetadataJson))
+                                        {
+                                            <div class="alert alert-light border text-muted">
+                                                Nenhum payload adicional registrado para este evento.
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PAGINAÇÃO -->
+    @if (Model.SearchResult.TotalPages > 1)
+    {
+        <div class="d-flex align-items-center justify-content-between p-3 border-top">
+            <span class="text-muted small">
+                Exibindo página @Model.SearchResult.Page de @Model.SearchResult.TotalPages (@Model.SearchResult.TotalCount eventos)
+            </span>
+            <div class="d-flex gap-2">
+                @if (Model.SearchResult.HasPreviousPage)
+                {
+                    <a asp-page="/Audit/Index" 
+                       asp-route-FromDate="@(Model.FromDate?.ToString("yyyy-MM-ddTHH:mm"))"
+                       asp-route-ToDate="@(Model.ToDate?.ToString("yyyy-MM-ddTHH:mm"))"
+                       asp-route-ActorUserId="@Model.ActorUserId"
+                       asp-route-ActionFilter="@Model.ActionFilter"
+                       asp-route-EntityTypeFilter="@Model.EntityTypeFilter"
+                       asp-route-EntityIdFilter="@Model.EntityIdFilter"
+                       asp-route-SearchTerm="@Model.SearchTerm"
+                       asp-route-PageNumber="@(Model.SearchResult.Page - 1)" 
+                       class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-chevron-left me-1"></i>Anterior
+                    </a>
+                }
+                @if (Model.SearchResult.HasNextPage)
+                {
+                    <a asp-page="/Audit/Index" 
+                       asp-route-FromDate="@(Model.FromDate?.ToString("yyyy-MM-ddTHH:mm"))"
+                       asp-route-ToDate="@(Model.ToDate?.ToString("yyyy-MM-ddTHH:mm"))"
+                       asp-route-ActorUserId="@Model.ActorUserId"
+                       asp-route-ActionFilter="@Model.ActionFilter"
+                       asp-route-EntityTypeFilter="@Model.EntityTypeFilter"
+                       asp-route-EntityIdFilter="@Model.EntityIdFilter"
+                       asp-route-SearchTerm="@Model.SearchTerm"
+                       asp-route-PageNumber="@(Model.SearchResult.Page + 1)" 
+                       class="btn btn-sm btn-outline-secondary">
+                        Próxima<i class="bi bi-chevron-right ms-1"></i>
+                    </a>
+                }
+            </div>
+        </div>
+    }
+</div>

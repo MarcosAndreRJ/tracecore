@@ -351,6 +351,25 @@
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-md-6">
+                                <label asp-for="NewCheckTypeInput" class="tc-form-label">Tipo de Checagem:</label>
+                                <select asp-for="NewCheckTypeInput" class="tc-select">
+                                    <option value="Question">Question (Manual / Operador)</option>
+                                    <option value="AutomatedCheck">AutomatedCheck (Execução Automática M10)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="NewCheckIntegrationIdInput" class="tc-form-label">Integração (M10):</label>
+                                <select asp-for="NewCheckIntegrationIdInput" class="tc-select">
+                                    <option value="">-- Nenhuma / Manual --</option>
+                                    @foreach (var integ in Model.AvailableIntegrations)
+                                    {
+                                        <option value="@integ.Id">@integ.Name (@integ.Code)</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
                                 <label asp-for="NewCheckRiskInput" class="tc-form-label">Risco de Execução:</label>
                                 <select asp-for="NewCheckRiskInput" class="tc-select">
                                     <option value="Low">Low (Seguro em produção)</option>

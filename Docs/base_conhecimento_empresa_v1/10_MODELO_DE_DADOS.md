@@ -304,7 +304,36 @@ diagnostic_check_impacts
   weight DECIMAL(5,2) NOT NULL DEFAULT 1.00
 ```
 
-## 12. Índices mínimos
+## 12. `searchable_content_entries` (Fase 12 / M11)
+
+```text
+id BIGINT PRIMARY KEY AUTO_INCREMENT
+source_type VARCHAR(50) NOT NULL (ValidatedKnowledge, HistoricalCase, Document, AiSuggestion)
+source_id BIGINT NOT NULL
+source_version_id BIGINT NULL
+title VARCHAR(500) NOT NULL
+normalized_content LONGTEXT NOT NULL
+content_hash VARCHAR(64) NOT NULL (SHA-256)
+validation_status VARCHAR(50) NOT NULL (Validated, PendingValidation, NotValidated, Rejected)
+quality_status VARCHAR(50) NOT NULL (Complete, Incomplete, NeedsReview, Validated, Obsolete)
+visibility VARCHAR(50) NOT NULL (Public, Internal, Confidential, Restricted)
+client_id BIGINT NULL (FK clients)
+product_id BIGINT NULL (FK products)
+component_ids_json TEXT NULL
+metadata_json LONGTEXT NULL
+created_at DATETIME NOT NULL
+updated_at DATETIME NOT NULL
+source_updated_at DATETIME NOT NULL
+indexed_at DATETIME NULL (reservado)
+embedding_version VARCHAR(50) NULL (reservado)
+INDEX ix_searchable_source (source_type, source_id, source_version_id)
+INDEX ix_searchable_hash (content_hash)
+INDEX ix_searchable_quality (quality_status)
+INDEX ix_searchable_validation (validation_status)
+INDEX ix_searchable_updated (updated_at DESC)
+```
+
+## 13. Índices mínimos
 
 - status + datas em `cases`;
 - cliente/produto/componente por tabelas de associação;
@@ -314,11 +343,14 @@ diagnostic_check_impacts
 - `knowledge_usages(knowledge_item_id, outcome, used_at)`;
 - `audit_events(entity_type, entity_id, occurred_at)`;
 - `audit_events(actor_user_id, occurred_at)`;
+- `searchable_content_entries(source_type, source_id, source_version_id)`;
+- `searchable_content_entries(content_hash)`;
+- `searchable_content_entries(quality_status, validation_status)`;
 - outbox por `status,next_attempt_at`;
 - relações e FKs nos dois sentidos de consultas frequentes;
 - fluxos e checagens por `code` e `flow_id`.
 
-## 13. Retenção
+## 14. Retenção
 
 A retenção exata depende de política corporativa. No modelo:
 - casos: longo prazo;
