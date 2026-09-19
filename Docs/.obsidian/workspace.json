@@ -215,6 +215,11 @@
   },
   "active": "d4ec3179ee40f34d",
   "lastOpenFiles": [
+    "sql_mockup/inspect_orphans.sql",
+    "sql_mockup/03_cleanup_test_data.sql",
+    "sql_mockup/02_validate_test_data.sql",
+    "sql_mockup/01_populate_test_data.sql",
+    "sql_mockup",
     "Passo_A_Passo/Visão e Princípios da IA.md",
     "DEV_CREDENTIALS.md",
     "MASTER_SPECIFICATION.md",

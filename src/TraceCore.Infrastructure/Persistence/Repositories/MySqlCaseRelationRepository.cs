@@ -157,17 +157,23 @@ public class MySqlCaseRelationRepository : ICaseRelationRepository
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
 
         const string sql = @"
-            SELECT 
+            SELECT
                 ds.id AS Id,
                 ds.diagnostic_session_id AS DiagnosticSessionId,
+                ds.sequence_no AS SequenceNo,
+                ds.step_type AS StepType,
+                ds.hypothesis_id AS HypothesisId,
                 ds.title AS Title,
-                ds.action_description AS ActionDescription,
-                ds.expected_result AS ExpectedResult,
-                ds.observed_result AS ObservedResult,
+                ds.objective AS Objective,
+                ds.instruction AS Instruction,
+                ds.input_evidence_summary AS InputEvidenceSummary,
+                ds.result_summary AS ResultSummary,
                 ds.outcome AS Outcome,
-                ds.performed_at AS PerformedAt,
+                ds.risk_level AS RiskLevel,
+                ds.duration_seconds AS DurationSeconds,
                 ds.performed_by AS PerformedBy,
-                ds.hypothesis_id AS HypothesisId
+                ds.performed_at AS PerformedAt,
+                ds.metadata_json AS MetadataJson
             FROM diagnostic_steps ds
             INNER JOIN diagnostic_sessions s ON s.id = ds.diagnostic_session_id
             WHERE s.case_id IN @CaseIds AND ds.outcome = 'Worked'
