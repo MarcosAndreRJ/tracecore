@@ -235,7 +235,7 @@
                         <form method="post" asp-page-handler="SaveGenerationModel">
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Selecionar Provedor</label>
-                                <select name="GenUsageInput.ProviderId" class="form-select" required onchange="updateGenModelSuggestions(this)">
+                                <select name="GenUsageInput.ProviderId" id="genProviderSelect" class="form-select" required onchange="fetchModels(this.value, 'Generation', 'genModelSuggestions', 'genModelInput', this)">
                                     <option value="">-- Selecione um provedor com capacidade de Geração --</option>
                                     @foreach (var p in genProviders)
                                     {
@@ -248,15 +248,21 @@
 
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Identificador do Modelo</label>
-                                <input type="text" name="GenUsageInput.ModelName" value="@Model.GenUsageInput.ModelName"
-                                       class="form-control" list="genModelSuggestions"
-                                       placeholder="ex: deepseek-chat, qwen3:14b, gpt-4o-mini, claude-3-7-sonnet" required />
-                                <datalist id="genModelSuggestions">
-                                    @foreach (var m in Model.GenerationSuggestions)
-                                    {
-                                        <option value="@m.ModelId">@m.DisplayName</option>
-                                    }
-                                </datalist>
+                                <div class="input-group">
+                                    <input type="text" name="GenUsageInput.ModelName" id="genModelInput" value="@Model.GenUsageInput.ModelName"
+                                           class="form-control" list="genModelSuggestions"
+                                           placeholder="ex: deepseek-chat, qwen3:14b, gpt-4o-mini, claude-3-7-sonnet" required />
+                                    <datalist id="genModelSuggestions">
+                                        @foreach (var m in Model.GenerationSuggestions)
+                                        {
+                                            <option value="@m.ModelId">@m.DisplayName</option>
+                                        }
+                                    </datalist>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="fetchModels(document.getElementById('genProviderSelect').value, 'Generation', 'genModelSuggestions', 'genModelInput', document.getElementById('genProviderSelect'))"
+                                            title="Atualizar lista de modelos do provedor">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </div>
                                 <div class="form-text">
                                     Digite livremente o ID do modelo aceito pelo provedor cadastrado.
                                 </div>
@@ -325,7 +331,7 @@
                         <form method="post" asp-page-handler="SaveEmbeddingModel">
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Selecionar Provedor</label>
-                                <select name="EmbUsageInput.ProviderId" class="form-select" required>
+                                <select name="EmbUsageInput.ProviderId" id="embProviderSelect" class="form-select" required onchange="fetchModels(this.value, 'Embedding', 'embModelSuggestions', 'embModelInput', this)">
                                     <option value="">-- Selecione um provedor com capacidade de Embedding --</option>
                                     @foreach (var p in embProviders)
                                     {
@@ -338,15 +344,21 @@
 
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Identificador do Modelo</label>
-                                <input type="text" name="EmbUsageInput.ModelName" value="@Model.EmbUsageInput.ModelName"
-                                       class="form-control" list="embModelSuggestions"
-                                       placeholder="ex: text-embedding-3-small, nomic-embed-text, bge-large-en-v1.5" required />
-                                <datalist id="embModelSuggestions">
-                                    @foreach (var m in Model.EmbeddingSuggestions)
-                                    {
-                                        <option value="@m.ModelId">@m.DisplayName</option>
-                                    }
-                                </datalist>
+                                <div class="input-group">
+                                    <input type="text" name="EmbUsageInput.ModelName" id="embModelInput" value="@Model.EmbUsageInput.ModelName"
+                                           class="form-control" list="embModelSuggestions"
+                                           placeholder="ex: text-embedding-3-small, nomic-embed-text, bge-large-en-v1.5" required />
+                                    <datalist id="embModelSuggestions">
+                                        @foreach (var m in Model.EmbeddingSuggestions)
+                                        {
+                                            <option value="@m.ModelId">@m.DisplayName</option>
+                                        }
+                                    </datalist>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="fetchModels(document.getElementById('embProviderSelect').value, 'Embedding', 'embModelSuggestions', 'embModelInput', document.getElementById('embProviderSelect'))"
+                                            title="Atualizar lista de modelos do provedor">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </div>
                                 <div class="form-text">
                                     Digite livremente o ID do modelo de embedding suportado pelo endpoint.
                                 </div>
@@ -582,6 +594,75 @@ function toggleApiKeyField(authType) {
         div.style.display = 'block';
     }
 }
+
+async function fetchModels(providerId, purpose, datalistId, inputId, selectElement) {
+    if (!providerId) {
+        return;
+    }
+
+    const datalist = document.getElementById(datalistId);
+    const input = document.getElementById(inputId);
+    const btn = selectElement ? selectElement.nextElementSibling?.querySelector('button') : null;
+    const originalBtnHtml = btn ? btn.innerHTML : '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+    }
+
+    try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('handler', 'FetchModels');
+        url.searchParams.set('providerId', providerId);
+        url.searchParams.set('purpose', purpose);
+
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+            }
+        });
+
+        const data = await response.json();
+        if (data.success && data.models) {
+            datalist.innerHTML = '';
+            data.models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.modelId;
+                option.textContent = model.displayName;
+                if (model.isDefault) option.setAttribute('data-default', 'true');
+                datalist.appendChild(option);
+            });
+            
+            if (data.models.length > 0 && !input.value) {
+                const firstModel = data.models.find(m => m.isDefault) || data.models[0];
+                input.value = firstModel.modelId;
+            }
+        } else {
+            console.warn('Falha ao buscar modelos:', data.message);
+        }
+    } catch (err) {
+        console.error('Erro ao buscar modelos:', err);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const genProviderSelect = document.getElementById('genProviderSelect');
+    const embProviderSelect = document.getElementById('embProviderSelect');
+
+    if (genProviderSelect && genProviderSelect.value) {
+        fetchModels(genProviderSelect.value, 'Generation', 'genModelSuggestions', 'genModelInput', genProviderSelect);
+    }
+    if (embProviderSelect && embProviderSelect.value) {
+        fetchModels(embProviderSelect.value, 'Embedding', 'embModelSuggestions', 'embModelInput', embProviderSelect);
+    }
+});
 
 async function testConnection(modelConfigId, providerCode, purpose) {
     const alertBox = document.getElementById('tc-test-alert');

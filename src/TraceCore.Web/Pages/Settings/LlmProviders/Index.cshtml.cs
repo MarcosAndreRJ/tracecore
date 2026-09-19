@@ -224,6 +224,25 @@ public class IndexModel : PageModel
         }
     }
 
+    public async Task<IActionResult> OnGetFetchModelsAsync(long providerId, string purpose)
+    {
+        try
+        {
+            if (providerId <= 0 || string.IsNullOrWhiteSpace(purpose))
+            {
+                return new JsonResult(new { success = false, message = "ProviderId e Purpose são obrigatórios." });
+            }
+
+            var models = await _configurationService.FetchModelsFromProviderAsync(providerId, purpose);
+            var result = models.Select(m => new { modelId = m.ModelId, displayName = m.DisplayName, isDefault = m.IsDefault }).ToList();
+            return new JsonResult(new { success = true, models = result });
+        }
+        catch (Exception ex)
+        {
+            return new JsonResult(new { success = false, message = $"Erro ao buscar modelos: {ex.Message}" });
+        }
+    }
+
     public async Task<IActionResult> OnPostIndexEmbeddingsAsync()
     {
         try

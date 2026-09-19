@@ -45,6 +45,9 @@ public interface ILlmConfigurationService
     /// <summary>Retorna os modelos do catalogo para o par (providerCode, purpose).</summary>
     IReadOnlyList<LlmModelEntry> GetSupportedModels(string providerCode, string purpose);
 
+    /// <summary>Busca dinamicamente os modelos disponíveis no endpoint do provedor.</summary>
+    Task<IReadOnlyList<LlmModelEntry>> FetchModelsFromProviderAsync(long providerId, string purpose, CancellationToken ct = default);
+
     // Nova arquitetura Fase 17
 
     /// <summary>Lista todos os provedores administrativos cadastrados.</summary>

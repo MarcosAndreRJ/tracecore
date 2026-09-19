@@ -124,7 +124,7 @@ public class LlmProviderResolver : ILlmProviderResolver
                     new Domain.Services.LlmGenerationRequest(
                         SystemPrompt: "Responda apenas: OK",
                         UserPrompt: "Ping",
-                        MaxTokens: 5),
+                        MaxTokens: 64),
                     cts.Token);
                 return new ConnectionTestResult(true,
                     $"Conexão bem-sucedida com {provider.Name} ({provider.Code}) - modelo {modelConfig.ModelName}.");
@@ -183,7 +183,7 @@ public class LlmProviderResolver : ILlmProviderResolver
                     new Domain.Services.LlmGenerationRequest(
                         SystemPrompt: "Responda apenas: OK",
                         UserPrompt: "Ping",
-                        MaxTokens: 5),
+                        MaxTokens: 64),
                     cts.Token);
                 return new ConnectionTestResult(true,
                     $"Conexão bem-sucedida com {providerCode} ({provider.ModelName}).");

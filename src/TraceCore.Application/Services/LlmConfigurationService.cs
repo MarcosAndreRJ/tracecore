@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using TraceCore.Application.DTOs;
 using TraceCore.Application.Exceptions;
 using TraceCore.Domain.Entities;
@@ -26,6 +29,7 @@ public class LlmConfigurationService : ILlmConfigurationService
     private readonly ISecretStore _secretStore;
     private readonly IAuditService _auditService;
     private readonly ILlmModelCatalog _modelCatalog;
+    private readonly IConfiguration _configuration;
 
     public LlmConfigurationService(
         ILlmProviderConfigRepository legacyConfigRepository,
@@ -34,7 +38,8 @@ public class LlmConfigurationService : ILlmConfigurationService
         ILlmProviderResolver resolver,
         ISecretStore secretStore,
         IAuditService auditService,
-        ILlmModelCatalog modelCatalog)
+        ILlmModelCatalog modelCatalog,
+        IConfiguration configuration)
     {
         _legacyConfigRepository = legacyConfigRepository;
         _providerRepository = providerRepository;
@@ -43,6 +48,7 @@ public class LlmConfigurationService : ILlmConfigurationService
         _secretStore = secretStore;
         _auditService = auditService;
         _modelCatalog = modelCatalog;
+        _configuration = configuration;
     }
 
     // ========== LEGADO (compatibilidade) ==========
@@ -555,6 +561,84 @@ public class LlmConfigurationService : ILlmConfigurationService
 
     public IReadOnlyList<LlmModelEntry> GetSupportedModels(string providerCode, string purpose) =>
         _modelCatalog.GetSupportedModels(providerCode, purpose);
+
+    public async Task<IReadOnlyList<LlmModelEntry>> FetchModelsFromProviderAsync(long providerId, string purpose, CancellationToken ct = default)
+    {
+        var provider = await _providerRepository.GetByIdAsync(providerId, ct)
+            ?? throw new EntityNotFoundException("Provedor IA", providerId);
+
+        string? apiKey = null;
+        if (provider.AuthenticationType != LlmAuthenticationTypes.None)
+        {
+            apiKey = await _secretStore.GetSecretAsync(SecretKey(provider.Code), ct)
+                ?? _configuration[$"Llm:{provider.Code}:ApiKey"];
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new BusinessRuleValidationException("BR-080", $"Provedor '{provider.Name}' sem credencial configurada.");
+        }
+
+        return provider.Protocol switch
+        {
+            LlmProtocols.OpenAICompatible => await FetchOpenAiCompatibleModelsAsync(provider, apiKey, purpose, ct),
+            LlmProtocols.AnthropicMessages => FetchAnthropicModels(provider, purpose),
+            _ => _modelCatalog.GetSupportedModels(provider.Code, purpose)
+        };
+    }
+
+    private async Task<IReadOnlyList<LlmModelEntry>> FetchOpenAiCompatibleModelsAsync(LlmProvider provider, string? apiKey, string purpose, CancellationToken ct)
+    {
+        using var httpClient = new HttpClient();
+        var url = $"{provider.BaseUrl.TrimEnd('/')}/models";
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            if (provider.AuthenticationType == LlmAuthenticationTypes.BearerApiKey)
+                request.Headers.Add("Authorization", $"Bearer {apiKey}");
+            else if (provider.AuthenticationType == LlmAuthenticationTypes.HeaderApiKey)
+                request.Headers.Add("x-api-key", apiKey);
+        }
+
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Falha ao buscar modelos: {(int)response.StatusCode} {response.ReasonPhrase}");
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        using var json = JsonDocument.Parse(body);
+
+        var models = new List<LlmModelEntry>();
+        if (json.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in data.EnumerateArray())
+            {
+                if (item.TryGetProperty("id", out var idProp))
+                {
+                    var modelId = idProp.GetString() ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(modelId))
+                    {
+                        var isEmbedding = modelId.Contains("embedding", StringComparison.OrdinalIgnoreCase);
+                        var isGeneration = !isEmbedding || modelId.Contains("gpt", StringComparison.OrdinalIgnoreCase) || modelId.Contains("claude", StringComparison.OrdinalIgnoreCase);
+
+                        if ((purpose.Equals("Generation", StringComparison.OrdinalIgnoreCase) && isGeneration) ||
+                            (purpose.Equals("Embedding", StringComparison.OrdinalIgnoreCase) && isEmbedding))
+                        {
+                            models.Add(new LlmModelEntry(modelId, modelId));
+                        }
+                    }
+                }
+            }
+        }
+
+        if (models.Count == 0)
+            models = _modelCatalog.GetSupportedModels(provider.Code, purpose).ToList();
+
+        models.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase));
+        return models;
+    }
+
+    private IReadOnlyList<LlmModelEntry> FetchAnthropicModels(LlmProvider provider, string purpose)
+    {
+        return _modelCatalog.GetSupportedModels(provider.Code, purpose);
+    }
 
     public IReadOnlyList<string> GetSupportedProtocols() => LlmProtocols.All;
     public IReadOnlyList<string> GetSupportedAuthenticationTypes() => LlmAuthenticationTypes.All;
