@@ -28,6 +28,7 @@ public class MySqlIntegrationRepository : IIntegrationRepository
                 i.target_system_description AS TargetSystemDescription,
                 i.status,
                 i.owner_department_id AS OwnerDepartmentId,
+                i.product_id AS ProductId,
                 i.contract_notes AS ContractNotes,
                 i.health_check_url AS HealthCheckUrl,
                 i.health_check_method AS HealthCheckMethod,
@@ -46,6 +47,37 @@ public class MySqlIntegrationRepository : IIntegrationRepository
         return list.ToList();
     }
 
+    public async Task<IReadOnlyList<Integration>> GetIntegrationsByProductIdAsync(long productId, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT
+                i.id,
+                i.code,
+                i.name,
+                i.integration_type AS IntegrationType,
+                i.target_system_description AS TargetSystemDescription,
+                i.status,
+                i.owner_department_id AS OwnerDepartmentId,
+                i.product_id AS ProductId,
+                i.contract_notes AS ContractNotes,
+                i.health_check_url AS HealthCheckUrl,
+                i.health_check_method AS HealthCheckMethod,
+                i.health_check_timeout_seconds AS HealthCheckTimeoutSeconds,
+                i.health_check_expected_status_code AS HealthCheckExpectedStatusCode,
+                i.created_by AS CreatedBy,
+                i.created_at AS CreatedAt,
+                i.updated_at AS UpdatedAt,
+                d.name AS OwnerDepartmentName
+            FROM integrations i
+            LEFT JOIN departments d ON i.owner_department_id = d.id
+            WHERE i.product_id = @ProductId
+            ORDER BY i.name ASC;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        var list = await conn.QueryAsync<Integration>(sql, new { ProductId = productId });
+        return list.ToList();
+    }
+
     public async Task<Integration?> GetIntegrationByIdAsync(long id, CancellationToken ct = default)
     {
         const string sql = @"
@@ -57,6 +89,7 @@ public class MySqlIntegrationRepository : IIntegrationRepository
                 i.target_system_description AS TargetSystemDescription,
                 i.status,
                 i.owner_department_id AS OwnerDepartmentId,
+                i.product_id AS ProductId,
                 i.contract_notes AS ContractNotes,
                 i.health_check_url AS HealthCheckUrl,
                 i.health_check_method AS HealthCheckMethod,
@@ -78,11 +111,11 @@ public class MySqlIntegrationRepository : IIntegrationRepository
     {
         const string sql = @"
             INSERT INTO integrations
-                (code, name, integration_type, target_system_description, status, owner_department_id, contract_notes,
+                (code, name, integration_type, target_system_description, status, owner_department_id, product_id, contract_notes,
                  health_check_url, health_check_method, health_check_timeout_seconds, health_check_expected_status_code,
                  created_by, created_at)
             VALUES
-                (@Code, @Name, @IntegrationType, @TargetSystemDescription, @Status, @OwnerDepartmentId, @ContractNotes,
+                (@Code, @Name, @IntegrationType, @TargetSystemDescription, @Status, @OwnerDepartmentId, @ProductId, @ContractNotes,
                  @HealthCheckUrl, @HealthCheckMethod, @HealthCheckTimeoutSeconds, @HealthCheckExpectedStatusCode,
                  @CreatedBy, @CreatedAt);
             SELECT LAST_INSERT_ID();";
@@ -103,6 +136,7 @@ public class MySqlIntegrationRepository : IIntegrationRepository
                 target_system_description = @TargetSystemDescription,
                 status = @Status,
                 owner_department_id = @OwnerDepartmentId,
+                product_id = @ProductId,
                 contract_notes = @ContractNotes,
                 health_check_url = @HealthCheckUrl,
                 health_check_method = @HealthCheckMethod,

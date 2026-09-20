@@ -112,6 +112,9 @@
                                     <span class="text-secondary small">@(string.IsNullOrWhiteSpace(p.Description) ? "Sem descrição" : p.Description)</span>
                                 </td>
                                 <td class="text-end">
+                                    <a class="tc-btn tc-btn-secondary tc-btn-sm" asp-page="/Catalog/Products/Details" asp-route-id="@p.Id">
+                                        <i class="bi bi-eye me-1"></i>Detalhes
+                                    </a>
                                     <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm"
                                             onclick="openEditModal(@p.Id, '@Html.Raw(p.Name)', '@Html.Raw(p.Code ?? "")', '@Html.Raw(p.Description ?? "")', '@p.Status', @(p.IsExternal ? "true" : "false"))">
                                         <i class="bi bi-pencil me-1"></i>Editar

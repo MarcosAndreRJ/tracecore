@@ -63,6 +63,36 @@ public class OpenAiLlmProvider : ILlmProvider
             new { role = "user", content = request.UserPrompt }
         };
 
+        if (request.PriorTurns != null)
+        {
+            foreach (var turn in request.PriorTurns)
+            {
+                if (string.Equals(turn.Role, "assistant", StringComparison.OrdinalIgnoreCase))
+                {
+                    messages.Add(new
+                    {
+                        role = "assistant",
+                        content = turn.Text,
+                        tool_calls = turn.ToolCalls?.Select(c => new
+                        {
+                            id = c.Id,
+                            type = "function",
+                            function = new { name = c.Name, arguments = c.ArgumentsJson }
+                        }).ToArray()
+                    });
+                }
+                else if (string.Equals(turn.Role, "tool", StringComparison.OrdinalIgnoreCase))
+                {
+                    messages.Add(new
+                    {
+                        role = "tool",
+                        tool_call_id = turn.ToolCallId,
+                        content = turn.ToolResultJson ?? string.Empty
+                    });
+                }
+            }
+        }
+
         var payload = new
         {
             model = ModelName,
@@ -112,9 +142,16 @@ public class OpenAiLlmProvider : ILlmProvider
                                 func.TryGetProperty("name", out var nameProp) &&
                                 func.TryGetProperty("arguments", out var argsProp))
                             {
+                                string argumentsJson = argsProp.ValueKind == JsonValueKind.String
+                                    ? (argsProp.GetString() ?? "{}")
+                                    : argsProp.GetRawText();
+
+                                string? toolCallId = tc.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+
                                 toolCalls.Add(new LlmToolCall(
                                     nameProp.GetString() ?? string.Empty,
-                                    argsProp.GetRawText()
+                                    argumentsJson,
+                                    toolCallId
                                 ));
                             }
                         }

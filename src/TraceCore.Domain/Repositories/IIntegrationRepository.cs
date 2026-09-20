@@ -8,6 +8,7 @@ namespace TraceCore.Domain.Repositories;
 public interface IIntegrationRepository
 {
     Task<IReadOnlyList<Integration>> GetAllIntegrationsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Integration>> GetIntegrationsByProductIdAsync(long productId, CancellationToken ct = default);
     Task<Integration?> GetIntegrationByIdAsync(long id, CancellationToken ct = default);
     Task<long> AddIntegrationAsync(Integration integration, CancellationToken ct = default);
     Task UpdateIntegrationAsync(Integration integration, CancellationToken ct = default);

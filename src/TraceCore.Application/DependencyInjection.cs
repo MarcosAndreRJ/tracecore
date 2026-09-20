@@ -20,6 +20,10 @@ public static class DependencyInjection
         services.AddScoped<IClientService, ClientService>();
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<ICaseRelationService, CaseRelationService>();
+        services.AddScoped<IProductTechnicalContextService, ProductTechnicalContextService>();
+        services.AddScoped<IInvestigationCopilotService, InvestigationCopilotService>();
+        services.AddScoped<IExternalResearchQuerySanitizer, ExternalResearchQuerySanitizer>();
+        services.AddScoped<IExternalResearchService, ExternalResearchService>();
         services.AddScoped<IDiagnosticEngineService, DiagnosticEngineService>();
         services.AddScoped<IIntegrationService, IntegrationService>();
         services.AddScoped<IManagementAnalyticsService, ManagementAnalyticsService>();

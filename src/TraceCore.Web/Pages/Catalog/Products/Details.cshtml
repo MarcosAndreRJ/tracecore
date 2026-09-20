@@ -1,0 +1,380 @@
+@page "{id:long}"
+@model TraceCore.Web.Pages.Catalog.Products.DetailsModel
+@{
+    ViewData["Title"] = $"{Model.Product?.Name} - Contexto Técnico - TraceCore";
+    var activeTab = Request.Query["tab"].ToString();
+    if (string.IsNullOrEmpty(activeTab)) activeTab = "general";
+    var ctx = Model.Context;
+}
+
+<div class="tc-breadcrumb">
+    <span class="tc-breadcrumb-item"><a asp-page="/Index">Início</a></span>
+    <span class="tc-breadcrumb-item"><a asp-page="/Catalog/Products/Index">Sistemas</a></span>
+    <span class="tc-breadcrumb-item active">@Model.Product?.Name</span>
+</div>
+
+<div class="tc-page-header">
+    <div>
+        <h1 class="tc-page-header-title">
+            <i class="bi bi-laptop text-primary" aria-hidden="true"></i>
+            <span>@Model.Product?.Name</span>
+        </h1>
+        <p class="tc-page-header-subtitle">Contexto técnico de investigação — usado pelo Copiloto para entender arquitetura, tecnologias e fontes desta aplicação</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="tc-alert tc-alert-success mb-4" role="alert"><i class="bi bi-check-circle-fill me-2"></i>@Model.SuccessMessage</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="tc-alert tc-alert-danger mb-4" role="alert"><i class="bi bi-exclamation-triangle-fill me-2"></i>@Model.ErrorMessage</div>
+}
+
+<div class="tc-tabs">
+    <ul class="tc-tabs-nav" role="tablist">
+        <li class="tc-tab-item">
+            <button class="tc-tab-link @(activeTab == "general" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
+                <i class="bi bi-card-text"></i><span>Geral</span>
+            </button>
+        </li>
+        <li class="tc-tab-item">
+            <button class="tc-tab-link @(activeTab == "technical" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-technical" type="button" role="tab">
+                <i class="bi bi-diagram-3"></i><span>Contexto Técnico</span>
+            </button>
+        </li>
+        <li class="tc-tab-item">
+            <button class="tc-tab-link @(activeTab == "components" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-components" type="button" role="tab">
+                <i class="bi bi-cpu"></i><span>Componentes</span>
+                <span class="tc-tab-badge">@(ctx?.Components.Count ?? 0)</span>
+            </button>
+        </li>
+        <li class="tc-tab-item">
+            <button class="tc-tab-link @(activeTab == "dependencies" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-dependencies" type="button" role="tab">
+                <i class="bi bi-bezier2"></i><span>Dependências</span>
+                <span class="tc-tab-badge">@(ctx?.Dependencies.Count ?? 0)</span>
+            </button>
+        </li>
+        <li class="tc-tab-item">
+            <button class="tc-tab-link @(activeTab == "integrations" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-integrations" type="button" role="tab">
+                <i class="bi bi-arrow-left-right"></i><span>Integrações</span>
+                <span class="tc-tab-badge">@(ctx?.Integrations.Count ?? 0)</span>
+            </button>
+        </li>
+        <li class="tc-tab-item">
+            <button class="tc-tab-link @(activeTab == "sources" || activeTab == "research" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-sources" type="button" role="tab">
+                <i class="bi bi-journal-bookmark"></i><span>Fontes</span>
+                <span class="tc-tab-badge">@(ctx?.TechnicalSources.Count ?? 0)</span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content tc-tab-content">
+        <!-- GERAL -->
+        <div class="tab-pane fade @(activeTab == "general" ? "show active" : "")" id="tab-general" role="tabpanel">
+            <div class="tc-card">
+                <div class="tc-card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">Código</dt>
+                        <dd class="col-sm-9 font-monospace">@(Model.Product?.Code ?? "-")</dd>
+                        <dt class="col-sm-3">Status</dt>
+                        <dd class="col-sm-9">
+                            @if (Model.Product?.Status == "Active")
+                            {
+                                <span class="tc-badge tc-badge-open">Ativo</span>
+                            }
+                            else
+                            {
+                                <span class="tc-badge tc-badge-closed">Inativo</span>
+                            }
+                        </dd>
+                        <dt class="col-sm-3">Origem</dt>
+                        <dd class="col-sm-9">
+                            @if (Model.Product?.IsExternal == true)
+                            {
+                                <span class="tc-badge tc-badge-warning"><i class="bi bi-cloud-arrow-down me-1"></i>Externo (Terceiro)</span>
+                            }
+                            else
+                            {
+                                <span class="tc-badge tc-badge-verified"><i class="bi bi-building me-1"></i>Interno</span>
+                            }
+                        </dd>
+                        <dt class="col-sm-3">Descrição</dt>
+                        <dd class="col-sm-9">@(Model.Product?.Description ?? "Sem descrição")</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTEXTO TÉCNICO -->
+        <div class="tab-pane fade @(activeTab == "technical" ? "show active" : "")" id="tab-technical" role="tabpanel">
+            <div class="tc-card mb-4">
+                <div class="tc-card-header"><h2 class="tc-card-title mb-0">Contexto Técnico</h2></div>
+                <div class="tc-card-body">
+                    <form method="post" asp-page-handler="SaveProfile" asp-route-id="@Model.Product?.Id">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Finalidade do sistema</label>
+                            <textarea class="tc-textarea" asp-for="ProfileForm.BusinessPurpose" rows="2" placeholder="Para que esta aplicação existe..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Resumo da arquitetura</label>
+                            <textarea class="tc-textarea" asp-for="ProfileForm.ArchitectureSummary" rows="2" placeholder="Ex.: Frontend Web → API → MySQL"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Frontend</label>
+                                <input class="tc-input" asp-for="ProfileForm.FrontendStack" placeholder="Ex.: React, TypeScript" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Backend</label>
+                                <input class="tc-input" asp-for="ProfileForm.BackendStack" placeholder="Ex.: .NET 10, ASP.NET Core" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Banco principal</label>
+                                <input class="tc-input" asp-for="ProfileForm.PrimaryDatabase" placeholder="Ex.: MySQL 8.4" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Runtime</label>
+                                <input class="tc-input" asp-for="ProfileForm.RuntimePlatform" placeholder="Ex.: .NET 10" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Autenticação</label>
+                                <input class="tc-input" asp-for="ProfileForm.AuthenticationModel" placeholder="Ex.: OAuth2 / Keycloak" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Hospedagem</label>
+                                <input class="tc-input" asp-for="ProfileForm.HostingModel" placeholder="Ex.: Docker / Linux" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Deploy</label>
+                                <input class="tc-input" asp-for="ProfileForm.DeploymentModel" placeholder="Ex.: GitHub Actions" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Observabilidade</label>
+                                <input class="tc-input" asp-for="ProfileForm.ObservabilityStack" placeholder="Ex.: Grafana, Prometheus" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Fornecedor</label>
+                                <input class="tc-input" asp-for="ProfileForm.Vendor" placeholder="Ex.: Interno / SAP / Microsoft" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Restrições conhecidas</label>
+                            <textarea class="tc-textarea" asp-for="ProfileForm.KnownConstraints" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Notas para investigação</label>
+                            <textarea class="tc-textarea" asp-for="ProfileForm.InvestigationNotes" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Notas de suporte</label>
+                            <textarea class="tc-textarea" asp-for="ProfileForm.SupportNotes" rows="2"></textarea>
+                        </div>
+                        <div class="tc-alert tc-alert-warning mb-3">
+                            <i class="bi bi-shield-exclamation me-2"></i>
+                            Não informe senhas, tokens, API Keys, connection strings ou outros segredos neste cadastro.
+                        </div>
+                        <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-save me-1"></i>Salvar Contexto Técnico</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="tc-card">
+                <div class="tc-card-header"><h2 class="tc-card-title mb-0">Tecnologias</h2></div>
+                <div class="tc-card-body">
+                    <div class="mb-2">
+                        @foreach (var t in ctx?.Technologies ?? Array.Empty<string>())
+                        {
+                            <span class="tc-badge tc-badge-verified me-1 mb-1">@t</span>
+                        }
+                        @if ((ctx?.Technologies.Count ?? 0) == 0)
+                        {
+                            <span class="text-muted tc-caption">Nenhuma tecnologia cadastrada.</span>
+                        }
+                    </div>
+                    <form method="post" asp-page-handler="SetTechnologies" asp-route-id="@Model.Product?.Id" class="d-flex gap-2">
+                        <input class="tc-input" asp-for="TechnologiesCsv" placeholder="Ex.: .NET, MySQL, Redis, Docker (separadas por vírgula)" />
+                        <button type="submit" class="tc-btn tc-btn-secondary text-nowrap"><i class="bi bi-tags me-1"></i>Atualizar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMPONENTES -->
+        <div class="tab-pane fade @(activeTab == "components" ? "show active" : "")" id="tab-components" role="tabpanel">
+            <div class="tc-card">
+                <div class="tc-card-header d-flex justify-content-between align-items-center">
+                    <h2 class="tc-card-title mb-0">Componentes do Sistema</h2>
+                    <a class="tc-btn tc-btn-secondary tc-btn-sm" asp-page="/Catalog/Components/Index"><i class="bi bi-box-arrow-up-right me-1"></i>Gerenciar Componentes</a>
+                </div>
+                <div class="tc-card-body p-0">
+                    @if ((ctx?.Components.Count ?? 0) == 0)
+                    {
+                        <div class="p-4 text-center text-muted">Nenhum componente cadastrado para este sistema.</div>
+                    }
+                    else
+                    {
+                        <table class="tc-table">
+                            <thead><tr><th>Nome</th><th>Tipo</th><th>Status</th></tr></thead>
+                            <tbody>
+                                @foreach (var c in ctx!.Components)
+                                {
+                                    <tr><td>@c.Name</td><td>@c.ComponentType</td><td>@c.Status</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- DEPENDÊNCIAS -->
+        <div class="tab-pane fade @(activeTab == "dependencies" ? "show active" : "")" id="tab-dependencies" role="tabpanel">
+            <div class="tc-card">
+                <div class="tc-card-header"><h2 class="tc-card-title mb-0">Dependências entre Componentes</h2></div>
+                <div class="tc-card-body p-0">
+                    @if ((ctx?.Dependencies.Count ?? 0) == 0)
+                    {
+                        <div class="p-4 text-center text-muted">Nenhuma dependência registrada para os componentes deste sistema.</div>
+                    }
+                    else
+                    {
+                        <table class="tc-table">
+                            <thead><tr><th>Origem</th><th></th><th>Destino</th><th>Tipo</th><th>Criticidade</th></tr></thead>
+                            <tbody>
+                                @foreach (var d in ctx!.Dependencies)
+                                {
+                                    <tr><td>@d.SourceComponentName</td><td><i class="bi bi-arrow-right"></i></td><td>@d.TargetComponentName</td><td>@d.DependencyType</td><td>@d.Criticality</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- INTEGRAÇÕES -->
+        <div class="tab-pane fade @(activeTab == "integrations" ? "show active" : "")" id="tab-integrations" role="tabpanel">
+            <div class="tc-card">
+                <div class="tc-card-header d-flex justify-content-between align-items-center">
+                    <h2 class="tc-card-title mb-0">Integrações deste Sistema</h2>
+                    <a class="tc-btn tc-btn-secondary tc-btn-sm" asp-page="/Integrations/Index"><i class="bi bi-box-arrow-up-right me-1"></i>Gerenciar Integrações</a>
+                </div>
+                <div class="tc-card-body p-0">
+                    @if ((ctx?.Integrations.Count ?? 0) == 0)
+                    {
+                        <div class="p-4 text-center text-muted">Nenhuma integração vinculada a este sistema. Vincule uma integração existente informando este produto ao editá-la.</div>
+                    }
+                    else
+                    {
+                        <table class="tc-table">
+                            <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th></tr></thead>
+                            <tbody>
+                                @foreach (var i in ctx!.Integrations)
+                                {
+                                    <tr><td class="font-monospace">@i.Code</td><td>@i.Name</td><td>@i.IntegrationType</td><td>@i.Status</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- FONTES -->
+        <div class="tab-pane fade @(activeTab == "sources" || activeTab == "research" ? "show active" : "")" id="tab-sources" role="tabpanel">
+            <div class="tc-card mb-4">
+                <div class="tc-card-header"><h2 class="tc-card-title mb-0">Fontes Técnicas</h2></div>
+                <div class="tc-card-body p-0">
+                    @if ((ctx?.TechnicalSources.Count ?? 0) == 0)
+                    {
+                        <div class="p-4 text-center text-muted">Nenhuma fonte técnica ativa cadastrada.</div>
+                    }
+                    else
+                    {
+                        <table class="tc-table">
+                            <thead><tr><th>Nome</th><th>Tipo</th><th>Domínio</th><th>Confiança</th><th class="text-end">Ações</th></tr></thead>
+                            <tbody>
+                                @foreach (var s in ctx!.TechnicalSources)
+                                {
+                                    <tr>
+                                        <td>@s.Name</td>
+                                        <td>@s.SourceType</td>
+                                        <td>@(string.IsNullOrEmpty(s.Url) ? "-" : s.Url)</td>
+                                        <td><span class="tc-badge tc-badge-verified">@s.TrustLevel</span></td>
+                                        <td class="text-end">
+                                            <form method="post" asp-page-handler="DisableSource" asp-route-id="@Model.Product?.Id" class="d-inline">
+                                                <input type="hidden" name="sourceId" value="@s.Id" />
+                                                <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm"><i class="bi bi-slash-circle me-1"></i>Desativar</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+                <div class="tc-card-body border-top">
+                    <form method="post" asp-page-handler="AddSource" asp-route-id="@Model.Product?.Id">
+                        <div class="row">
+                            <div class="col-md-3 mb-2"><input class="tc-input" asp-for="NewSource.Name" placeholder="Nome da fonte" required /></div>
+                            <div class="col-md-3 mb-2">
+                                <select class="tc-select" asp-for="NewSource.SourceType">
+                                    <option value="OfficialDocumentation">Documentação Oficial</option>
+                                    <option value="InternalDocumentation">Documentação Interna</option>
+                                    <option value="Wiki">Wiki</option>
+                                    <option value="Runbook">Runbook</option>
+                                    <option value="Swagger">Swagger</option>
+                                    <option value="Repository">Repositório</option>
+                                    <option value="VendorKnowledgeBase">KB do Fornecedor</option>
+                                    <option value="StatusPage">Status Page</option>
+                                    <option value="Other">Outro</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <select class="tc-select" asp-for="NewSource.TrustLevel">
+                                    <option value="Official">Official</option>
+                                    <option value="Internal">Internal</option>
+                                    <option value="Trusted">Trusted</option>
+                                    <option value="Reference">Reference</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2"><input class="tc-input" asp-for="NewSource.Url" placeholder="https://..." /></div>
+                        </div>
+                        <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-plus-lg me-1"></i>Adicionar Fonte</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="tc-card">
+                <div class="tc-card-header"><h2 class="tc-card-title mb-0">Pesquisa Externa</h2></div>
+                <div class="tc-card-body">
+                    <p class="tc-caption text-muted">Define quais fontes externas poderão ser consultadas futuramente pelo Copiloto durante investigações. A política é salva na aba Contexto Técnico (campo "Política de pesquisa externa" faz parte do formulário acima).</p>
+                    <p class="mb-2">Política atual: <span class="tc-badge tc-badge-verified">@(ctx?.ExternalResearchPolicy ?? "Disabled")</span></p>
+
+                    @if (string.Equals(ctx?.ExternalResearchPolicy, "AllowListed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <h6 class="mt-3">Domínios permitidos</h6>
+                        <ul class="list-group mb-3">
+                            @foreach (var d in Model.AllowedDomainList)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    @d.Domain
+                                    <form method="post" asp-page-handler="RemoveDomain" asp-route-id="@Model.Product?.Id" class="d-inline">
+                                        <input type="hidden" name="domainId" value="@d.Id" />
+                                        <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                        <form method="post" asp-page-handler="AddDomain" asp-route-id="@Model.Product?.Id" class="d-flex gap-2">
+                            <input class="tc-input" name="domain" placeholder="Ex.: learn.microsoft.com" required />
+                            <button type="submit" class="tc-btn tc-btn-secondary text-nowrap"><i class="bi bi-plus-lg me-1"></i>Adicionar domínio</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

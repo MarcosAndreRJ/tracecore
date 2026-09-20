@@ -15,17 +15,41 @@ public record LlmToolDefinition(
 
 /// <summary>
 /// Uma chamada de ferramenta solicitada pelo modelo (nome + argumentos JSON).
+/// Id é o identificador que o provedor atribui à chamada (ex.: Anthropic tool_use.id,
+/// OpenAI tool_calls[].id) — necessário para montar o turno de resultado (tool_result/
+/// role:"tool") de volta ao provedor em uma conversa multi-turno (Prompt 3).
 /// </summary>
 public record LlmToolCall(
     string Name,
-    string ArgumentsJson
+    string ArgumentsJson,
+    string? Id = null
+);
+
+/// <summary>
+/// Um turno já ocorrido na conversa, usado para orquestração multi-turno de
+/// tool-calling (Prompt 3 — Copiloto investigativo): o serviço chamador gera uma
+/// resposta, executa as tool calls solicitadas e volta a chamar GenerateAsync
+/// passando os turnos anteriores em PriorTurns, para que o modelo possa decidir a
+/// próxima ação com base nos resultados reais — sem isso, cada chamada seria uma
+/// conversa nova e o modelo não veria o resultado da ferramenta anterior.
+/// Role: "assistant" (o modelo pediu tool calls, com ou sem texto) ou "tool"
+/// (resultado de uma tool call específica, identificada por ToolCallId).
+/// </summary>
+public record LlmConversationTurn(
+    string Role,
+    string? Text = null,
+    IReadOnlyList<LlmToolCall>? ToolCalls = null,
+    string? ToolCallId = null,
+    string? ToolResultJson = null,
+    bool ToolResultIsError = false
 );
 
 public record LlmGenerationRequest(
     string SystemPrompt,
     string UserPrompt,
     int MaxTokens = 4096,
-    IReadOnlyList<LlmToolDefinition>? Tools = null
+    IReadOnlyList<LlmToolDefinition>? Tools = null,
+    IReadOnlyList<LlmConversationTurn>? PriorTurns = null
 );
 
 public record LlmGenerationResult(

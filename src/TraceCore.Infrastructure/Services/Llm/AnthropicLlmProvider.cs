@@ -81,6 +81,49 @@ public class AnthropicLlmProvider : ILlmProvider
             new { role = "user", content = request.UserPrompt }
         };
 
+        if (request.PriorTurns != null)
+        {
+            foreach (var turn in request.PriorTurns)
+            {
+                if (string.Equals(turn.Role, "assistant", StringComparison.OrdinalIgnoreCase))
+                {
+                    var blocks = new List<object>();
+                    if (!string.IsNullOrWhiteSpace(turn.Text))
+                    {
+                        blocks.Add(new { type = "text", text = turn.Text });
+                    }
+                    foreach (var call in turn.ToolCalls ?? Array.Empty<LlmToolCall>())
+                    {
+                        blocks.Add(new
+                        {
+                            type = "tool_use",
+                            id = call.Id,
+                            name = call.Name,
+                            input = JsonDocument.Parse(string.IsNullOrWhiteSpace(call.ArgumentsJson) ? "{}" : call.ArgumentsJson).RootElement
+                        });
+                    }
+                    messages.Add(new { role = "assistant", content = blocks });
+                }
+                else if (string.Equals(turn.Role, "tool", StringComparison.OrdinalIgnoreCase))
+                {
+                    messages.Add(new
+                    {
+                        role = "user",
+                        content = new object[]
+                        {
+                            new
+                            {
+                                type = "tool_result",
+                                tool_use_id = turn.ToolCallId,
+                                content = turn.ToolResultJson ?? string.Empty,
+                                is_error = turn.ToolResultIsError
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
         var payload = new
         {
             model = ModelName,
@@ -121,9 +164,11 @@ public class AnthropicLlmProvider : ILlmProvider
                              block.TryGetProperty("name", out var nameProp) &&
                              block.TryGetProperty("input", out var inputProp))
                     {
+                        string? toolUseId = block.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
                         toolCalls.Add(new LlmToolCall(
                             nameProp.GetString() ?? string.Empty,
-                            JsonSerializer.Serialize(inputProp)
+                            JsonSerializer.Serialize(inputProp),
+                            toolUseId
                         ));
                     }
                 }

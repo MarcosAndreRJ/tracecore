@@ -12,6 +12,7 @@ public record IntegrationDto(
     string Status,
     long? OwnerDepartmentId,
     string? OwnerDepartmentName,
+    long? ProductId,
     string? ContractNotes,
     string? HealthCheckUrl,
     string HealthCheckMethod,
@@ -47,7 +48,8 @@ public record CreateIntegrationCommand(
     string? HealthCheckUrl = null,
     string HealthCheckMethod = "Http",
     int HealthCheckTimeoutSeconds = 5,
-    int? HealthCheckExpectedStatusCode = 200
+    int? HealthCheckExpectedStatusCode = 200,
+    long? ProductId = null
 );
 
 public record RegisterIntegrationRunCommand(

@@ -224,4 +224,50 @@ public class CaseRelationsIntegrationTests : IClassFixture<TraceCoreTestApplicat
         var overview = await relationService.GetCaseRelationsOverviewAsync(c2.Id);
         overview.SimilarCases.Count(s => s.TargetCaseId == c1.Id).Should().Be(1, "não deve haver duplicatas de relação Similar");
     }
+
+    [Fact]
+    public async Task ComputeSimilarCases_FindsOlderRelevantCase_EvenOutsideTheMostRecent50()
+    {
+        // Regressão do bug (Prompt 3, §4/§80): GetPotentialSimilarCandidatesAsync
+        // recebia productId/errorCode mas ignorava os dois, trazendo apenas os 50
+        // casos mais recentes do sistema. Um caso realmente relevante (mesmo produto
+        // e erro), porém mais antigo, nunca era considerado como candidato.
+        using var scope = _factory.Services.CreateScope();
+        var caseService = scope.ServiceProvider.GetRequiredService<ICaseService>();
+        var relationService = scope.ServiceProvider.GetRequiredService<ICaseRelationService>();
+        var catalogRepo = scope.ServiceProvider.GetRequiredService<ICatalogRepository>();
+
+        const string sharedErrorCode = "ERR_LEGACY_RELEVANT";
+        long prodId = await catalogRepo.AddProductAsync(new Product("Sistema Legado Relevante", "SIS-LEG"));
+
+        // 1. Caso antigo e relevante — criado primeiro (mais antigo por OpenedAt)
+        var oldRelevantCase = await caseService.OpenCaseAsync(new OpenCaseCommand(
+            OriginalReport: "Falha antiga no mesmo componente com o mesmo código de erro",
+            ProductId: prodId,
+            ErrorCode: sharedErrorCode
+        ), currentUserId: 1L);
+
+        // 2. 60 casos recentes e totalmente não relacionados, para empurrar o caso
+        // relevante para fora dos "50 mais recentes" se a busca continuar por data.
+        for (int i = 0; i < 60; i++)
+        {
+            await caseService.OpenCaseAsync(new OpenCaseCommand(
+                OriginalReport: $"Caso recente sem relação nenhuma #{i}"
+            ), currentUserId: 1L);
+        }
+
+        // 3. Novo caso investigado, mesmo produto e mesmo erro do caso antigo
+        var newCase = await caseService.OpenCaseAsync(new OpenCaseCommand(
+            OriginalReport: "Nova ocorrência do mesmo problema neste sistema",
+            ProductId: prodId,
+            ErrorCode: sharedErrorCode
+        ), currentUserId: 1L);
+
+        // Act
+        var similarCases = await relationService.ComputeSimilarCasesAsync(newCase.Id);
+
+        // Assert: o caso antigo relevante deve ser encontrado apesar de não estar
+        // entre os casos mais recentes do sistema.
+        similarCases.Should().Contain(s => s.TargetCaseId == oldRelevantCase.Id);
+    }
 }

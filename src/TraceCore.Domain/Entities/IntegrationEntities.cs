@@ -24,6 +24,11 @@ public class Integration
 
     public long? OwnerDepartmentId { get; set; }
 
+    // Vínculo opcional com o sistema/aplicação que utiliza esta integração
+    // (Prompt 2 — Contexto Técnico). Integrações sem produto associado continuam
+    // existindo normalmente como registro global.
+    public long? ProductId { get; set; }
+
     // Documenta o isolamento e contrato próprio exigido pelo M10 para cada
     // conector, mesmo que o conector ainda não exista de fato.
     public string? ContractNotes { get; set; }
@@ -55,7 +60,8 @@ public class Integration
         string? healthCheckUrl = null,
         string healthCheckMethod = "Http",
         int healthCheckTimeoutSeconds = 5,
-        int? healthCheckExpectedStatusCode = 200)
+        int? healthCheckExpectedStatusCode = 200,
+        long? productId = null)
     {
         if (string.IsNullOrWhiteSpace(code))
             throw new ArgumentException("Código da integração é obrigatório.", nameof(code));
@@ -76,6 +82,7 @@ public class Integration
         HealthCheckMethod = string.IsNullOrWhiteSpace(healthCheckMethod) ? "Http" : healthCheckMethod.Trim();
         HealthCheckTimeoutSeconds = healthCheckTimeoutSeconds > 0 ? healthCheckTimeoutSeconds : 5;
         HealthCheckExpectedStatusCode = healthCheckExpectedStatusCode;
+        ProductId = productId;
         CreatedAt = DateTime.UtcNow;
     }
 }

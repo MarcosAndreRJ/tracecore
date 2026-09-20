@@ -11,6 +11,7 @@ using TraceCore.Infrastructure.Persistence;
 using TraceCore.Infrastructure.Persistence.InMemory;
 using TraceCore.Infrastructure.Persistence.Repositories;
 using TraceCore.Infrastructure.Services;
+using TraceCore.Infrastructure.Services.ExternalResearch;
 using TraceCore.Infrastructure.Services.Llm;
 
 namespace TraceCore.Infrastructure;
@@ -25,6 +26,21 @@ public static class DependencyInjection
         // HttpClient compartilhado pelos provedores de IA (sem headers globais — cada
         // chamada define a própria autenticação; Fase 13 / DEV-AI-003).
         services.AddHttpClient();
+
+        // Prompt 4 (Copiloto — pesquisa externa controlada): client nomeado e isolado,
+        // com timeout curto (§31) e redirecionamento automático DESLIGADO (§58 — SSRF:
+        // preferimos falhar a seguir silenciosamente um redirect para um alvo não
+        // validado; a mesma validação de URL nunca é herdada de IntegrationHealthCheckService,
+        // que não tem proteção equivalente).
+        services.AddHttpClient("ExternalResearch", client =>
+        {
+            client.Timeout = System.TimeSpan.FromSeconds(10);
+        }).ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.HttpClientHandler
+        {
+            AllowAutoRedirect = false
+        });
+        services.AddSingleton<IExternalUrlSafetyValidator, ExternalUrlSafetyValidator>();
+        services.AddScoped<IExternalResearchProviderFactory, ExternalResearchProviderFactory>();
 
         // Fase 15 (M10): Serviço de verificação automática de saúde de integrações
         services.AddScoped<IIntegrationHealthCheckService, IntegrationHealthCheckService>();
@@ -88,6 +104,7 @@ public static class DependencyInjection
             services.AddScoped<IKnowledgeRepository, MySqlKnowledgeRepository>();
             services.AddScoped<ISearchRepository, MySqlSearchRepository>();
             services.AddScoped<ICaseRelationRepository, MySqlCaseRelationRepository>();
+            services.AddScoped<IProductTechnicalContextRepository, MySqlProductTechnicalContextRepository>();
             services.AddScoped<IDiagnosticFlowRepository, MySqlDiagnosticFlowRepository>();
             services.AddScoped<IIntegrationRepository, MySqlIntegrationRepository>();
             services.AddScoped<IManagementAnalyticsRepository, MySqlManagementAnalyticsRepository>();
@@ -128,6 +145,7 @@ public static class DependencyInjection
             services.AddScoped<IKnowledgeRepository, InMemoryKnowledgeRepository>();
             services.AddScoped<ISearchRepository, InMemorySearchRepository>();
             services.AddScoped<ICaseRelationRepository, InMemoryCaseRelationRepository>();
+            services.AddScoped<IProductTechnicalContextRepository, InMemoryProductTechnicalContextRepository>();
             services.AddScoped<IDiagnosticFlowRepository, InMemoryDiagnosticFlowRepository>();
             services.AddScoped<IManagementAnalyticsRepository, InMemoryManagementAnalyticsRepository>();
             services.AddScoped<IIntegrationRepository, InMemoryIntegrationRepository>();

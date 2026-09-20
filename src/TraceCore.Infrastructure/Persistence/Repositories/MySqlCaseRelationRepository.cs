@@ -105,14 +105,23 @@ public class MySqlCaseRelationRepository : ICaseRelationRepository
         });
     }
 
-    public async Task<IReadOnlyList<Case>> GetPotentialSimilarCandidatesAsync(long excludeCaseId, long? productId, string? errorCode, int limit = 50, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Case>> GetPotentialSimilarCandidatesAsync(long excludeCaseId, long? clientId, long? productId, string? errorCode, int limit = 50, CancellationToken ct = default)
     {
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
 
+        // Bloco (Prompt 3, correção do bug de candidatos): antes, esta query ignorava
+        // clientId/productId/errorCode e sempre trazia apenas os N casos mais recentes
+        // do sistema inteiro — com centenas/milhares de casos, um caso realmente
+        // relevante (mesmo cliente/produto/erro) mas mais antigo nunca era considerado.
+        // Agora: quando algum filtro é informado, só entram candidatos que casam com
+        // pelo menos um deles (pré-filtro real, não só ordenação), priorizando
+        // cliente+produto na ordenação. Sem nenhum filtro, mantém o comportamento
+        // anterior (N mais recentes) para não quebrar chamadas existentes.
         const string sql = @"
-            SELECT 
+            SELECT
                 c.id AS Id,
                 c.case_number AS CaseNumber,
+                c.client_id AS ClientId,
                 c.original_report AS OriginalReport,
                 c.normalized_summary AS NormalizedSummary,
                 c.status AS Status,
@@ -124,10 +133,23 @@ public class MySqlCaseRelationRepository : ICaseRelationRepository
                 c.resolved_at AS ResolvedAt
             FROM cases c
             WHERE c.id != @ExcludeCaseId
-            ORDER BY c.opened_at DESC
+              AND (
+                    (@ClientId IS NULL AND @ProductId IS NULL AND @ErrorCode IS NULL)
+                 OR (@ClientId IS NOT NULL AND c.client_id = @ClientId)
+                 OR (@ProductId IS NOT NULL AND c.product_id = @ProductId)
+                 OR (@ErrorCode IS NOT NULL AND c.error_code = @ErrorCode)
+              )
+            ORDER BY
+                CASE WHEN @ClientId IS NOT NULL AND c.client_id = @ClientId
+                          AND @ProductId IS NOT NULL AND c.product_id = @ProductId THEN 0
+                     WHEN @ProductId IS NOT NULL AND c.product_id = @ProductId THEN 1
+                     WHEN @ErrorCode IS NOT NULL AND c.error_code = @ErrorCode THEN 1
+                     ELSE 2
+                END,
+                c.opened_at DESC
             LIMIT @Limit;";
 
-        var cases = (await conn.QueryAsync<Case>(sql, new { ExcludeCaseId = excludeCaseId, Limit = limit })).ToList();
+        var cases = (await conn.QueryAsync<Case>(sql, new { ExcludeCaseId = excludeCaseId, ClientId = clientId, ProductId = productId, ErrorCode = errorCode, Limit = limit })).ToList();
 
         if (cases.Count > 0)
         {

@@ -20,8 +20,8 @@ public class MySqlAiInteractionRepository : IAiInteractionRepository
     public async Task<long> AddInteractionAsync(AiInteraction interaction, CancellationToken ct = default)
     {
         const string sql = @"
-            INSERT INTO ai_interactions (user_id, query_text, response_text, provider_code, model_name, tokens_used, latency_ms, created_at)
-            VALUES (@UserId, @QueryText, @ResponseText, @ProviderCode, @ModelName, @TokensUsed, @LatencyMs, @CreatedAt);
+            INSERT INTO ai_interactions (user_id, query_text, response_text, provider_code, model_name, tokens_used, latency_ms, metadata_json, created_at)
+            VALUES (@UserId, @QueryText, @ResponseText, @ProviderCode, @ModelName, @TokensUsed, @LatencyMs, @MetadataJson, @CreatedAt);
             SELECT LAST_INSERT_ID();";
 
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
@@ -31,8 +31,10 @@ public class MySqlAiInteractionRepository : IAiInteractionRepository
     public async Task AddSourcesAsync(IEnumerable<AiSource> sources, CancellationToken ct = default)
     {
         const string sql = @"
-            INSERT INTO ai_sources (ai_interaction_id, searchable_content_entry_id, rank, similarity_score, created_at)
-            VALUES (@AiInteractionId, @SearchableContentEntryId, @Rank, @SimilarityScore, @CreatedAt);";
+            INSERT INTO ai_sources
+                (ai_interaction_id, searchable_content_entry_id, similarity_score, source_type, source_ref_id, source_url, source_title, match_score, rank, created_at)
+            VALUES
+                (@AiInteractionId, @SearchableContentEntryId, @SimilarityScore, @SourceType, @SourceRefId, @SourceUrl, @SourceTitle, @MatchScore, @Rank, @CreatedAt);";
 
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
         await conn.ExecuteAsync(sql, sources);
@@ -54,7 +56,7 @@ public class MySqlAiInteractionRepository : IAiInteractionRepository
         const string sql = @"
             SELECT id, user_id AS UserId, query_text AS QueryText, response_text AS ResponseText,
                    provider_code AS ProviderCode, model_name AS ModelName, tokens_used AS TokensUsed,
-                   latency_ms AS LatencyMs, created_at AS CreatedAt
+                   latency_ms AS LatencyMs, metadata_json AS MetadataJson, created_at AS CreatedAt
             FROM ai_interactions
             WHERE id = @Id;";
 
@@ -66,7 +68,9 @@ public class MySqlAiInteractionRepository : IAiInteractionRepository
     {
         const string sql = @"
             SELECT id, ai_interaction_id AS AiInteractionId, searchable_content_entry_id AS SearchableContentEntryId,
-                   rank AS Rank, similarity_score AS SimilarityScore, created_at AS CreatedAt
+                   similarity_score AS SimilarityScore, source_type AS SourceType, source_ref_id AS SourceRefId,
+                   source_url AS SourceUrl, source_title AS SourceTitle, match_score AS MatchScore,
+                   rank AS Rank, created_at AS CreatedAt
             FROM ai_sources
             WHERE ai_interaction_id = @AiInteractionId
             ORDER BY rank;";
@@ -81,7 +85,7 @@ public class MySqlAiInteractionRepository : IAiInteractionRepository
         const string sql = @"
             SELECT id, user_id AS UserId, query_text AS QueryText, response_text AS ResponseText,
                    provider_code AS ProviderCode, model_name AS ModelName, tokens_used AS TokensUsed,
-                   latency_ms AS LatencyMs, created_at AS CreatedAt
+                   latency_ms AS LatencyMs, metadata_json AS MetadataJson, created_at AS CreatedAt
             FROM ai_interactions
             WHERE user_id = @UserId
             ORDER BY created_at DESC

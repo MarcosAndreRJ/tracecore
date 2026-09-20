@@ -86,85 +86,89 @@
 
             <div class="mb-3">@Html.Raw(SimpleMarkdown(answer.Answer))</div>
 
-            @if (answer.UsedContext && answer.Sources.Count > 0)
+            @if (answer.RelatedCases.Count > 0)
             {
                 <hr />
-                <h6 class="mb-2">
-                    <i class="bi bi-link-45deg me-1"></i>
-                    Fontes citadas (BR-084)
-                </h6>
-                <div class="d-flex flex-wrap gap-2">
-                    @foreach (var source in answer.Sources)
+                <h6 class="mb-2"><i class="bi bi-clock-history me-1"></i>HISTÓRICO INTERNO</h6>
+                <div class="d-flex flex-column gap-2 mb-2">
+                    @foreach (var c in answer.RelatedCases)
                     {
-                        <a class="text-decoration-none" href="@source.Url" title="Abrir origem: @source.Title">
-                            @await Html.PartialAsync("Partials/_SourceReferenceChip", (SourceLabel(source.SourceType), source.Title))
+                        <a class="text-decoration-none text-dark" asp-page="/Cases/Details" asp-route-id="@c.CaseId">
+                            <div class="p-2 bg-light rounded border">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-semibold font-monospace">@c.CaseDisplay</span>
+                                    <span class="tc-badge tc-badge-sm">@c.Status</span>
+                                </div>
+                                <div class="small text-muted">@c.ClientName • @c.ProductName</div>
+                                @if (!string.IsNullOrWhiteSpace(c.ResolutionSummary))
+                                {
+                                    <div class="small mt-1"><strong>Solução aplicada:</strong> @c.ResolutionSummary</div>
+                                }
+                                @if (c.MatchedFactors.Count > 0)
+                                {
+                                    <div class="small text-muted mt-1">Relevante por: @string.Join(", ", c.MatchedFactors)</div>
+                                }
+                            </div>
                         </a>
                     }
                 </div>
-                <div class="mt-3 text-muted small">
-                    Provedor: <strong>@answer.ProviderCode</strong>
-                    @if (!string.IsNullOrEmpty(answer.ModelName))
-                    {
-                        <text>• Modelo: <strong>@answer.ModelName</strong></text>
-                    }
-                    • Latência: <strong>@answer.LatencyMs ms</strong>
-                    @if (answer.TokensUsed.HasValue)
-                    {
-                        <text>• Tokens: <strong>@answer.TokensUsed</strong></text>
-                    }
-                </div>
             }
 
-            @if (answer.ToolResults != null && answer.ToolResults.Count > 0)
+            @if (answer.RelatedKnowledge.Count > 0)
             {
                 <hr />
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0">
-                            <i class="bi bi-cpu me-1 text-primary"></i>
-                            Dados Determinísticos do TraceCore (Princípio §31)
-                        </h6>
-                        <span class="tc-badge tc-badge-sm tc-badge-verified">
-                            <i class="bi bi-shield-check me-1"></i>Fonte Primária
-                        </span>
-                    </div>
-                    <p class="tc-caption text-muted mb-2">
-                        Estes números foram calculados diretamente pelo motor analítico do TraceCore sobre a base histórica.
-                        A síntese da IA é restrita a narrar estes fatos, sem inventar percentuais ou indicadores.
-                    </p>
-                    @foreach (var tr in answer.ToolResults)
+                <h6 class="mb-2"><i class="bi bi-patch-check me-1"></i>SOLUÇÃO VALIDADA</h6>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    @foreach (var k in answer.RelatedKnowledge)
                     {
-                        <div class="p-3 bg-light rounded border mb-2">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="fw-semibold font-monospace small">@tr.ToolName</span>
-                                @if (tr.Success)
-                                {
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Executado com Sucesso</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Falha</span>
-                                }
-                            </div>
-                            @if (!string.IsNullOrWhiteSpace(tr.ResultJson))
-                            {
-                                <pre class="mb-0 p-2 bg-white rounded border small text-dark font-monospace" style="max-height: 200px; overflow-y: auto;">@tr.ResultJson</pre>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(tr.ErrorMessage))
-                            {
-                                <div class="text-danger small mt-1">@tr.ErrorMessage</div>
-                            }
-                        </div>
+                        <a class="text-decoration-none" asp-page="/Knowledge/Details" asp-route-id="@k.KnowledgeItemId">
+                            @await Html.PartialAsync("Partials/_SourceReferenceChip", ("Conteúdo validado", $"{k.KnowledgeCode} — {k.Title}"))
+                        </a>
                     }
                 </div>
             }
 
-            @if (answer.Notice != null)
+            @if (answer.ExternalSources.Count > 0)
             {
-                <div class="tc-alert tc-alert-warning mt-3 mb-0" role="alert">
-                    <i class="bi bi-exclamation-circle me-2"></i>@answer.Notice
+                <hr />
+                <h6 class="mb-2"><i class="bi bi-globe2 me-1"></i>DOCUMENTAÇÃO EXTERNA</h6>
+                <div class="d-flex flex-column gap-2 mb-2">
+                    @foreach (var ext in answer.ExternalSources)
+                    {
+                        <a class="text-decoration-none text-dark" href="@ext.Url" target="_blank" rel="noopener noreferrer" title="Abrir fonte externa">
+                            <div class="p-2 bg-light rounded border">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-semibold">@ext.Title</span>
+                                    <span class="tc-badge tc-badge-sm">@ext.TrustLevel</span>
+                                </div>
+                                <div class="small text-muted">@ext.Domain</div>
+                            </div>
+                        </a>
+                    }
                 </div>
             }
+
+            @if (answer.UsedTechnicalContext)
+            {
+                <div class="tc-caption text-muted mb-2"><i class="bi bi-diagram-3 me-1"></i>CONTEXTO TÉCNICO da aplicação foi consultado para esta resposta.</div>
+            }
+
+            @foreach (var warning in answer.Warnings)
+            {
+                <div class="tc-alert tc-alert-warning mt-2 mb-0" role="alert">
+                    <i class="bi bi-exclamation-circle me-2"></i>@warning
+                </div>
+            }
+
+            <div class="mt-3 text-muted small">
+                Provedor: <strong>@answer.ProviderCode</strong>
+                @if (!string.IsNullOrEmpty(answer.ModelName))
+                {
+                    <text>• Modelo: <strong>@answer.ModelName</strong></text>
+                }
+                • Latência: <strong>@answer.LatencyMs ms</strong>
+                • Ferramentas usadas: <strong>@answer.ToolCallCount</strong>
+            </div>
 
             @if (answer.InteractionId.HasValue)
             {
@@ -204,14 +208,6 @@
 }
 
 @functions {
-    private static string SourceLabel(string sourceType) => sourceType.ToLowerInvariant() switch
-    {
-        "validatedknowledge" => "Conteúdo validado",
-        "historicalcase" => "Caso histórico",
-        "document" => "Documentação",
-        _ => sourceType
-    };
-
     private static string SimpleMarkdown(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return string.Empty;

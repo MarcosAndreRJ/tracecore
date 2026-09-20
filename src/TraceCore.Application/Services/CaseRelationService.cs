@@ -39,6 +39,7 @@ public class CaseRelationService : ICaseRelationService
 
         var candidates = await _caseRelationRepository.GetPotentialSimilarCandidatesAsync(
             excludeCaseId: caseId,
+            clientId: sourceCase.ClientId,
             productId: sourceCase.ProductId,
             errorCode: sourceCase.ErrorCode,
             limit: 50,
@@ -53,6 +54,14 @@ public class CaseRelationService : ICaseRelationService
         {
             double score = 0;
             var factors = new List<string>();
+
+            // 0. Mesmo cliente (+15) — Camada 1 (Prompt 3): reforça candidatos do
+            // mesmo cliente quando combinados com outros fatores técnicos.
+            if (sourceCase.ClientId.HasValue && candidate.ClientId.HasValue && sourceCase.ClientId.Value == candidate.ClientId.Value)
+            {
+                score += 15;
+                factors.Add("Mesmo cliente");
+            }
 
             // 1. Mesmo produto (+30)
             if (sourceCase.ProductId.HasValue && candidate.ProductId.HasValue && sourceCase.ProductId.Value == candidate.ProductId.Value)

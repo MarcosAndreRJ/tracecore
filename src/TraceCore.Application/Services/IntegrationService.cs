@@ -77,7 +77,8 @@ public class IntegrationService : IIntegrationService
             healthCheckUrl: command.HealthCheckUrl,
             healthCheckMethod: command.HealthCheckMethod,
             healthCheckTimeoutSeconds: command.HealthCheckTimeoutSeconds,
-            healthCheckExpectedStatusCode: command.HealthCheckExpectedStatusCode);
+            healthCheckExpectedStatusCode: command.HealthCheckExpectedStatusCode,
+            productId: command.ProductId);
 
         return await _integrationRepository.AddIntegrationAsync(integration, ct);
     }
@@ -160,6 +161,7 @@ public class IntegrationService : IIntegrationService
             integration.Status,
             integration.OwnerDepartmentId,
             integration.OwnerDepartmentName,
+            integration.ProductId,
             integration.ContractNotes,
             integration.HealthCheckUrl,
             integration.HealthCheckMethod,

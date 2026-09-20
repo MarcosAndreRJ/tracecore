@@ -16,6 +16,13 @@ public class AiInteraction
     public string? ModelName { get; set; }
     public long? TokensUsed { get; set; }
     public long? LatencyMs { get; set; }
+
+    // Prompt 3: estratégias de recuperação usadas nesta interação (structured search,
+    // busca textual, similaridade de casos, contexto técnico, semântica/RAG, pesquisa
+    // externa — Prompt 4) e contadores de observabilidade (tool calls, candidatos
+    // examinados). Uma única coluna JSON em vez de várias colunas triviais.
+    public string? MetadataJson { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public AiInteraction() { }
@@ -27,7 +34,8 @@ public class AiInteraction
         string? providerCode,
         string? modelName,
         long? tokensUsed,
-        long? latencyMs)
+        long? latencyMs,
+        string? metadataJson = null)
     {
         UserId = userId;
         QueryText = queryText ?? string.Empty;
@@ -36,6 +44,7 @@ public class AiInteraction
         ModelName = modelName;
         TokensUsed = tokensUsed;
         LatencyMs = latencyMs;
+        MetadataJson = metadataJson;
         CreatedAt = DateTime.UtcNow;
     }
 }

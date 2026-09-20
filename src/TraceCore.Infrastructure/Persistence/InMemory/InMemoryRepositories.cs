@@ -63,6 +63,10 @@ public class InMemoryDataStore
     public ConcurrentDictionary<long, AiInteraction> AiInteractions { get; } = new();
     public ConcurrentDictionary<long, AiSource> AiSources { get; } = new();
     public ConcurrentDictionary<long, AiInteractionFeedback> AiInteractionFeedbacks { get; } = new();
+    public ConcurrentDictionary<long, ProductTechnicalProfile> ProductTechnicalProfiles { get; } = new();
+    public ConcurrentDictionary<long, ProductTechnicalSource> ProductTechnicalSources { get; } = new();
+    public ConcurrentDictionary<long, ProductExternalResearchDomain> ProductExternalResearchDomains { get; } = new();
+    public List<(long ProductId, long TechnologyId)> ProductTechnologies { get; } = new();
 
     public List<UserDepartment> UserDepartments { get; } = new();
     public List<UserRole> UserRoles { get; } = new();
@@ -142,6 +146,9 @@ public class InMemoryDataStore
     public long NextKnowledgeStepId() => Interlocked.Increment(ref _knowledgeStepIdSeq);
     public long NextKnowledgeSymptomId() => Interlocked.Increment(ref _knowledgeSymptomIdSeq);
     public long NextTechnologyId() => Interlocked.Increment(ref _technologyIdSeq);
+    public long NextProductTechnicalProfileId() => Interlocked.Increment(ref _productTechnicalProfileIdSeq);
+    public long NextProductTechnicalSourceId() => Interlocked.Increment(ref _productTechnicalSourceIdSeq);
+    public long NextProductExternalResearchDomainId() => Interlocked.Increment(ref _productExternalResearchDomainIdSeq);
     public long NextTagId() => Interlocked.Increment(ref _tagIdSeq);
     public long NextKnowledgeUsageId() => Interlocked.Increment(ref _knowledgeUsageIdSeq);
     public long NextSearchSessionId() => Interlocked.Increment(ref _searchSessionIdSeq);
@@ -158,6 +165,9 @@ public class InMemoryDataStore
     private long _knowledgeStepIdSeq = 0;
     private long _knowledgeSymptomIdSeq = 0;
     private long _technologyIdSeq = 0;
+    private long _productTechnicalProfileIdSeq = 0;
+    private long _productTechnicalSourceIdSeq = 0;
+    private long _productExternalResearchDomainIdSeq = 0;
     private long _tagIdSeq = 0;
     private long _knowledgeUsageIdSeq = 0;
     private long _searchSessionIdSeq = 0;
@@ -230,6 +240,10 @@ public class InMemoryDataStore
         KnowledgeSymptoms.Clear();
         Technologies.Clear();
         Tags.Clear();
+        ProductTechnicalProfiles.Clear();
+        ProductTechnicalSources.Clear();
+        ProductExternalResearchDomains.Clear();
+        lock (ProductTechnologies) ProductTechnologies.Clear();
         lock (KnowledgeTechnologies) KnowledgeTechnologies.Clear();
         lock (KnowledgeTags) KnowledgeTags.Clear();
         KnowledgeUsages.Clear();
@@ -276,6 +290,9 @@ public class InMemoryDataStore
         _knowledgeStepIdSeq = 0;
         _knowledgeSymptomIdSeq = 0;
         _technologyIdSeq = 0;
+        _productTechnicalProfileIdSeq = 0;
+        _productTechnicalSourceIdSeq = 0;
+        _productExternalResearchDomainIdSeq = 0;
         _tagIdSeq = 0;
         _knowledgeUsageIdSeq = 0;
         _componentDependencyIdSeq = 0;
@@ -1358,6 +1375,21 @@ public class InMemoryIntegrationRepository : IIntegrationRepository
         return Task.FromResult(integration);
     }
 
+    public Task<IReadOnlyList<Integration>> GetIntegrationsByProductIdAsync(long productId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Integration> list = _store.Integrations.Values
+            .Where(i => i.ProductId == productId)
+            .Select(i =>
+            {
+                _store.Departments.TryGetValue(i.OwnerDepartmentId ?? 0, out var d);
+                i.OwnerDepartmentName = d?.Name;
+                return i;
+            })
+            .OrderBy(i => i.Name)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
     public Task<long> AddIntegrationAsync(Integration integration, CancellationToken ct = default)
     {
         integration.Id = _store.NextIntegrationId();
@@ -1386,6 +1418,139 @@ public class InMemoryIntegrationRepository : IIntegrationRepository
         run.Id = _store.NextIntegrationRunId();
         _store.IntegrationRuns[run.Id] = run;
         return Task.FromResult(run.Id);
+    }
+}
+
+public class InMemoryProductTechnicalContextRepository : IProductTechnicalContextRepository
+{
+    private readonly InMemoryDataStore _store;
+
+    public InMemoryProductTechnicalContextRepository(InMemoryDataStore store)
+    {
+        _store = store;
+    }
+
+    public Task<ProductTechnicalProfile?> GetProfileByProductIdAsync(long productId, CancellationToken ct = default)
+    {
+        var profile = _store.ProductTechnicalProfiles.Values.FirstOrDefault(p => p.ProductId == productId);
+        return Task.FromResult(profile);
+    }
+
+    public Task UpsertProfileAsync(ProductTechnicalProfile profile, CancellationToken ct = default)
+    {
+        var existing = _store.ProductTechnicalProfiles.Values.FirstOrDefault(p => p.ProductId == profile.ProductId);
+        if (existing == null)
+        {
+            profile.Id = _store.NextProductTechnicalProfileId();
+            _store.ProductTechnicalProfiles[profile.Id] = profile;
+        }
+        else
+        {
+            profile.Id = existing.Id;
+            profile.CreatedAt = existing.CreatedAt;
+            profile.CreatedBy = existing.CreatedBy;
+            profile.UpdatedAt = DateTime.UtcNow;
+            _store.ProductTechnicalProfiles[existing.Id] = profile;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<string>> GetTechnologyNamesByProductIdAsync(long productId, CancellationToken ct = default)
+    {
+        lock (_store.ProductTechnologies)
+        {
+            var techIds = _store.ProductTechnologies.Where(pt => pt.ProductId == productId).Select(pt => pt.TechnologyId).ToHashSet();
+            IReadOnlyList<string> list = _store.Technologies.Values
+                .Where(t => techIds.Contains(t.Id))
+                .Select(t => t.Name)
+                .OrderBy(n => n)
+                .ToList();
+            return Task.FromResult(list);
+        }
+    }
+
+    public Task SetProductTechnologiesAsync(long productId, IEnumerable<string> technologyNames, CancellationToken ct = default)
+    {
+        lock (_store.ProductTechnologies)
+        {
+            _store.ProductTechnologies.RemoveAll(pt => pt.ProductId == productId);
+
+            foreach (var name in technologyNames.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var tech = _store.Technologies.Values.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (tech == null)
+                {
+                    tech = new Technology(name) { Id = _store.NextTechnologyId() };
+                    _store.Technologies[tech.Id] = tech;
+                }
+                _store.ProductTechnologies.Add((productId, tech.Id));
+            }
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<ProductTechnicalSource>> GetSourcesByProductIdAsync(long productId, bool includeInactive = false, CancellationToken ct = default)
+    {
+        var query = _store.ProductTechnicalSources.Values.Where(s => s.ProductId == productId);
+        if (!includeInactive)
+            query = query.Where(s => s.IsActive);
+
+        IReadOnlyList<ProductTechnicalSource> list = query.OrderBy(s => s.Name).ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<ProductTechnicalSource?> GetSourceByIdAsync(long sourceId, CancellationToken ct = default)
+    {
+        _store.ProductTechnicalSources.TryGetValue(sourceId, out var source);
+        return Task.FromResult(source);
+    }
+
+    public Task<long> AddSourceAsync(ProductTechnicalSource source, CancellationToken ct = default)
+    {
+        source.Id = _store.NextProductTechnicalSourceId();
+        _store.ProductTechnicalSources[source.Id] = source;
+        return Task.FromResult(source.Id);
+    }
+
+    public Task UpdateSourceAsync(ProductTechnicalSource source, CancellationToken ct = default)
+    {
+        source.UpdatedAt = DateTime.UtcNow;
+        _store.ProductTechnicalSources[source.Id] = source;
+        return Task.CompletedTask;
+    }
+
+    public Task SetSourceActiveAsync(long sourceId, bool isActive, long? updatedBy, CancellationToken ct = default)
+    {
+        if (_store.ProductTechnicalSources.TryGetValue(sourceId, out var source))
+        {
+            source.IsActive = isActive;
+            source.UpdatedAt = DateTime.UtcNow;
+            source.UpdatedBy = updatedBy;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<ProductExternalResearchDomain>> GetAllowedDomainsByProductIdAsync(long productId, bool includeInactive = false, CancellationToken ct = default)
+    {
+        var query = _store.ProductExternalResearchDomains.Values.Where(d => d.ProductId == productId);
+        if (!includeInactive)
+            query = query.Where(d => d.IsActive);
+
+        IReadOnlyList<ProductExternalResearchDomain> list = query.OrderBy(d => d.Domain).ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<long> AddAllowedDomainAsync(ProductExternalResearchDomain domain, CancellationToken ct = default)
+    {
+        domain.Id = _store.NextProductExternalResearchDomainId();
+        _store.ProductExternalResearchDomains[domain.Id] = domain;
+        return Task.FromResult(domain.Id);
+    }
+
+    public Task<bool> RemoveAllowedDomainAsync(long domainId, CancellationToken ct = default)
+    {
+        var removed = _store.ProductExternalResearchDomains.TryRemove(domainId, out _);
+        return Task.FromResult(removed);
     }
 }
 
@@ -2550,15 +2715,36 @@ public class InMemoryCaseRelationRepository : ICaseRelationRepository
         }
     }
 
-    public Task<IReadOnlyList<Case>> GetPotentialSimilarCandidatesAsync(long excludeCaseId, long? productId, string? errorCode, int limit = 50, CancellationToken ct = default)
+    public Task<IReadOnlyList<Case>> GetPotentialSimilarCandidatesAsync(long excludeCaseId, long? clientId, long? productId, string? errorCode, int limit = 50, CancellationToken ct = default)
     {
-        var cases = _store.Cases.Values
-            .Where(c => c.Id != excludeCaseId)
-            .OrderByDescending(c => c.OpenedAt)
+        bool hasFilters = clientId.HasValue || productId.HasValue || !string.IsNullOrWhiteSpace(errorCode);
+
+        var query = _store.Cases.Values.Where(c => c.Id != excludeCaseId);
+
+        if (hasFilters)
+        {
+            query = query.Where(c =>
+                (clientId.HasValue && c.ClientId == clientId.Value) ||
+                (productId.HasValue && c.ProductId == productId.Value) ||
+                (!string.IsNullOrWhiteSpace(errorCode) && string.Equals(c.ErrorCode, errorCode, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        var cases = query
+            .OrderBy(c => ScoreForOrdering(c, clientId, productId, errorCode))
+            .ThenByDescending(c => c.OpenedAt)
             .Take(limit)
             .ToList();
 
         return Task.FromResult<IReadOnlyList<Case>>(cases);
+
+        static int ScoreForOrdering(Case c, long? clientId, long? productId, string? errorCode)
+        {
+            bool sameClientAndProduct = clientId.HasValue && c.ClientId == clientId.Value && productId.HasValue && c.ProductId == productId.Value;
+            if (sameClientAndProduct) return 0;
+            bool sameProductOrError = (productId.HasValue && c.ProductId == productId.Value) ||
+                                       (!string.IsNullOrWhiteSpace(errorCode) && string.Equals(c.ErrorCode, errorCode, StringComparison.OrdinalIgnoreCase));
+            return sameProductOrError ? 1 : 2;
+        }
     }
 
     public Task<IReadOnlyList<DiagnosticStep>> GetSuccessfulDiagnosticStepsForCasesAsync(IEnumerable<long> caseIds, CancellationToken ct = default)

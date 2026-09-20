@@ -13,10 +13,12 @@ namespace TraceCore.Web.Pages.Copilot;
 public class IndexModel : PageModel
 {
     private readonly IRagService _ragService;
+    private readonly IInvestigationCopilotService _investigationCopilot;
 
-    public IndexModel(IRagService ragService)
+    public IndexModel(IRagService ragService, IInvestigationCopilotService investigationCopilot)
     {
         _ragService = ragService;
+        _investigationCopilot = investigationCopilot;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -34,7 +36,7 @@ public class IndexModel : PageModel
     [BindProperty]
     public long DraftInteractionId { get; set; }
 
-    public RagAnswerDto? LastAnswer { get; private set; }
+    public InvestigationCopilotAnswerDto? LastAnswer { get; private set; }
 
     [TempData]
     public string? SuccessMessage { get; set; }
@@ -60,7 +62,7 @@ public class IndexModel : PageModel
 
         try
         {
-            LastAnswer = await _ragService.AskAsync(Question, GetCurrentUserId());
+            LastAnswer = await _investigationCopilot.AskAsync(Question, GetCurrentUserId());
         }
         catch (Exception ex)
         {
