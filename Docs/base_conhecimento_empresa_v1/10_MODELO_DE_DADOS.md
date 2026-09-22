@@ -9,53 +9,64 @@
 - dados flexíveis podem usar JSON, mas dimensões importantes para busca/analytics devem ser normalizadas.
 - chaves estrangeiras e índices devem refletir integridade e consultas reais.
 - não usar JSON para esconder um modelo que deveria ser relacional.
+- Fonte da verdade do schema: **29 migrations FluentMigrator** (`src/TraceCore.Infrastructure/Migrations`, M20260917_01 a M20260922_29). Este documento é o mapa conceitual; migrations são o DDL canônico.
 
 ## 2. Grupos de tabelas
 
 ### Identidade
 - `users`
+- `user_sessions`
+- `password_reset_tokens`
 - `roles`
 - `permissions`
 - `user_roles`
 - `role_permissions`
-- `user_sessions`
 
 ### Organização (Fase 7.A: Departamento é conceito oficial único; `teams`/`user_teams` dropados)
 - `departments`
 - `user_departments`
 
 ### Catálogo
-- `clients`
+- `clients` (com `external_crm_id`, `notes`)
 - `client_units`
 - `client_technical_contexts`
 - `products` (com `is_external`)
-- `product_modules`
 - `product_versions`
+- `product_technical_profiles` (com `system_type`)
+- `product_technologies`
+- `product_technical_sources`
+- `product_external_research_domains`
 - `environments`
 - `components`
+- `component_types`
 - `component_dependencies`
 - `component_owners`
 - `technologies`
 - `component_technologies`
-- `integrations`
+- `integrations` (com `integration_type`, `responsibility`, `hosting_location`, `direction`)
+- `integration_types`
+- `integration_runs` (com `run_context`, `case_id`, `triggered_by`)
 
 ### Casos
-- `cases` (com `client_unit_id`)
+- `cases` (com `client_unit_id`, `current_department_id`)
+- `case_number_seq`
 - `case_iterations`
 - `case_symptoms`
 - `case_components`
 - `case_hypotheses`
 - `case_hypothesis_evidence`
 - `diagnostic_sessions`
-- `diagnostic_steps`
-- `case_evidences`
+- `diagnostic_steps` (com `case_iteration_id`, `integration_run_id`)
+- `case_evidences` (com `case_iteration_id`, `diagnostic_step_id`, `integration_run_id`)
 - `case_handoffs`
 - `case_relations`
+- `case_tags`
 - `root_causes`
-- `case_resolutions`
+- `case_resolutions` (com `case_iteration_id`)
+- `case_resolution_hypotheses`
 
 ### Conhecimento
-- `knowledge_items`
+- `knowledge_items` (com `provenance_type`, `provenance_case_id`, `provenance_reference`, `source_case_iteration_id`, `owner_department_id`, `current_version_no`)
 - `knowledge_versions`
 - `knowledge_applicability`
 - `knowledge_symptoms`
@@ -63,7 +74,7 @@
 - `knowledge_relations`
 - `knowledge_reviews`
 - `knowledge_comments`
-- `knowledge_usages`
+- `knowledge_usages` (tabela real: `knowledge_usages`)
 - `tags`
 - `knowledge_tags`
 
@@ -71,9 +82,16 @@
 - `search_sessions`
 - `search_queries`
 - `search_result_interactions`
+- `searchable_content_entries` (com `content_hash` SHA-256, `validation_status`, `quality_status`, `visibility`)
+- `embedding_index_state`
+
+### Copiloto/RAG (Fases 13-17)
 - `ai_interactions`
-- `ai_sources`
-- `embedding_index_state` (estado canônico, não necessariamente vetor bruto)
+- `ai_sources` (generalizada — `source_type`, `source_ref_id`, `source_url`, `source_title`, `match_score`)
+- `ai_interaction_feedback`
+- `llm_providers` (protocolo `OpenAICompatible`/`AnthropicMessages`)
+- `llm_model_configs` (propósito `Generation`/`Embedding`)
+- (a antiga `llm_provider_configs` foi migrada p/ `llm_providers` + `llm_model_configs` na Migration 21 e dropada)
 
 ### Auditoria/Plataforma
 - `audit_events`
@@ -81,7 +99,6 @@
 - `attachments`
 - `system_settings`
 - `feature_flags`
-- `integration_runs`
 
 ### Analytics
 - `agg_case_daily`
@@ -115,7 +132,7 @@ severity
 impact_level
 status
 current_owner_user_id
-current_team_id
+current_department_id
 opened_at
 first_response_at
 resolved_at
@@ -160,8 +177,12 @@ summary
 status
 confidentiality
 owner_user_id
-owner_team_id
-current_version_id
+owner_department_id
+current_version_no
+provenance_type  (Case, Documentation, Initiative, Ai)
+provenance_case_id nullable
+provenance_reference nullable
+source_case_iteration_id nullable
 review_due_at
 published_at
 deprecated_at

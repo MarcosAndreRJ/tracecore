@@ -15,6 +15,21 @@ RAG (*Retrieval-Augmented Generation*) não é banco de dados e não substitui o
 
 O MySQL permanece como fonte oficial de casos, usuários, relações, soluções, taxonomias, auditoria e permissões.
 
+## 1.1 Estado implementado (Fases 12–17)
+
+O que está de fato construído no código (`src/TraceCore.Infrastructure/Services/Llm`, `src/TraceCore.Application/Services/InvestigationCopilotService.cs`):
+
+- **Preparação estrutural (Fase 12)**: `searchable_content_entries` com normalização determinística, hash SHA-256, status de prontidão explicável (`Ready`/`NeedsMetadata`/`NeedsReview`/`NotEligible`) e painel `/ContentQuality/Index`. Sem scores probabilísticos arbitrários.
+- **Copiloto RAG grounded**: `InvestigationCopilotService` com pré-filtro híbrido por visibilidade/ACL, ranking de cosseno sobre `searchable_content_entries` e citação obrigatória de fontes oficiais em `ai_sources`. Dado tratado como dado, nunca como instrução.
+- **Provedores desacoplados (Fase 17)**: tabelas `llm_providers` + `llm_model_configs`; protocolos `OpenAICompatible` e `AnthropicMessages`; interfaces `ILlmProviderResolver`, `ILlmModelCatalog` (`LlmModelEntry(ModelId, DisplayName, IsDefault)`), `ISecretStore` (chaves em `llm_apikey_{providerCode}`; implementada por `ProtectedFileSecretStore` via ASP.NET Core Data Protection — criptografado em repouso em `App_Data/Secrets/`, com fallback `Llm:{providerCode}:ApiKey`).
+- **Catálogo dinâmico de modelos**: painel `Settings/LlmProviders` permite buscar modelos disponíveis direto da API do provedor e salvá-los com o propósito `Generation`/`Embedding`.
+- **Tool calling de leitura (Fase 16)**: `AiToolDefinitions.ReadingTools` — a única ferramenta é `AnalyzeManagementTrend`, de leitura estrita, para que o Copiloto responda com números 100% vindos do `IManagementAnalyticsService` (sem inventar indicador).
+- **Preservação factual**: o painel exibe `ToolResults` com os dados brutos ao usuário; o prompt de sistema proíbe inventar métricas.
+- **Telemetria**: `ai_interactions`, `ai_sources` (generalizadas com `source_type`/`source_ref_id`/`match_score`) e `ai_interaction_feedback`.
+- **Atalho contextual**: acesso ao Copiloto via `?Question=...` desde telas de Analytics e Diagnóstico.
+
+Os fluxos das seções seguintes (chunking, vetores, pipeline de indexação, avaliação) continuam valendo como direção arquitetural para evolução futura; algumas etapas (ex.: índice vetorial externo, dataset de avaliação formal) ainda não estão acopladas ao produto.
+
 ## 2. Princípio arquitetural
 
 A IA deve ser um módulo substituível. O núcleo do produto deve continuar funcionando se:
@@ -23,14 +38,17 @@ A IA deve ser um módulo substituível. O núcleo do produto deve continuar func
 - a empresa trocar de provedor;
 - o custo de IA exigir limitação temporária.
 
-Interfaces sugeridas:
+Interfaces hoje existentes no código (Fase 17):
 
 ```csharp
-public interface IEmbeddingProvider { }
-public interface IVectorSearchProvider { }
-public interface ILanguageModelProvider { }
-public interface IRagRetriever { }
-public interface IAiAnswerService { }
+public interface ILlmProviderResolver { }                  // resolve provedor por propósito/código
+public interface ILlmModelCatalog { }                       // catálogo dinâmico (LlmModelEntry)
+public interface ISecretStore { }                           // API keys (llm_apikey_{providerCode}, criptografadas em repouso)
+public interface IEmbeddingProvider { }                     // (direção aberta)
+public interface IVectorSearchProvider { }                  // (direção aberta)
+public interface IContentPreparationService { }             // normalização + prontidão
+public interface IRagRetriever { }                          // busca de contexto p/ o Copiloto
+public interface IManagementAnalyticsService { }            // métricas determinísticas (tool calling)
 ```
 
 Não acoplar regras de negócio a SDK específico de fornecedor.

@@ -120,7 +120,7 @@ Condições possíveis:
 - risco acima da alçada do usuário;
 - ausência de progresso após N verificações;
 - necessidade de acesso privilegiado;
-- hipótese concentrada em componente de outra equipe;
+- hipótese concentrada em componente de outro departamento;
 - incidente recorrente acima de limiar;
 - suspeita de segurança;
 - necessidade de alteração em produção.

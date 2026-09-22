@@ -67,15 +67,15 @@ Casos resolvidos devem alimentar índices de busca, relacionamentos, estatístic
 
 A plataforma possui nove domínios principais:
 
-1. Identidade, usuários, departamentos, equipes e permissões.
-2. Catálogo técnico: clientes, produtos, versões, componentes, integrações e dependências.
-3. Casos/incidentes e sessões de diagnóstico.
-4. Base de conhecimento e soluções.
-5. Pesquisa, filtros e similaridade.
-6. Motor de diagnóstico guiado.
-7. Analytics, relatórios e gestão.
-8. Auditoria, segurança e governança.
-9. IA/RAG e assistente técnico.
+1. Identidade, usuários, departamentos e permissões.
+2. Catálogo técnico: clientes, unidades, contextos técnicos, produtos, versões, componentes, integrações e dependências.
+3. Casos/incidentes, iterações, reabertura e sessões de diagnóstico.
+4. Base de conhecimento e soluções (versionadas, revisadas, com aplicabilidade declarada).
+5. Pesquisa, filtros, similaridade e explicabilidade.
+6. Motor de diagnóstico guiado (grafo em banco, heurística determinística).
+7. Analytics, relatórios e gestão (queries agregadas determinísticas, drill-down unificado).
+8. Auditoria, segurança e governança (append-only, sanitização universal, nomenclatura unificada).
+9. IA/RAG e Copiloto Operacional (RAG grounded, tool calling de leitura, modelos dinâmicos).
 
 ## 5. Exemplo norteador
 
@@ -126,7 +126,7 @@ As regras abaixo são requisitos soberanos. IDs devem ser usados em código, tes
 
 **BR-001** — Todo usuário ativo deve possuir identidade única, estado, nome, e-mail/login e pelo menos um vínculo organizacional ou papel global.
 
-**BR-002** — Usuários podem participar de mais de um departamento/equipe e podem ter papéis diferentes por escopo.
+**BR-002** — Usuários podem participar de mais de um departamento e podem ter papéis diferentes por escopo.
 
 **BR-003** — Permissão deve ser baseada em capacidade, não apenas em nome de perfil. Perfis agrupam permissões.
 
@@ -274,7 +274,7 @@ As regras abaixo são requisitos soberanos. IDs devem ser usados em código, tes
 
 **FR-001** — Autenticar usuário por mecanismo configurado pela empresa.
 **FR-002** — Permitir cadastro, ativação, bloqueio e desativação de usuários.
-**FR-003** — Gerenciar departamentos, equipes, cargos funcionais, papéis e permissões.
+**FR-003** — Gerenciar departamentos (conceito organizacional oficial; `teams`/`user_teams` foram extintos na Migration 10), cargos funcionais, papéis e permissões.
 **FR-004** — Permitir escopo de permissão global, por departamento e por domínio funcional.
 **FR-005** — Exibir perfil administrativo com vínculos, papéis, contribuições, atividade auditável e sessões recentes conforme permissão.
 **FR-006** — Registrar data do último acesso, falhas de login e eventos de segurança sem expor segredo.
@@ -298,7 +298,7 @@ As regras abaixo são requisitos soberanos. IDs devem ser usados em código, tes
 **FR-044** — Anexar evidências: imagem, log, arquivo, link, payload sanitizado e observação.
 **FR-045** — Criar hipóteses e registrar evidências pró/contra.
 **FR-046** — Registrar sequência de passos de diagnóstico e tentativas.
-**FR-047** — Registrar escalonamentos e handoffs entre equipes.
+**FR-047** — Registrar escalonamentos e handoffs entre departamentos.
 **FR-048** — Relacionar casos.
 **FR-049** — Encerrar com resolução, validação, causa raiz confirmada ou não confirmada.
 **FR-050** — Reabrir preservando histórico.
@@ -322,7 +322,7 @@ As regras abaixo são requisitos soberanos. IDs devem ser usados em código, tes
 **FR-080** — Busca global por texto livre.
 **FR-081** — Busca por código/mensagem de erro com tratamento de correspondência exata e parcial.
 **FR-082** — Busca em casos, soluções, componentes e documentação, respeitando autorização.
-**FR-083** — Filtros combináveis por cliente, produto, versão, componente, ambiente, tecnologia, integração, sintoma, causa, status, data, autor, equipe e severidade.
+**FR-083** — Filtros combináveis por cliente, produto, versão, componente, ambiente, tecnologia, integração, sintoma, causa, status, data, autor, departamento e severidade.
 **FR-084** — Ordenar por relevância, recência, reutilização, taxa observada de sucesso e atualização.
 **FR-085** — Exibir “por que este resultado apareceu”.
 **FR-086** — Salvar consultas/filtros frequentes.
@@ -345,7 +345,7 @@ As regras abaixo são requisitos soberanos. IDs devem ser usados em código, tes
 
 **FR-120** — Dashboard executivo.
 **FR-121** — Dashboard operacional.
-**FR-122** — Dashboard por departamento/equipe.
+**FR-122** — Dashboard por departamento. Implementado em `/Analytics/Departments`.
 **FR-123** — Dashboard de clientes/produtos/componentes.
 **FR-124** — Dashboard de conhecimento.
 **FR-125** — Dashboard de pesquisa.
@@ -797,7 +797,7 @@ Condições possíveis:
 - risco acima da alçada do usuário;
 - ausência de progresso após N verificações;
 - necessidade de acesso privilegiado;
-- hipótese concentrada em componente de outra equipe;
+- hipótese concentrada em componente de outro departamento;
 - incidente recorrente acima de limiar;
 - suspeita de segurança;
 - necessidade de alteração em produção.
@@ -904,7 +904,7 @@ Combina lexical + estruturada + semântica + sinais de qualidade.
 - impacto;
 - status do caso;
 - status editorial do conhecimento;
-- departamento/equipe;
+- departamento;
 - autor/revisor;
 - “somente conteúdo vigente”;
 - “somente soluções já validadas”;
@@ -1030,7 +1030,7 @@ Gráficos:
 - casos sem atualização;
 - SLA/SLO interno, se existir;
 - severidade;
-- fila por equipe;
+- fila por departamento;
 - tempo em cada etapa;
 - quantidade de handoffs;
 - hipóteses mais frequentes;
@@ -1357,18 +1357,19 @@ A avaliação deve ocorrer antes de mudanças de modelo, chunking, embedding ou 
 
 # 09 — Arquitetura técnica — .NET/C# + MySQL
 
-## 1. Stack baseline
+## 1. Stack baseline (implementada)
 
 ### Aplicação
-- **.NET 10 LTS**.
+- **.NET 10** (`net10.0`).
 - **C# 14**.
 - **ASP.NET Core 10**.
 - **ASP.NET Core Razor Pages** para UI web em C# (revisão de ADR-0004; Blazor Web App era a baseline original, não foi o que se implementou — ver `21_ADRS_E_DECISOES_ABERTAS.md`).
-- **SignalR** para notificações/atualizações em tempo real quando necessário.
-- **Dapper + MySqlConnector** como caminho de persistência baseline, evitando dependência crítica de compatibilidade de provider EF.
-- **FluentMigrator ou DbUp** para migrações SQL versionadas; escolher um via ADR.
+- **SignalR** para notificações/atualizações em tempo real quando necessário (ainda não exercitado em telas de produção).
+- **Dapper + MySqlConnector** como caminho de persistência (ADR revisada — `Persistence:Provider` nunca esteve ativo; banco via SQL direto nos repositórios).
+- **FluentMigrator** para migrações SQL versionadas (29 migrations: `M20260917_01` a `M20260922_29`).
 - `System.Text.Json` para serialização.
 - `Microsoft.Extensions.*` para DI, configuração, logging e options.
+- Bootstrap 5 + Bootstrap Icons (locais, sem CDN) e Design System próprio (`css/tokens.css`, `css/base.css`, componentes em `css/components/*`).
 
 ### Banco
 - **MySQL 8.4 LTS** como baseline de produção.
@@ -1376,22 +1377,25 @@ A avaliação deve ocorrer antes de mudanças de modelo, chunking, embedding ou 
 - UTF8MB4.
 - timezone persistido em UTC; conversão na UI.
 
-### Observabilidade
+### IA / LLM (Fase 17)
+- Provedores desacoplados em `llm_providers`/`llm_model_configs` (protocolos `OpenAICompatible` e `AnthropicMessages`).
+- Interfaces `ILlmProviderResolver`, `ILlmModelCatalog` (`LlmModelEntry`), `ISecretStore` (chave `llm_apikey_{providerCode}`; implementada por `ProtectedFileSecretStore` via ASP.NET Core Data Protection — criptografado em repouso em `App_Data/Secrets/`, com fallback de configuração `Llm:{providerCode}:ApiKey`).
+- Catálogo dinâmico de modelos via API do provedor no painel `Settings/LlmProviders`.
+
+### Observabilidade (direção)
 - OpenTelemetry.
 - logs estruturados.
 - métricas.
 - tracing distribuído para integrações.
 
-### Testes
-- xUnit.
-- FluentAssertions ou assertions nativas — decidir via ADR.
-- Testcontainers for .NET com MySQL para integração.
-- Playwright for .NET para E2E da UI.
+### Testes (implementado)
+- xUnit com **105 testes de integração aprovados** em `tests/TraceCore.IntegrationTests` (Testcontainers/MySQL).
+- Playwright for .NET para E2E da UI na direção futura.
 
 ## 2. Estilo arquitetural
 
 ### Monólito modular
-Escolha inicial recomendada.
+Escolha inicial recomendada e adotada.
 
 Motivos:
 - domínio ainda vai amadurecer;
@@ -1403,24 +1407,21 @@ Motivos:
 
 Módulos devem possuir limites claros e não acessar tabelas internas de outro módulo de forma arbitrária.
 
-## 3. Estrutura da solution
+## 3. Estrutura da solution (real)
 
 ```text
-KnowledgePlatform.sln
+TraceCore.sln
 src/
-  KnowledgePlatform.Web/             # Razor Pages / composição (ver ADR-0004)
-  KnowledgePlatform.Api/             # endpoints HTTP externos/internos
-  KnowledgePlatform.Application/     # casos de uso
-  KnowledgePlatform.Domain/          # domínio e regras puras
-  KnowledgePlatform.Infrastructure/  # MySQL, arquivos, integrações
-  KnowledgePlatform.Contracts/       # DTOs/eventos públicos
-  KnowledgePlatform.Worker/          # jobs, indexação, agregações
-  KnowledgePlatform.Shared/          # somente abstrações realmente comuns
+  TraceCore.Web/             # Razor Pages UI (Pages/, css Design System, wwwroot)
+  TraceCore.Api/             # endpoints HTTP externos/internos
+  TraceCore.Application/     # casos de uso e serviços
+  TraceCore.Domain/          # entidades, regras puras e contratos de serviço
+  TraceCore.Infrastructure/  # MySQL, migrations (FluentMigrator, 29), repositórios, serviços Llm
+  TraceCore.Contracts/       # DTOs/eventos públicos
+  TraceCore.Worker/          # jobs, indexação, agregações
+  TraceCore.Shared/          # somente abstrações realmente comuns
 tests/
-  KnowledgePlatform.Domain.Tests/
-  KnowledgePlatform.Application.Tests/
-  KnowledgePlatform.IntegrationTests/
-  KnowledgePlatform.E2E.Tests/
+  TraceCore.IntegrationTests/  # 105 testes aprovados (MySQL/Testcontainers)
 ```
 
 Se o repositório preferir vertical slices, módulos podem ser subdivididos internamente sem quebrar essa separação macro.
@@ -1558,15 +1559,15 @@ Recursos de IA, conectores e diagnósticos experimentais devem poder ser habilit
 
 ## 13. APIs internas e externas
 
-- REST JSON para integrações e automação.
-- endpoints versionados `/api/v1/...`.
+- REST JSON para integrações e automação (endpoints atuais em `/api/cases/...` no pipeline do `TraceCore.Web`; ver ADR-P011).
+- endpoints versionados `/api/v1/...` como contrato alvo caso a API seja formalizada em projeto dedicado.
 - Problem Details RFC 9457 para erros HTTP.
 - idempotency key em operações externas de criação quando necessário.
 - correlação por `trace_id`/`correlation_id`.
 
 ## 14. Decisão importante sobre EF Core
 
-A baseline deste documento usa Dapper/MySqlConnector para reduzir risco de compatibilidade entre .NET 10/EF Core 10 e providers MySQL no momento inicial do projeto. Se a equipe quiser EF Core, executar spike técnico e registrar ADR com provider, versão, suporte, migrações, concorrência e testes. O domínio não deve depender de EF Core.
+A baseline deste documento usa Dapper/SQL direto para reduzir risco de compatibilidade entre .NET 10/EF Core 10 e providers MySQL. ADR revisada: `Persistence:Provider` nunca esteve ativo; o domínio não depende de EF Core (`src/TraceCore.Domain` sem referência a banco). Se no futuro a equipe quiser EF Core, executar spike técnico e registrar ADR com provider, versão, suporte, migrações, concorrência e testes.
 
 
 
@@ -1689,7 +1690,7 @@ severity
 impact_level
 status
 current_owner_user_id
-current_team_id
+current_department_id
 opened_at
 first_response_at
 resolved_at
@@ -1734,8 +1735,8 @@ summary
 status
 confidentiality
 owner_user_id
-owner_team_id
-current_version_id
+owner_department_id
+current_version_no
 review_due_at
 published_at
 deprecated_at
@@ -1945,9 +1946,21 @@ A plataforma deve possuir contratos claros para permitir integração com sistem
 
 ## 2. Convenções REST
 
-Base: `/api/v1`.
+### Estado atual da implementação
 
-Recursos iniciais:
+A arquitetura original previa uma API REST dedicada em `/api/v1`. Na implementação real (ver ADR-P011), os endpoints HTTP foram **implementados diretamente no pipeline do `TraceCore.Web/Program.cs`**, sem o prefixo `/api/v1`:
+
+```text
+POST /api/cases                          (caso.criar)
+GET  /api/cases/{id}                     (caso.visualizar)
+POST /api/cases/{caseId}/hypotheses      (caso.diagnosticar)
+POST /api/cases/{caseId}/diagnostic-steps (caso.diagnosticar)
+POST /api/hypotheses/{hypothesisId}/evaluate (caso.diagnosticar)
+GET  /api/cases/{caseId}/investigation-timeline (caso.visualizar)
+POST /api/test/operacao-protegida        (usuario.gerenciar — smoke test de autorização)
+```
+
+Os endpoints abaixo são o **contrato alvo** (direção futura) caso a API seja formalizada em projeto dedicado:
 
 ```text
 /api/v1/cases
@@ -2302,6 +2315,10 @@ A aplicação pode ser containerizada. A documentação não exige Kubernetes. C
 
 # 14 — Testes e qualidade
 
+## 0. Status atual da suíte
+
+**105 testes de integração aprovados** em `tests/TraceCore.IntegrationTests` (xUnit + MySQL/Testcontainers), que comprovamente detectaram bugs reais só visíveis contra banco de verdade (colunas inexistentes, materialização Dapper de records posicionais, `utf8mb4_unicode_ci` em MariaDB 10.5). A suíte cobre repositories, migrations, FULLTEXT e queries analíticas críticas.
+
 ## 1. Pirâmide
 
 ### Unitários
@@ -2405,6 +2422,8 @@ Uma história não está pronta se faltar qualquer item aplicável:
 
 Construir valor em camadas. A plataforma deve ser útil antes da IA. O erro a evitar é iniciar pela LLM e deixar para depois o modelo de conhecimento, autorização e qualidade dos dados.
 
+> **Status atual (implementação):** o projeto está na **Fase 17** (provedores de IA desacoplados), 29 migrations FluentMigrator e 105 testes de integração aprovados. Fases 0-9 entregues; Fase 10 (Copiloto de diagnóstico completo) parcial. Detalhamento do que já está construído em `15_ROADMAP_DE_IMPLEMENTACAO.md` e nas seções M01-M12.
+
 ## Fase 0 — Fundação técnica
 
 Entregas:
@@ -2426,7 +2445,7 @@ Saída: aplicação vazia, mas operacionalmente sólida.
 
 Entregas:
 - usuários;
-- departamentos/equipes;
+- departamentos;
 - perfis/permissões;
 - clientes;
 - produtos;
@@ -2504,7 +2523,7 @@ Entregas:
 - agregações;
 - dashboards;
 - drill-down;
-- visões por usuário/equipe/cliente/tecnologia;
+- visões por usuário/departamento/cliente/tecnologia;
 - pesquisa e qualidade de conhecimento;
 - exportações.
 
@@ -2705,19 +2724,37 @@ observabilidade, migrations e testes. Ao terminar, reporte exatamente o que foi 
 
 # 17 — Manual do usuário
 
+## 0. Pontos de entrada reais no sistema
+
+| Tela | Rota | Observação |
+|---|---|---|
+| Dashboard | `/` | KPIs gerais e atalho "Novo Caso" |
+| Busca global | `/Search` | topo da aplicação + Ctrl+K |
+| Casos (lista) | `/Cases/Index` | filtros combinados |
+| Novo caso | `/Cases/Create` | relato original + contexto opcional |
+| Detalhe do caso | `/Cases/Details?id=` | investigação, timeline, evidências, resolução |
+| Diagnóstico | `/Diagnosis/Index`, `/Diagnosis/Flows/Index` | motor guiado (grafo de verificações) |
+| Soluções | `/Knowledge/Index` | filtro `?category=lessons` p/ lições aprendidas |
+| Copiloto IA | `/Copilot/Index` | RAG grounded, permissão `ia.usar` |
+| Minha Área | `/Users/Details?id={meu_id}` | perfil técnico e engajamento |
+| Inteligência | `/Analytics/*` | Geral, Departamentos, Usuários, Conhecimento |
+| Qualidade & IA | `/ContentQuality/Index` | prontidão do conteúdo |
+| Integrações | `/Integrations/Index` | catálogo e health-checks |
+| Auditoria | `/Audit/Index` | trilha append-only |
+| Configurações | `/Settings/Index` | inclui `Settings/LlmProviders` |
+
 ## 1. Para que serve
 
 A plataforma ajuda você a localizar o que a empresa já aprendeu, documentar um novo problema e seguir um caminho de diagnóstico sem precisar adivinhar qual área é responsável.
 
 ## 2. Tela inicial
 
-A Home deve priorizar:
-- campo “Descreva o problema”;
-- botão “Novo caso”;
-- casos recentes do usuário/equipe;
-- pesquisas recentes;
-- alertas de conhecimento atualizado/obsoleto;
-- atalhos autorizados.
+A Home (`/`) apresenta:
+- KPIs de casos abertos/resolvidos e MTTR;
+- séries temporais e componentes mais impactados;
+- botão "Novo caso";
+- busca global no topo;
+- painéis inteligência com drill-down para os casos que compõem cada indicador.
 
 ## 3. Pesquisar um problema
 
@@ -2875,7 +2912,7 @@ Relato → busca → filtrar → abrir solução/caso → aplicar/validar → re
 Abrir caso → registrar sintomas → pesquisar similares → diagnóstico → solução → validação → encerrar → atualizar conhecimento.
 
 ### Fluxo C — Escalonar
-Diagnóstico → condição de escalonamento → escolher equipe/componente sugerido → revisar pacote de contexto → escalar.
+Diagnóstico → condição de escalonamento → escolher departamento/componente sugerido → revisar pacote de contexto → escalar.
 
 ### Fluxo D — Criar conhecimento
 Caso resolvido → gerar rascunho → generalizar/sanitizar → revisão → publicação → uso em novos casos.
@@ -2895,7 +2932,7 @@ Este manual é destinado a gestores, administradores funcionais e responsáveis 
 ### Criar/ativar
 1. Acesse **Administração > Usuários**.
 2. Crie ou sincronize identidade conforme configuração.
-3. Vincule departamentos/equipes.
+3. Vincule departamentos.
 4. Atribua papéis mínimos necessários.
 5. Revise permissões efetivas.
 6. Salve.
@@ -2916,7 +2953,7 @@ Deve permitir visualizar, conforme autorização:
 - sessões recentes;
 - indicadores operacionais contextualizados.
 
-## 3. Departamentos e equipes
+## 3. Departamentos
 
 Cadastrar estrutura e responsáveis. Não usar departamento como único dono de componente quando houver responsabilidade compartilhada.
 
@@ -3083,7 +3120,7 @@ Relaciona: BR-065.
 
 ## 5. Diagnóstico
 
-**AC-060** — O primeiro passo não exige selecionar equipe/departamento.  
+**AC-060** — O primeiro passo não exige selecionar departamento.  
 Relaciona: BR-070.
 
 **AC-061** — Responder a uma pergunta pode alterar a próxima pergunta e a ordem das hipóteses.  
@@ -3157,7 +3194,7 @@ Todo PR funcional deve citar pelo menos um BR/FR/AC ou explicar por que é puram
 ## Épico E1 — Organização
 
 - BK-020 CRUD departamentos.
-- BK-021 CRUD equipes.
+- BK-021 ~~CRUD equipes~~ (extinto — `teams` removido na Migration 10).
 - BK-022 gestão de usuários.
 - BK-023 gestão de papéis/permissões.
 - BK-024 tela de permissões efetivas.
@@ -3232,7 +3269,7 @@ Todo PR funcional deve citar pelo menos um BR/FR/AC ou explicar por que é puram
 - BK-144 conhecimento.
 - BK-145 pesquisa.
 - BK-146 tecnologia.
-- BK-147 usuário/equipe.
+- BK-147 usuário/departamento.
 - BK-148 drill-down.
 
 ## Épico E8 — IA/RAG
@@ -3300,22 +3337,22 @@ Status: aceito (filesystem corporativo/local por trás de IFileStorage para o MV
 ## Decisões abertas
 
 ### ADR-P005 — Sistema de chamados
-Definir fonte e sincronização.
+**Parcialmente resolvido na Fase 15** (ver ADR "Integrações Automáticas, Health-Checks e Falha Segura"): catálogo de integrações com health-checks HTTP/TCP e histórico `integration_runs` já existem, sem depender de fornecedor. O conector proprietário específico de ticketing (fonte/sincronização) permanece em aberto.
 
 ### ADR-P006 — Engine vetorial
 Somente após benchmark e requisito de IA.
 
 ### ADR-P007 — Provedor LLM/embedding
-Critérios: segurança, contrato, custo, região, latência, modelos e integração .NET.
+**Resolvido na Fase 17** (ver ADR "Arquitetura de Provedores IA Desacoplados"): estrutura de provedores cadastráveis (`llm_providers`/`llm_model_configs`) com protocolos `OpenAICompatible`/`AnthropicMessages`, catálogo dinâmico de modelos e segredos em `ISecretStore`. A escolha do(s) provedor(es) comercial(is) em si permanece operacional (segurança, contrato, custo, região, latência), podendo ser trocada via portabilidade NFR-014 sem mudança de domínio.
 
 ### ADR-P008 — Editor de conteúdo
-Definir editor Markdown/rich text compatível com Razor Pages (ver ADR-0004) e sanitização.
+**Parcialmente resolvido na implementação**: conteúdo é armazenado/editado como **Markdown** (`content_markdown` em `knowledge_versions`) via textarea dedicada nas telas de Conhecimento, com renderização básica `SimpleMarkdown` (negrito/itálico/código/links) no Copiloto. Um editor WYSIWYG/rich-text completo, sanitização de HTML e preview ao vivo permanecem em aberto.
 
 ### ADR-P009 — Notificações
-In-app, e-mail, Teams/Slack, ou combinação.
+In-app, e-mail, Teams/Slack, ou combinação (integrações de notificação pendentes — ADR-P009).
 
 ### ADR-P010 — Estratégia de implantação
-Windows Service/IIS, Linux/container, plataforma corporativa existente.
+**Parcial: configurações por ambiente já existem** (Development/Staging/Production/Testing em `appsettings.*.json`, runner de migrations). Estratégia de hosting (Windows Service/IIS vs Linux/container) ainda em aberto.
 
 ### ADR-P011 — Projeto TraceCore.Api e Unificação de Runtime
 Status: **Órfão / Reservado para fase técnica futura**.
@@ -3409,6 +3446,22 @@ Status: **aceito**.
 2. **Transparência Amostral e Suficiência Estatística**: Todo método analítico retorna o tamanho real da amostra ($N$). Se $N < 3$ (para tendências e soluções) ou $N < 5$ (para componentes), o sistema declara expressamente `HasSufficientData = false`. A IA e a interface são proibidas de emitir conclusões peremptórias sobre amostras insuficientes, declarando explicitamente que os dados são inconclusivos.
 3. **Ferramenta de Leitura Estrita do Copiloto (M12)**: A ferramenta `AnalyzeManagementTrend` é cadastrada exclusivamente em `AiToolDefinitions.ReadingTools` (read-only, sem requisição de confirmação humana). Ao responder sobre tendências ou métricas, o Copiloto invoca a ferramenta do TraceCore, sintetiza a narrativa e exibe um painel lateral com os dados brutos oficiais (`ToolResults`), mantendo o número 100% citável e rastreável.
 
+### ADR — Arquitetura de Provedores IA Desacoplados (Fase 17)
+Status: **aceito**.
+1. **Desacoplamento Provider/Protocol/Model/Purpose/Credential**: Nova modelagem em `llm_providers` (provedor administrativo com `code`, `protocol`, `base_url`, tipos de autenticação e flags de capability de geração/embedding) e `llm_model_configs` (configuração de uso por `purpose` = `Generation`/`Embedding`, com `provider_id`, `model_name` e `is_active`). A antiga `llm_provider_configs` foi migrada sem perda via Migration 21 e dropada.
+2. **Protocolos Suportados**: `OpenAICompatible` (Bearer API Key) e `AnthropicMessages` (Header API Key `x-api-key`), resolvidos por `ILlmProviderResolver` sem acoplar o domínio a SDK de fornecedor.
+3. **Segredos via `ISecretStore`**: API keys armazenadas sob a chave `llm_apikey_{providerCode}` em `ProtectedFileSecretStore` (ASP.NET Core Data Protection), criptografadas em repouso em `App_Data/Secrets/{key}.dat` fora do `wwwroot` e do controle de versão. Existe fallback de configuração `Llm:{providerCode}:ApiKey` (User Secrets/ambiente). A UI só consulta `ExistsAsync` (bool), e nada de segredo é logado nem aparece em auditoria.
+4. **Catálogo Dinâmico de Modelos (`ILlmModelCatalog`)**: `LlmModelEntry(ModelId, DisplayName, IsDefault)`; o painel `Settings/LlmProviders` permite buscar modelos disponíveis diretamente na API do provedor (`FetchModelsFromProviderAsync`) e salvá-los com propósito e default, sem deploy.
+5. **Portabilidade (NFR-014)**: Trocar LLM/embedding não exige mudança de domínio nem do modelo transacional — apenas cadastro em `llm_providers`/`llm_model_configs` e eventual novo protocolo em `ILlmProviderResolver`.
+
+### ADR — Campos Estruturais do Ecossistema (Fase 04 do "Ajuste Ecossistema")
+Status: **aceito**.
+1. **Catálogos de Tipos**: Tabelas `component_types` e `integration_types` como catálogos administráveis; `integrations` ganhou colunas de classificação `responsibility`, `hosting_location` e `direction`.
+2. **Contexto Técnico de Produtos**: Tabelas `product_technical_profiles` (com `system_type`), `product_technologies`, `product_technical_sources` e `product_external_research_domains`, para pesquisar/classificar domínios e fontes técnicas por sistema.
+3. **Execuções Vinculadas a Casos**: `integration_runs` com `run_context` e `case_id`; `diagnostic_steps` e `case_evidences` podem referenciar `integration_run_id`, ligando evidência a uma execução de integração auditada.
+4. **Tags de Casos**: Tabela `case_tags` (N:N com `tags`) para sinais de peso menor no motor de casos semelhantes (integração com `CaseRelationService`).
+5. **Resolução com Hipóteses**: Tabela `case_resolution_hypotheses` (N:N) ligando hipóteses validadas à resolução, e `knowledge_items.source_case_iteration_id` para permitir nova solução de um mesmo caso apenas quando reaberto e resolvido em nova iteração.
+
 
 ---
 
@@ -3423,7 +3476,7 @@ Status: **aceito**.
 **Solução:** conhecimento reutilizável sobre diagnóstico/resolução.  
 **Known Issue:** problema conhecido, possivelmente ainda existente, com impacto/versões/workaround documentados.  
 **Runbook:** procedimento operacional executável.  
-**Handoff:** transferência de responsabilidade/contexto entre pessoas/equipes.  
+**Handoff:** transferência de responsabilidade/contexto entre pessoas/departamentos.  
 **MTTA:** tempo até primeira atuação.  
 **MTTR:** tempo até resolução, conforme definição versionada.  
 **RAG:** recuperação de conhecimento seguida de geração por LLM usando esse contexto.  
@@ -3497,39 +3550,64 @@ Toda jornada crítica deve produzir traces/métricas/logs suficientes para diagn
 
 A plataforma é uma ferramenta de investigação. A UI deve reduzir carga cognitiva e manter contexto. Evitar formulários enormes e dashboards cheios de cards sem hierarquia.
 
-## 2. Navegação principal sugerida
+## 2. Navegação principal (sidebar real — `_Layout.cshtml`)
+
+Sidebar lateral retrátil (`tc-sidebar`) com navegação agrupada e itens condicionados a permissões (`User.HasClaim`):
 
 ```text
-Início
-Pesquisar
-Casos
+Visão Geral
+├── Dashboard                    (/)            — sempre visível
+├── Minha Área                   (/Users/Details) — usuário logado
+└── Copiloto IA                  (/Copilot/Index) — permissão ia.usar
+
+Operação
+├── Casos                        (/Cases/Index)    — caso.visualizar | caso.criar
+├── Diagnóstico                  (/Diagnosis/Index) — caso.diagnosticar
+└── Pesquisa                     (/Search)         — sempre visível
+
 Conhecimento
-Diagnóstico
-Analytics
-Catálogo Técnico
-Administração  [somente autorizados]
+├── Soluções                     (/Knowledge/Index) — sempre visível
+├── Lições Aprendidas            (/Knowledge/Index?category=lessons)
+└── Documentação                 (/Placeholder?module=Documentação) — simulação
+
+Ecossistema  [se catalogo.gerenciar | integracao.gerenciar]
+├── Sistemas                     (/Catalog/Products/Index) — catalogo.gerenciar
+├── Componentes                  (/Catalog/Components/Index) — catalogo.gerenciar
+└── Integrações                  (/Integrations/Index) — integracao.gerenciar
+
+Inteligência  [se analytics.visualizar]
+├── Dashboard Geral              (/Analytics/Index)
+├── Departamentos                (/Analytics/Departments)
+├── Usuários                     (/Analytics/Users)
+├── Conhecimento                 (/Analytics/Knowledge)
+└── Qualidade & IA               (/ContentQuality/Index)
+
+Gestão
+├── Usuários                     (/Users/Index)  — usuario.gerenciar
+├── Departamentos                (/Departments/Index) — usuario.gerenciar
+├── Clientes                     (/Clients/Index) — cliente.gerenciar
+├── Perfis e Permissões          (/Placeholder) — permissao.gerenciar (simulação)
+└── Causas Raízes                (/Cases/RootCauses/Index) — caso.encerrar
+
+Administração
+├── Auditoria                    (/Audit/Index) — auditoria.visualizar
+└── Configurações                (/Settings/Index) — configuracao.gerenciar
 ```
+
+Topbar: busca global (`/Search?q=`) com atalho Ctrl+K, botão "Novo Caso" (caso.criar) e menu do usuário (Meu Perfil / Sair). Rodapé indica TraceCore v1.0 Enterprise. Itens "Perfis e Permissões" e "Documentação" ainda são placeholders (`/Placeholder`).
 
 ## 3. Início
 
-Blocos:
-- busca central “Descreva o problema…”;
-- abrir novo caso;
-- meus casos/em andamento;
-- casos críticos da equipe;
-- conhecimento a revisar;
-- consultas recentes;
-- alertas do sistema.
+Blocos (Dashboard `/`):
+- KPIs de visão geral (casos abertos, resolvidos, MTTR médio/mediana, reincidência);
+- séries temporais e componentes mais impactados;
+- atalho para "Novo Caso" `(/Cases/Create)`;
+- busca global no topo;
+- painéis de Inteligência e drill-down para `/Cases/Index`.
 
 ## 4. Pesquisa
 
-Layout desktop:
-- topo: caixa de busca;
-- esquerda: filtros;
-- centro: resultados;
-- direita opcional: contexto/preview;
-- chips de filtros ativos sempre visíveis;
-- botão claro para remover filtros automáticos.
+Tela real: `/Search`. Layout desktop implementado com topo de busca global e filtros laterais combinados (Cliente, Unidade, Tecnologia, entre outros).
 
 Resultado mostra:
 - título;
@@ -3537,70 +3615,44 @@ Resultado mostra:
 - resumo/snippet;
 - compatibilidade;
 - status;
-- última validação;
-- fatores de correspondência;
+- fatores de correspondência (`MatchedFactors` — blocos prioritários para identificadores técnicos exatos);
 - uso/sucesso com amostra quando aplicável.
 
 ## 5. Caso
 
-Cabeçalho fixo com número, status, severidade, cliente, produto e owner.
+Telas reais: `/Cases/Index`, `/Cases/Details`, `/Cases/Create` e `/Cases/RootCauses/Index`. Cabeçalho fixo com número, status, severidade, cliente, produto e owner.
 
-Abas/áreas:
-- Visão geral;
-- Diagnóstico;
-- Timeline;
-- Evidências;
-- Relacionados;
-- Resolução;
-- Auditoria (autorizados).
-
-A timeline deve distinguir visualmente observação, teste, hipótese, handoff, ação e resolução, sem depender apenas de cor.
+Áreas de detalhe implementadas (visão geral, diagnóstico, timeline, evidências, relacionados, resolução) via partiais corporativas (`_InvestigationTimeline`, `_HypothesisCard`, `_EvidenceCard`, `_DiagnosticStepCard`, `_RelatedCaseCard`). A timeline distingue visualmente observação, teste, hipótese, handoff, ação e resolução, sem depender apenas de cor.
 
 ## 6. Diagnóstico
 
-Tela dividida:
-- contexto do caso;
-- hipóteses priorizadas;
-- próxima verificação sugerida;
-- histórico do que já foi testado;
-- casos/soluções semelhantes.
+Telas reais: `/Diagnosis/Index` e `/Diagnosis/Flows/Index`. A tela apresenta contexto do caso, hipóteses ranqueadas pelo motor, próxima verificação sugerida, histórico já testado e semelhantes.
 
-Cada verificação deve ter botões rápidos de resultado e campo para evidência.
+Cada verificação possui botões rápidos de resultado e integração opcional de health-check automatizado (BR-073).
 
 ## 7. Conhecimento
 
-Visualização do artigo:
-- status e revisão;
-- aplicabilidade;
-- sumário lateral;
-- conteúdo;
-- riscos/rollback destacados;
-- casos que validaram;
-- histórico de versões;
-- feedback;
-- ação “usar neste caso”.
+Telas reais: `/Knowledge/Index` e `/Knowledge/Details`. A visualização do artigo contém status e revisão, aplicabilidade, conteúdo, riscos/rollback destacados, casos que validaram, histórico de versões e ação "usar neste caso" (`KnowledgeUsage`).
 
 ## 8. Analytics
 
-Padrões:
+Telas reais: `/Analytics/Index`, `/Analytics/Departments`, `/Analytics/Users`, `/Analytics/Knowledge` e `/ContentQuality/Index`. Padrões:
 - filtros globais no topo;
 - período sempre explícito;
 - definição do KPI acessível;
-- drill-down por clique;
-- estado “sem dados” diferente de zero;
+- drill-down por clique para `/Cases/Index`;
+- estado "sem dados" diferente de zero;
 - exportação conforme permissão.
 
 ## 9. Administração
 
-Agrupar por domínio:
-- Pessoas e acesso;
-- Organização;
-- Catálogo técnico;
-- Conhecimento;
-- Integrações;
-- IA;
-- Auditoria;
-- Configurações.
+Telas reais agrupadas por domínio:
+- Pessoas e acesso: `/Users/Index`, `/Departments/Index`;
+- Catálogo técnico: `/Clients/Index`, `/Catalog/Products/Index`, `/Catalog/Components/Index`;
+- Integrações: `/Integrations/Index`;
+- IA: `/Settings/LlmProviders/Index`, `/ContentQuality/Index`;
+- Auditoria: `/Audit/Index`;
+- Configurações: `/Settings/Index`;
 
 ## 10. Estados da interface
 
@@ -3657,6 +3709,27 @@ Perfis são conveniências administrativas. A autorização real deve usar permi
 - Permissão de publicação é restrita a revisores e administradores.
 - Mudanças de papel/permissão devem auditar o evento completo em `audit_events`.
 
+## Códigos de permissão reais (navegação e guards)
+
+Seeded nas migrations e usados nos guards de páginas/UI:
+
+```text
+caso.visualizar · caso.criar · caso.editar · caso.encerrar
+caso.diagnosticar · caso.relacionar · caso.reabrir
+solucao.criar · solucao.validar · solucao.publicar
+analytics.visualizar · analytics.departamento
+conhecimento.visualizar
+usuario.gerenciar · permissao.gerenciar
+auditoria.visualizar
+cliente.gerenciar
+catalogo.gerenciar
+integracao.gerenciar
+configuracao.gerenciar
+ia.usar
+```
+
+Papéis seed: `Usuário Técnico`, `Especialista`, `Revisor`, `Gestor`, `Admin Funcional`, `Admin Segurança`. Usuário admin inicial: `admin@tracecore.local` (credenciais em `DEV_CREDENTIALS.md`).
+
 
 
 ---
@@ -3666,13 +3739,13 @@ Perfis são conveniências administrativas. A autorização real deve usar permi
 ## KPI-001 — MTTA
 **Pergunta:** quanto tempo levamos para iniciar atuação?  
 **Fórmula:** `first_response_at - opened_at`.  
-**Segmentar:** severidade, cliente, produto, equipe, origem.  
+**Segmentar:** severidade, cliente, produto, departamento, origem.  
 **Cuidados:** casos importados podem ter timestamp externo diferente.
 
 ## KPI-002 — MTTR
 **Pergunta:** quanto tempo até resolver?  
 **Fórmula base:** `resolved_at - opened_at`.  
-**Cuidados:** definir política para períodos `AwaitingInfo` antes de comparar equipes.
+**Cuidados:** definir política para períodos `AwaitingInfo` antes de comparar departamentos.
 
 ## KPI-003 — Reincidência
 **Pergunta:** o mesmo problema está voltando?  
@@ -3700,7 +3773,7 @@ Perfis são conveniências administrativas. A autorização real deve usar permi
 **Uso:** encontrar roteamento ruim e fronteiras problemáticas.
 
 ## KPI-009 — Tempo por etapa
-Medir duração por estado/equipe para identificar espera versus investigação ativa.
+Medir duração por estado/departamento para identificar espera versus investigação ativa.
 
 ## KPI-010 — Conhecimento vencido
 Itens publicados com `review_due_at < agora` / itens publicados.

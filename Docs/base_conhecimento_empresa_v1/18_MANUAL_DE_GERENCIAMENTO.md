@@ -7,9 +7,9 @@ Este manual é destinado a gestores, administradores funcionais e responsáveis 
 ## 2. Gestão de usuários
 
 ### Criar/ativar
-1. Acesse **Administração > Usuários**.
+1. Acesse **Gestão > Usuários** (`/Users/Index`).
 2. Crie ou sincronize identidade conforme configuração.
-3. Vincule departamentos/equipes.
+3. Vincule departamentos (conceito organizacional oficial).
 4. Atribua papéis mínimos necessários.
 5. Revise permissões efetivas.
 6. Salve.
@@ -30,9 +30,9 @@ Deve permitir visualizar, conforme autorização:
 - sessões recentes;
 - indicadores operacionais contextualizados.
 
-## 3. Departamentos e equipes
+## 3. Departamentos
 
-Cadastrar estrutura e responsáveis. Não usar departamento como único dono de componente quando houver responsabilidade compartilhada.
+A estrutura organizacional oficial é o **Departamento** (`/Departments/Index`); a duplicidade `teams`/`user_teams` foi extinta (Migration 10). Cadastrar estrutura e responsáveis. Não usar departamento como único dono de componente quando houver responsabilidade compartilhada (`component_owners` admite papéis Primário, Secundário e Escalonamento).
 
 Gestor pode analisar:
 - backlog;
@@ -118,13 +118,14 @@ Mudança estrutural ou de regra de negócio não deve ser escondida em configura
 
 ## 9. IA
 
-Painel de IA deve permitir:
+Painel de IA (`/Settings/LlmProviders/Index`) deve permitir:
 - habilitar/desabilitar por ambiente;
-- selecionar provider/modelo aprovado;
+- selecionar provider/modelo aprovado (protocolos `OpenAICompatible`/`AnthropicMessages`);
+- buscar modelos disponíveis na API do provedor (catálogo dinâmico via `ILlmModelCatalog`);
 - ver consumo;
 - ver falhas;
 - ver versão de prompt;
-- avaliar qualidade;
+- avaliar qualidade (`/ContentQuality/Index`);
 - reindexar conteúdo autorizado;
 - controlar feature flags.
 

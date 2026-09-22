@@ -43,22 +43,22 @@ Status: aceito (filesystem corporativo/local por trás de IFileStorage para o MV
 ## Decisões abertas
 
 ### ADR-P005 — Sistema de chamados
-Definir fonte e sincronização.
+**Parcialmente resolvido na Fase 15** (ver ADR "Integrações Automáticas, Health-Checks e Falha Segura"): catálogo de integrações com health-checks HTTP/TCP e histórico `integration_runs` já existem, sem depender de fornecedor. O conector proprietário específico de ticketing (fonte/sincronização) permanece em aberto.
 
 ### ADR-P006 — Engine vetorial
 Somente após benchmark e requisito de IA.
 
 ### ADR-P007 — Provedor LLM/embedding
-Critérios: segurança, contrato, custo, região, latência, modelos e integração .NET.
+**Resolvido na Fase 17** (ver ADR "Arquitetura de Provedores IA Desacoplados"): estrutura de provedores cadastráveis (`llm_providers`/`llm_model_configs`) com protocolos `OpenAICompatible`/`AnthropicMessages`, catálogo dinâmico de modelos e segredos em `ISecretStore`. A escolha do(s) provedor(es) comercial(is) em si permanece operacional (segurança, contrato, custo, região, latência), podendo ser trocada via portabilidade NFR-014 sem mudança de domínio.
 
 ### ADR-P008 — Editor de conteúdo
-Definir editor Markdown/rich text compatível com Razor Pages (ver ADR-0004) e sanitização.
+**Parcialmente resolvido na implementação**: conteúdo é armazenado/editado como **Markdown** (`content_markdown` em `knowledge_versions`) via textarea dedicada nas telas de Conhecimento, com renderização básica `SimpleMarkdown` (negrito/itálico/código/links) no Copiloto. Um editor WYSIWYG/rich-text completo, sanitização de HTML e preview ao vivo permanecem em aberto.
 
 ### ADR-P009 — Notificações
 In-app, e-mail, Teams/Slack, ou combinação.
 
 ### ADR-P010 — Estratégia de implantação
-Windows Service/IIS, Linux/container, plataforma corporativa existente.
+**Parcial: configurações por ambiente já existem** (Development/Staging/Production/Testing em `appsettings.*.json`, runner de migrations). Estratégia de hosting (Windows Service/IIS vs Linux/container) ainda em aberto.
 
 ### ADR-P011 — Projeto TraceCore.Api e Unificação de Runtime
 Status: **Órfão / Reservado para fase técnica futura**.
@@ -151,3 +151,19 @@ Status: **aceito**.
 1. **Rastreabilidade e Grounding Estrito (§31 do Documento de Visão)**: Proibição inegociável de modelos de linguagem ou algoritmos generativos inventarem, estimarem ou calcularem métricas operacionais. Todos os indicadores numéricos (variação percentual, MTTR, correlação de componentes e efetividade de soluções) são computados de forma puramente determinística por consultas agregadas no banco via `IManagementAnalyticsService`.
 2. **Transparência Amostral e Suficiência Estatística**: Todo método analítico retorna o tamanho real da amostra ($N$). Se $N < 3$ (para tendências e soluções) ou $N < 5$ (para componentes), o sistema declara expressamente `HasSufficientData = false`. A IA e a interface são proibidas de emitir conclusões peremptórias sobre amostras insuficientes, declarando explicitamente que os dados são inconclusivos.
 3. **Ferramenta de Leitura Estrita do Copiloto (M12)**: A ferramenta `AnalyzeManagementTrend` é cadastrada exclusivamente em `AiToolDefinitions.ReadingTools` (read-only, sem requisição de confirmação humana). Ao responder sobre tendências ou métricas, o Copiloto invoca a ferramenta do TraceCore, sintetiza a narrativa e exibe um painel lateral com os dados brutos oficiais (`ToolResults`), mantendo o número 100% citável e rastreável.
+
+### ADR — Arquitetura de Provedores IA Desacoplados (Fase 17)
+Status: **aceito**.
+1. **Desacoplamento Provider/Protocol/Model/Purpose/Credential**: Nova modelagem em `llm_providers` (provedor administrativo com `code`, `protocol`, `base_url`, tipos de autenticação e flags de capability de geração/embedding) e `llm_model_configs` (configuração de uso por `purpose` = `Generation`/`Embedding`, com `provider_id`, `model_name` e `is_active`). A antiga `llm_provider_configs` foi migrada sem perda via Migration 21 e dropada.
+2. **Protocolos Suportados**: `OpenAICompatible` (Bearer API Key) e `AnthropicMessages` (Header API Key `x-api-key`), resolvidos por `ILlmProviderResolver` sem acoplar o domínio a SDK de fornecedor.
+3. **Segredos via `ISecretStore`**: API keys armazenadas sob a chave `llm_apikey_{providerCode}` em `ProtectedFileSecretStore` (ASP.NET Core Data Protection), criptografadas em repouso em `App_Data/Secrets/{key}.dat` fora do `wwwroot` e do controle de versão. Existe fallback de configuração `Llm:{providerCode}:ApiKey` (User Secrets/ambiente). O valor nunca vaza em texto claro: a UI só consulta `ExistsAsync` (bool) e nunca recebe o segredo decifrado; nada de segredo é logado nem aparece em auditoria.
+4. **Catálogo Dinâmico de Modelos (`ILlmModelCatalog`)**: `LlmModelEntry(ModelId, DisplayName, IsDefault)`; o painel `Settings/LlmProviders` permite buscar modelos disponíveis diretamente na API do provedor (`FetchModelsFromProviderAsync`) e salvá-los com propósito e default, sem deploy.
+5. **Portabilidade (NFR-014)**: Trocar LLM/embedding não exige mudança de domínio nem do modelo transacional — apenas cadastro em `llm_providers`/`llm_model_configs` e eventual novo protocolo em `ILlmProviderResolver`.
+
+### ADR — Campos Estruturais do Ecossistema (Fase 04 do "Ajuste Ecossistema")
+Status: **aceito**.
+1. **Catálogos de Tipos**: Tabelas `component_types` e `integration_types` como catálogos administráveis; `integrations` ganhou colunas de classificação `responsibility`, `hosting_location` e `direction`.
+2. **Contexto Técnico de Produtos**: Tabelas `product_technical_profiles` (com `system_type`), `product_technologies`, `product_technical_sources` e `product_external_research_domains`, para pesquisar/classificar domínios e fontes técnicas por sistema.
+3. **Execuções Vinculadas a Casos**: `integration_runs` com `run_context` e `case_id`; `diagnostic_steps` e `case_evidences` podem referenciar `integration_run_id`, ligando evidência a uma execução de integração auditada.
+4. **Tags de Casos**: Tabela `case_tags` (N:N com `tags`) para sinais de peso menor no motor de casos semelhantes (integração com `CaseRelationService`).
+5. **Resolução com Hipóteses**: Tabela `case_resolution_hypotheses` (N:N) ligando hipóteses validadas à resolução, e `knowledge_items.source_case_iteration_id` para permitir nova solução de um mesmo caso apenas quando reaberto e resolvido em nova iteração.

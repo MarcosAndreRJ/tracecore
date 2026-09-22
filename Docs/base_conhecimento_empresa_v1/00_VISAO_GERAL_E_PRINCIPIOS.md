@@ -62,15 +62,15 @@ Casos resolvidos devem alimentar índices de busca, relacionamentos, estatístic
 
 A plataforma possui nove domínios principais:
 
-1. Identidade, usuários, departamentos, equipes e permissões.
-2. Catálogo técnico: clientes, produtos, versões, componentes, integrações e dependências.
-3. Casos/incidentes e sessões de diagnóstico.
-4. Base de conhecimento e soluções.
-5. Pesquisa, filtros e similaridade.
-6. Motor de diagnóstico guiado.
-7. Analytics, relatórios e gestão.
-8. Auditoria, segurança e governança.
-9. IA/RAG e assistente técnico.
+1. Identidade, usuários, departamentos e permissões (papéis seed: Usuário Técnico, Especialista, Revisor, Gestor, Admin Funcional, Admin Segurança).
+2. Catálogo técnico: clientes, unidades, contextos técnicos, produtos, versões, componentes, integrações, dependências e responsáveis.
+3. Casos/incidentes com iterações e reabertura, além de sessões de diagnóstico.
+4. Base de conhecimento e soluções (versionadas, revisadas, com aplicabilidade e proveniência).
+5. Pesquisa, filtros, similaridade e explicabilidade (que vai desde busca lexical até flags de prontidão para IA).
+6. Motor de diagnóstico guiado (grafo de verificações em banco + heurística determinística, com checks automatizados via integrações).
+7. Analytics, relatórios e gestão (Dashboard Geral, Departamentos, Usuários, Conhecimento e Qualidade & IA).
+8. Auditoria, segurança e governança (append-only, sanitização de segredos, nomenclatura `dominio.acao`).
+9. IA/RAG e Copiloto Operacional (RAG grounded com citação de fontes, ferramenta `AnalyzeManagementTrend` e provedores de LLM desacoplados).
 
 ## 5. Exemplo norteador
 

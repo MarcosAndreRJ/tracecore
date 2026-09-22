@@ -12,13 +12,13 @@ O sistema centraliza casos, hipóteses, evidências, soluções, contexto técni
 
 O desenvolvimento está implementado até a:
 
-**Fase 9 — Diagnóstico Guiado**
+**Fase 17 — Arquitetura de Provedores IA Desacoplados**
 
-incluindo a etapa de consolidação:
+São **29 migrations FluentMigrator** (`M20260917_01` a `M20260922_29`) e **105 testes de integração aprovados** em `tests/TraceCore.IntegrationTests` (MySQL real via Testcontainers). As fases 0–9 estão entregues; a Fase 10 (Copiloto de diagnóstico completo) está parcial.
 
-**Fase 7.A — Saneamento e Consolidação Estrutural**
+Módulos já implementados (M01–M12): Identidade e Acesso, Estrutura Organizacional (Departamentos), Catálogo Técnico, Casos e Incidentes, Base de Conhecimento, Pesquisa/Similaridade, Diagnóstico Guiado, Analytics e Inteligência Gerencial, Auditoria, Integrações (health-checks HTTP/TCP), IA/Preparação Estrutural de Dados e Copiloto Operacional (RAG grounded + tool calling).
 
-O TraceCore já possui uma base funcional relevante para continuar a evolução dos módulos operacionais, gerenciais e de inteligência.
+Detalhamento conforme implementação em `Docs/MASTER_SPECIFICATION.md` e no pacote `Docs/base_conhecimento_empresa_v1/`.
 
 ---
 

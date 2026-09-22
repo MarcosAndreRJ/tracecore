@@ -29,3 +29,24 @@ Perfis são conveniências administrativas. A autorização real deve usar permi
 - Permissão de publicação é restrita a revisores e administradores.
 - Mudanças de papel/permissão devem auditar o evento completo em `audit_events`.
 
+## Códigos de permissão reais (navegação e guards)
+
+Seeded nas migrations e usados nos guards de páginas/UI:
+
+```text
+caso.visualizar · caso.criar · caso.editar · caso.encerrar
+caso.diagnosticar · caso.relacionar · caso.reabrir
+solucao.criar · solucao.validar · solucao.publicar
+analytics.visualizar · analytics.departamento
+conhecimento.visualizar
+usuario.gerenciar · permissao.gerenciar
+auditoria.visualizar
+cliente.gerenciar
+catalogo.gerenciar
+integracao.gerenciar
+configuracao.gerenciar
+ia.usar
+```
+
+Papéis seed: `Usuário Técnico`, `Especialista`, `Revisor`, `Gestor`, `Admin Funcional`, `Admin Segurança` (rename consolidado em `Admin` conforme ADR — ver `21_ADRS_E_DECISOES_ABERTAS.md`). Usuário admin inicial: `admin@tracecore.local` (credenciais em `DEV_CREDENTIALS.md`).
+

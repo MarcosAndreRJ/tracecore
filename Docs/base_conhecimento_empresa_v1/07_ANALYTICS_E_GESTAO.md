@@ -6,6 +6,22 @@ Analytics deve apoiar decisões reais: onde há gargalo, o que mais reincide, qu
 
 Evitar dashboards decorativos.
 
+## 1.1 Estado implementado (Fases 10 e 16)
+
+Telas reais em `/Analytics/*` e `/ContentQuality/Index`:
+
+- **Dashboard Geral** (`/Analytics/Index`): KPIs de casos abertos (`Open`/`Reopened`), resolvidos, MTTR médio e **mediana** por iteração (`AVG(ClosedAt - OpenedAt)`), incidentes recorrentes (`Recurrence`/`CommonCause`), sem causa raiz confirmada e sem conhecimento publicado. Séries temporais, sistemas e componentes mais impactados e tabela de casos em atenção com **drill-down unificado para `/Cases/Index`**.
+- **Inteligência Analítica Determinística** (`IManagementAnalyticsService` + `IManagementAnalyticsRepository`): consultas agregadas puras no banco:
+  - `GetTrendAfterVersionAsync` — variação de volume e MTTR antes vs. depois de publicação de versão (mediana determinística, suficiência de amostra);
+  - `GetComponentAssociationPercentageAsync` — distribuição percentual exata de componentes por causa e sintoma técnico;
+  - `GetSolutionEffectivenessComparisonAsync` — comparação factual de mediana de MTTR com vs. sem solução oficial, declarando insuficiência estatística quando $N < 3$.
+- **Departamentos** (`/Analytics/Departments`): visão transversal sem silos/rankings pejorativos (volume ativo, resolvido, MTTR, reaberturas, reincidências, autoria de conhecimento).
+- **Usuários** (`/Analytics/Users`): engajamento técnico individual e colaboração (casos, resoluções, passos, hipóteses, evidências, autoria/reutilização de artigos) + perfil técnico emergente, sem pontuações artificiais.
+- **Conhecimento** (`/Analytics/Knowledge`): eficácia factual por `KnowledgeUsage` (`Worked`/`PartiallyWorked`/`DidNotWork`), ciclo de revisão (nunca revisados, vencidos) e lacunas de documentação.
+- **Qualidade & IA** (`/ContentQuality/Index`): prontidão de conteúdo para IA (`Ready`/`NeedsMetadata`/`NeedsReview`/`NotEligible`), sincronização em lote e inspeção de payloads estruturados.
+
+Métricas seguem os princípios das seções abaixo; gráficos em Chart.js local (sem CDN).
+
 ## 2. Dashboard executivo
 
 KPIs principais:
@@ -37,7 +53,7 @@ Gráficos:
 - casos sem atualização;
 - SLA/SLO interno, se existir;
 - severidade;
-- fila por equipe;
+- fila por departamento;
 - tempo em cada etapa;
 - quantidade de handoffs;
 - hipóteses mais frequentes;

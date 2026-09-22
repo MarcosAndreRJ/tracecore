@@ -6,7 +6,7 @@ As regras abaixo são requisitos soberanos. IDs devem ser usados em código, tes
 
 **BR-001** — Todo usuário ativo deve possuir identidade única, estado, nome, e-mail/login e pelo menos um vínculo organizacional ou papel global.
 
-**BR-002** — Usuários podem participar de mais de um departamento/equipe e podem ter papéis diferentes por escopo.
+**BR-002** — Usuários podem participar de mais de um departamento e podem ter papéis diferentes por escopo.
 
 **BR-003** — Permissão deve ser baseada em capacidade, não apenas em nome de perfil. Perfis agrupam permissões.
 

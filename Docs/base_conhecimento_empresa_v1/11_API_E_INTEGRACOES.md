@@ -6,9 +6,21 @@ A plataforma deve possuir contratos claros para permitir integração com sistem
 
 ## 2. Convenções REST
 
-Base: `/api/v1`.
+### Estado atual da implementação
 
-Recursos iniciais:
+A arquitetura original previa uma API REST dedicada em `/api/v1`. Na implementação real (ver ADR-P011), os endpoints HTTP foram **implementados diretamente no pipeline do `TraceCore.Web/Program.cs`**, sem o prefixo `/api/v1`:
+
+```text
+POST /api/cases                          (caso.criar)
+GET  /api/cases/{id}                     (caso.visualizar)
+POST /api/cases/{caseId}/hypotheses      (caso.diagnosticar)
+POST /api/cases/{caseId}/diagnostic-steps (caso.diagnosticar)
+POST /api/hypotheses/{hypothesisId}/evaluate (caso.diagnosticar)
+GET  /api/cases/{caseId}/investigation-timeline (caso.visualizar)
+POST /api/test/operacao-protegida        (usuario.gerenciar — smoke test de autorização)
+```
+
+Os endpoints abaixo são o **contrato alvo** (direção futura) caso a API seja formalizada em projeto dedicado:
 
 ```text
 /api/v1/cases

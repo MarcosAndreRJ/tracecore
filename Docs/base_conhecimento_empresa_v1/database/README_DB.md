@@ -1,13 +1,11 @@
 # Banco de dados
 
-`schema_inicial.sql` é um esqueleto técnico para acelerar a primeira implementação. Não substitui migrations.
+O schema do TraceCore é governado exclusivamente por **migrations FluentMigrator** em `src/TraceCore.Infrastructure/Migrations` (29 migrations: `M20260917_01` a `M20260922_29`), executadas pelo `DatabaseMigrationRunner`.
 
-Antes do primeiro release:
-1. fechar ADR-P001 (estratégia de IDs);
-2. transformar DDL em migrations versionadas;
-3. validar índices com dados representativos;
-4. revisar FKs e retenção;
-5. confirmar charset/collation corporativos;
-6. testar restore/backup.
+Decisões já consolidadas (superam o esqueleto inicial):
+1. **IDs**: `BIGINT` auto-incremento padronizado em todas as tabelas e chaves estrangeiras.
+2. **DDL canônico**: migrations versionadas substituem o `schema_inicial.sql` histórico; o script original do `sql_mockup/` permanece para carga de dados de exemplo.
+3. **Índices**: validados e refletidos nas migrations (status + datas em `cases`, FKs de associação, `error_code`, FULLTEXT em campos definidos, índices de auditoria, outbox por `status,next_attempt_at`).
+4. **Charset/collation e backup/restore**: devem ser confirmados junto à infraestrutura antes do primeiro release (fora do escopo das migrations hoje).
 
-O script usa `BINARY(16)` como referência para `Guid`. Se a ADR escolher outra estratégia, ajustar antes de consolidar migrations.
+Ver também: `10_MODELO_DE_DADOS.md` (mapa conceitual das tabelas) e `99_REFERENCIAS_TECNICAS.md`.

@@ -1,6 +1,8 @@
 -- Plataforma Corporativa de Conhecimento - DDL de referência
 -- MySQL 8.4 LTS
--- ATENÇÃO: converter para migrations antes de produção.
+-- ATENÇÃO: arquivo HISTÓRICO (mockup de design-time, IDs BINARY(16), database knowledge_platform).
+-- O schema real é governado pelas migrations FluentMigrator em src/TraceCore.Infrastructure/Migrations
+-- (IDs BIGINT, ver database/README_DB.md e 10_MODELO_DE_DADOS.md). Não usar como fonte da verdade.
 
 CREATE DATABASE IF NOT EXISTS knowledge_platform
   CHARACTER SET utf8mb4

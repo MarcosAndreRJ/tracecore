@@ -16,7 +16,7 @@
 ## Épico E1 — Organização
 
 - BK-020 CRUD departamentos.
-- BK-021 CRUD equipes.
+- BK-021 ~~CRUD equipes~~ (extinto — `teams` removido na Migration 10).
 - BK-022 gestão de usuários.
 - BK-023 gestão de papéis/permissões.
 - BK-024 tela de permissões efetivas.
@@ -91,7 +91,7 @@
 - BK-144 conhecimento.
 - BK-145 pesquisa.
 - BK-146 tecnologia.
-- BK-147 usuário/equipe.
+- BK-147 usuário/departamento.
 - BK-148 drill-down.
 
 ## Épico E8 — IA/RAG

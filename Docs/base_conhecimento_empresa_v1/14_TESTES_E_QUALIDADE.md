@@ -1,5 +1,9 @@
 # 14 — Testes e qualidade
 
+## 0. Status atual da suíte
+
+**105 testes de integração aprovados** em `tests/TraceCore.IntegrationTests` (xUnit + MySQL/Testcontainers), que comprovamente detectaram bugs reais só visíveis contra banco de verdade (colunas inexistentes, materialização Dapper de records posicionais, `utf8mb4_unicode_ci` em MariaDB 10.5). As seções abaixo descrevem a pirâmide alvo e práticas; a suíte já cobre repositories, migrations, FULLTEXT e queries analíticas críticas.
+
 ## 1. Pirâmide
 
 ### Unitários

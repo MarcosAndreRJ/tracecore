@@ -1,18 +1,36 @@
 # 17 — Manual do usuário
 
+## 0. Pontos de entrada reais no sistema
+
+| Tela | Rota | Observação |
+|---|---|---|
+| Dashboard | `/` | KPIs gerais e atalho "Novo Caso" |
+| Busca global | `/Search` | topo da aplicação + Ctrl+K |
+| Casos (lista) | `/Cases/Index` | filtros combinados |
+| Novo caso | `/Cases/Create` | relato original + contexto opcional |
+| Detalhe do caso | `/Cases/Details?id=` | investigação, timeline, evidências, resolução |
+| Diagnóstico | `/Diagnosis/Index`, `/Diagnosis/Flows/Index` | motor guiado (grafo de verificações) |
+| Soluções | `/Knowledge/Index` | filtro `?category=lessons` p/ lições aprendidas |
+| Copiloto IA | `/Copilot/Index` | RAG grounded, permissão `ia.usar` |
+| Minha Área | `/Users/Details?id={meu_id}` | perfil técnico e engajamento |
+| Inteligência | `/Analytics/*` | Geral, Departamentos, Usuários, Conhecimento |
+| Qualidade & IA | `/ContentQuality/Index` | prontidão do conteúdo |
+| Integrações | `/Integrations/Index` | catálogo e health-checks |
+| Auditoria | `/Audit/Index` | trilha append-only |
+| Configurações | `/Settings/Index` | inclui `Settings/LlmProviders` |
+
 ## 1. Para que serve
 
 A plataforma ajuda você a localizar o que a empresa já aprendeu, documentar um novo problema e seguir um caminho de diagnóstico sem precisar adivinhar qual área é responsável.
 
 ## 2. Tela inicial
 
-A Home deve priorizar:
-- campo “Descreva o problema”;
-- botão “Novo caso”;
-- casos recentes do usuário/equipe;
-- pesquisas recentes;
-- alertas de conhecimento atualizado/obsoleto;
-- atalhos autorizados.
+A Home (`/`) apresenta:
+- KPIs de casos abertos/resolvidos e MTTR;
+- séries temporais e componentes mais impactados;
+- botão "Novo caso";
+- busca global no topo;
+- painéis inteligência com drill-down para os casos que compõem cada indicador.
 
 ## 3. Pesquisar um problema
 
@@ -170,7 +188,7 @@ Relato → busca → filtrar → abrir solução/caso → aplicar/validar → re
 Abrir caso → registrar sintomas → pesquisar similares → diagnóstico → solução → validação → encerrar → atualizar conhecimento.
 
 ### Fluxo C — Escalonar
-Diagnóstico → condição de escalonamento → escolher equipe/componente sugerido → revisar pacote de contexto → escalar.
+Diagnóstico → condição de escalonamento → escolher departamento/componente sugerido → revisar pacote de contexto → escalar.
 
 ### Fluxo D — Criar conhecimento
 Caso resolvido → gerar rascunho → generalizar/sanitizar → revisão → publicação → uso em novos casos.

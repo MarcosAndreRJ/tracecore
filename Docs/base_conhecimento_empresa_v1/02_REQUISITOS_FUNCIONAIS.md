@@ -4,7 +4,7 @@
 
 **FR-001** — Autenticar usuário por mecanismo configurado pela empresa.
 **FR-002** — Permitir cadastro, ativação, bloqueio e desativação de usuários.
-**FR-003** — Gerenciar departamentos, equipes, cargos funcionais, papéis e permissões.
+**FR-003** — Gerenciar departamentos (conceito organizacional oficial; `teams`/`user_teams` foram extintos na Migration 10), cargos funcionais, papéis e permissões.
 **FR-004** — Permitir escopo de permissão global, por departamento e por domínio funcional.
 **FR-005** — Exibir perfil administrativo com vínculos, papéis, contribuições, atividade auditável e sessões recentes conforme permissão.
 **FR-006** — Registrar data do último acesso, falhas de login e eventos de segurança sem expor segredo.
@@ -28,7 +28,7 @@
 **FR-044** — Anexar evidências: imagem, log, arquivo, link, payload sanitizado e observação.
 **FR-045** — Criar hipóteses e registrar evidências pró/contra.
 **FR-046** — Registrar sequência de passos de diagnóstico e tentativas.
-**FR-047** — Registrar escalonamentos e handoffs entre equipes.
+**FR-047** — Registrar escalonamentos e handoffs entre departamentos.
 **FR-048** — Relacionar casos.
 **FR-049** — Encerrar com resolução, validação, causa raiz confirmada ou não confirmada.
 **FR-050** — Reabrir preservando histórico.
@@ -52,7 +52,7 @@
 **FR-080** — Busca global por texto livre.
 **FR-081** — Busca por código/mensagem de erro com tratamento de correspondência exata e parcial.
 **FR-082** — Busca em casos, soluções, componentes e documentação, respeitando autorização.
-**FR-083** — Filtros combináveis por cliente, produto, versão, componente, ambiente, tecnologia, integração, sintoma, causa, status, data, autor, equipe e severidade.
+**FR-083** — Filtros combináveis por cliente, produto, versão, componente, ambiente, tecnologia, integração, sintoma, causa, status, data, autor, departamento e severidade.
 **FR-084** — Ordenar por relevância, recência, reutilização, taxa observada de sucesso e atualização.
 **FR-085** — Exibir “por que este resultado apareceu”.
 **FR-086** — Salvar consultas/filtros frequentes.
@@ -75,7 +75,7 @@
 
 **FR-120** — Dashboard executivo.
 **FR-121** — Dashboard operacional.
-**FR-122** — Dashboard por departamento/equipe.
+**FR-122** — Dashboard por departamento. Implementado em `/Analytics/Departments`.
 **FR-123** — Dashboard de clientes/produtos/componentes.
 **FR-124** — Dashboard de conhecimento.
 **FR-125** — Dashboard de pesquisa.

@@ -61,7 +61,7 @@ Relaciona: BR-065.
 
 ## 5. Diagnóstico
 
-**AC-060** — O primeiro passo não exige selecionar equipe/departamento.  
+**AC-060** — O primeiro passo não exige selecionar departamento.  
 Relaciona: BR-070.
 
 **AC-061** — Responder a uma pergunta pode alterar a próxima pergunta e a ordem das hipóteses.  

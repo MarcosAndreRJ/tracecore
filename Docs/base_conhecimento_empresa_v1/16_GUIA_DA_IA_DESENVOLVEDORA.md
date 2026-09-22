@@ -135,10 +135,11 @@ Nenhum código de IA deve:
 ## 9. Prompt-base para iniciar uma tarefa
 
 ```text
-Você está desenvolvendo a Plataforma Corporativa de Conhecimento, Diagnóstico e Lições Aprendidas.
+Você está desenvolvendo a Plataforma Corporativa de Conhecimento, Diagnóstico e Lições Aprendidas (TraceCore).
+Estado real da implementação: Fase 17 (provedores de IA desacoplados), 29 migrations FluentMigrator, 105 testes de integração.
 Leia primeiro README.md, 01_REGRAS_DE_NEGOCIO.md, 02_REQUISITOS_FUNCIONAIS.md,
 09_ARQUITETURA_TECNICA_DOTNET_MYSQL.md, 19_CRITERIOS_DE_ACEITE_E_RASTREABILIDADE.md
-e os ADRs aplicáveis.
+e os ADRs aplicáveis. Migrations em src/TraceCore.Infrastructure/Migrations; testes em tests/TraceCore.IntegrationTests.
 
 Antes de codificar, identifique as regras BR/FR/AC relacionadas e apresente um plano curto.
 Não invente regra. Não mude arquitetura sem ADR. Preserve histórico, autorização, auditoria,

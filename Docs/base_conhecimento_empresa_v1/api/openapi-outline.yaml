@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: Knowledge Platform API
+  title: TraceCore API
   version: 1.0.0-draft
-  description: Esqueleto de contrato. Expandir endpoint por endpoint durante implementação.
+  description: Esqueleto de contrato. Expandir endpoint por endpoint durante implementação. Os IDs das entidades são BIGINT (int64), não uuid. Endpoints reais atualmente disponíveis em /api/cases/... (ver 11_API_E_INTEGRACOES.md e ADR-P011).
 servers:
   - url: /api/v1
 paths:
@@ -23,7 +23,7 @@ paths:
         - in: path
           name: id
           required: true
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
       responses:
         '200': { description: OK }
         '403': { description: Forbidden }

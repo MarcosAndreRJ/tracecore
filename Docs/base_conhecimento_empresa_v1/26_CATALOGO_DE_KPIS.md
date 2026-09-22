@@ -3,13 +3,13 @@
 ## KPI-001 — MTTA
 **Pergunta:** quanto tempo levamos para iniciar atuação?  
 **Fórmula:** `first_response_at - opened_at`.  
-**Segmentar:** severidade, cliente, produto, equipe, origem.  
+**Segmentar:** severidade, cliente, produto, departamento, origem.  
 **Cuidados:** casos importados podem ter timestamp externo diferente.
 
 ## KPI-002 — MTTR
 **Pergunta:** quanto tempo até resolver?  
 **Fórmula base:** `resolved_at - opened_at`.  
-**Cuidados:** definir política para períodos `AwaitingInfo` antes de comparar equipes.
+**Cuidados:** definir política para períodos `AwaitingInfo` antes de comparar departamentos.
 
 ## KPI-003 — Reincidência
 **Pergunta:** o mesmo problema está voltando?  
@@ -37,7 +37,7 @@
 **Uso:** encontrar roteamento ruim e fronteiras problemáticas.
 
 ## KPI-009 — Tempo por etapa
-Medir duração por estado/equipe para identificar espera versus investigação ativa.
+Medir duração por estado/departamento para identificar espera versus investigação ativa.
 
 ## KPI-010 — Conhecimento vencido
 Itens publicados com `review_due_at < agora` / itens publicados.

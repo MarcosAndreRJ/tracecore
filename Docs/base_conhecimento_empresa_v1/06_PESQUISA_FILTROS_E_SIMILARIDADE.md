@@ -50,7 +50,7 @@ Combina lexical + estruturada + semântica + sinais de qualidade.
 - impacto;
 - status do caso;
 - status editorial do conhecimento;
-- departamento/equipe;
+- departamento;
 - autor/revisor;
 - “somente conteúdo vigente”;
 - “somente soluções já validadas”;

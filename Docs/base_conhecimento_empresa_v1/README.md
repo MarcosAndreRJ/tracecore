@@ -1,8 +1,8 @@
 # Plataforma Corporativa de Conhecimento, Diagnóstico e Lições Aprendidas
 
 **Versão da documentação:** 1.0  
-**Data-base:** 17/09/2026  
-**Status:** baseline para início de desenvolvimento  
+**Data-base:** 17/09/2026 (atualizada conforme implementação em 22/09/2026)  
+**Status:** baseline consolidado + espelho da implementação real (projeto na Fase 17; 29 migrations FluentMigrator; 105 testes de integração aprovados)  
 **Stack mandatória:** .NET/C# end-to-end + MySQL
 
 ## Propósito
@@ -80,10 +80,12 @@ Nenhuma IA ou desenvolvedor deve alterar uma regra de negócio apenas para simpl
 
 Devem ser resolvidas por ADR ou spike técnico antes da respectiva etapa:
 
-- provedor de identidade corporativa: autenticação local, Entra ID/AD/OIDC ou combinação;
-- armazenamento de anexos: filesystem corporativo, S3 compatível, Azure Blob ou equivalente;
-- mecanismo vetorial futuro do RAG, caso o MySQL isoladamente não atenda ao volume/latência;
-- integração com sistema de chamados existente;
+- provedor de identidade corporativa: **autenticação local implementada** (Cookie + BCrypt, ver ADR-0004/`Login`); integração com Entra ID/AD/OIDC segue em aberto;
+- armazenamento de anexos: **filesystem implementado** atrás de `IFileStorage` (ADR-P004); S3 compatível/Azure Blob apenas se necessário;
+- mecanismo vetorial futuro do RAG, caso o MySQL isoladamente não atenda ao volume/latência (ADR-P006);
+- integração com sistema de chamados existente (conector específico — ADR-P005; health-checks e catálogo já implementados);
+- origem e padrão de telemetria dos produtos suportados;
+- retenção exata de logs e trilhas de auditoria por política interna.
 - origem e padrão de telemetria dos produtos suportados;
 - retenção exata de logs e trilhas de auditoria por política interna.
 
