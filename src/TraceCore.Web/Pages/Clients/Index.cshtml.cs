@@ -18,11 +18,16 @@ public class IndexModel : PageModel
 {
     private readonly IClientService _clientService;
     private readonly ICatalogRepository _catalogRepository;
+    private readonly IVersionManagementService _versionManagementService;
 
-    public IndexModel(IClientService clientService, ICatalogRepository catalogRepository)
+    public IndexModel(
+        IClientService clientService,
+        ICatalogRepository catalogRepository,
+        IVersionManagementService versionManagementService)
     {
         _clientService = clientService;
         _catalogRepository = catalogRepository;
+        _versionManagementService = versionManagementService;
     }
 
     public IReadOnlyList<ClientDto> ClientsList { get; private set; } = [];
@@ -51,6 +56,21 @@ public class IndexModel : PageModel
 
     [BindProperty]
     public long ContextClientId { get; set; }
+
+    // Fase 2: Atualização manual de versão do cliente fora do rollout
+    [BindProperty]
+    public ManualVersionUpdateInput VersionUpdateInput { get; set; } = new();
+
+    public record ManualVersionUpdateInput
+    {
+        public long ClientId { get; set; }
+        public long ProductId { get; set; }
+        public long NewProductVersionId { get; set; }
+        public long? ClientUnitId { get; set; }
+        public long? EnvironmentId { get; set; }
+        public DateTime? EffectiveFrom { get; set; }
+        public string? Notes { get; set; }
+    }
 
     [TempData]
     public string? SuccessMessage { get; set; }
@@ -143,10 +163,48 @@ public class IndexModel : PageModel
         return Page();
     }
 
+    public async Task<IActionResult> OnPostManualUpdateVersionAsync()
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            await _versionManagementService.ManualClientVersionUpdateAsync(
+                clientId: VersionUpdateInput.ClientId,
+                productId: VersionUpdateInput.ProductId,
+                newProductVersionId: VersionUpdateInput.NewProductVersionId,
+                clientUnitId: VersionUpdateInput.ClientUnitId,
+                environmentId: VersionUpdateInput.EnvironmentId,
+                effectiveFrom: VersionUpdateInput.EffectiveFrom,
+                notes: VersionUpdateInput.Notes,
+                currentUserId: userId);
+
+            SuccessMessage = "Versão do sistema atualizada com sucesso! O contexto anterior foi encerrado e a nova versão está ativa com histórico de vigência.";
+            return RedirectToPage(new { selectedId = VersionUpdateInput.ClientId });
+        }
+        catch (BusinessRuleValidationException ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao atualizar versão: {ex.Message}";
+        }
+
+        await LoadDataAsync(VersionUpdateInput.ClientId);
+        return Page();
+    }
+
     public async Task<IActionResult> OnGetProductVersionsAsync(long productId)
     {
         var versions = await _catalogRepository.GetVersionsByProductIdAsync(productId);
         return new JsonResult(versions);
+    }
+
+    public async Task<IActionResult> OnGetClientVersionTimelineAsync(long clientId, long productId, long? clientUnitId = null)
+    {
+        var unitId = clientUnitId is > 0 ? clientUnitId : null;
+        var timeline = await _versionManagementService.GetClientVersionTimelineWithCasesAsync(clientId, productId, unitId);
+        return new JsonResult(timeline);
     }
 
     private async Task LoadDataAsync(long? selectedId = null)

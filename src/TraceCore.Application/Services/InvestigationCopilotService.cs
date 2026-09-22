@@ -40,6 +40,7 @@ public class InvestigationCopilotService : IInvestigationCopilotService
     private readonly IProductTechnicalContextService _technicalContextService;
     private readonly IExternalResearchService _externalResearchService;
     private readonly IAiInteractionRepository _aiInteractionRepository;
+    private readonly IVersionManagementService _versionManagementService;
 
     // Estado por pergunta (instância Scoped — uma AskAsync por request).
     private readonly HashSet<string> _strategies = new();
@@ -61,7 +62,8 @@ public class InvestigationCopilotService : IInvestigationCopilotService
         IClientRepository clientRepository,
         IProductTechnicalContextService technicalContextService,
         IExternalResearchService externalResearchService,
-        IAiInteractionRepository aiInteractionRepository)
+        IAiInteractionRepository aiInteractionRepository,
+        IVersionManagementService versionManagementService)
     {
         _resolver = resolver;
         _searchRepository = searchRepository;
@@ -74,6 +76,7 @@ public class InvestigationCopilotService : IInvestigationCopilotService
         _technicalContextService = technicalContextService;
         _externalResearchService = externalResearchService;
         _aiInteractionRepository = aiInteractionRepository;
+        _versionManagementService = versionManagementService;
     }
 
     public async Task<InvestigationCopilotAnswerDto> AskAsync(string question, long? userId, CancellationToken ct = default)
@@ -365,6 +368,18 @@ public class InvestigationCopilotService : IInvestigationCopilotService
                 deve ser mencionado como erro ao usuário.
             12. Responda em português, de forma técnica, objetiva, e com "PRÓXIMOS PASSOS" ao final
                 quando fizer sentido.
+            13. VERSIONAMENTO INTELIGENTE E CORREÇÕES POSTERIORES:
+                Sempre que o relato identificar um cliente e um produto/sistema, use a ferramenta GetClientVersionContext
+                para verificar a versão atual do cliente, se há versões posteriores e se já existem correções (fixes) cadastradas
+                em versões posteriores que tratem o sintoma ou código de erro relatado.
+                Se existir correção posterior relevante:
+                - Informe factualmente a versão atual cadastrada do cliente e a versão onde a correção foi publicada.
+                - Mencione a quantidade de casos semelhantes e quantos casos anteriores foram vinculados à correção.
+                - Indique que a correspondência aponta uma possível solução disponível em versão posterior, mas recomende
+                  explicitamente validar tecnicamente o cenário antes de recomendar ou planejar a atualização.
+                - NUNCA afirme causalidade sem evidência (não diga que a correção falhou). Use observações factuais objetivas.
+                - Inclua links internos markdown sempre que citar sistemas/versões (ex: [NomeVersao](/Catalog/Products/Details?id=PROD_ID#versionDetails-VER_ID))
+                  e casos (ex: [CAS-182](/Cases/Details?id=CASE_ID)).
             """;
     }
 
@@ -391,6 +406,10 @@ public class InvestigationCopilotService : IInvestigationCopilotService
                     return await ExecuteGetRelatedCasesAsync(args, ct);
                 case "SearchExternalSources":
                     return await ExecuteSearchExternalSourcesAsync(args, ct);
+                case "GetClientVersionContext":
+                    return (await ExecuteGetClientVersionContextAsync(args, ct), false);
+                case "SearchVersionFixes":
+                    return (await ExecuteSearchVersionFixesAsync(args, ct), false);
                 default:
                     return (JsonSerializer.Serialize(new { error = $"Ferramenta '{call.Name}' não suportada neste fluxo." }), true);
             }
@@ -399,6 +418,37 @@ public class InvestigationCopilotService : IInvestigationCopilotService
         {
             return (JsonSerializer.Serialize(new { error = ex.Message }), true);
         }
+    }
+
+    private async Task<string> ExecuteGetClientVersionContextAsync(JsonElement args, CancellationToken ct)
+    {
+        long? clientId = GetLong(args, "clientId");
+        long? productId = GetLong(args, "productId");
+        long? clientUnitId = GetLong(args, "clientUnitId");
+
+        if (!clientId.HasValue || !productId.HasValue)
+            return JsonSerializer.Serialize(new { error = "clientId e productId são obrigatórios para GetClientVersionContext." });
+
+        _strategies.Add("VersionContext:ClientAndProduct");
+
+        var context = await _versionManagementService.GetClientVersionCopilotContextAsync(clientId.Value, productId.Value, clientUnitId, ct);
+        return JsonSerializer.Serialize(context, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private async Task<string> ExecuteSearchVersionFixesAsync(JsonElement args, CancellationToken ct)
+    {
+        long? productId = GetLong(args, "productId");
+        long? currentProductVersionId = GetLong(args, "currentProductVersionId");
+        string? query = GetString(args, "query");
+        string? errorCode = GetString(args, "errorCode");
+
+        if (!productId.HasValue)
+            return JsonSerializer.Serialize(new { error = "productId é obrigatório para SearchVersionFixes." });
+
+        _strategies.Add("VersionContext:SearchFixes");
+
+        var fixes = await _versionManagementService.SearchVersionFixesForCopilotAsync(productId.Value, currentProductVersionId, query, errorCode, ct);
+        return JsonSerializer.Serialize(fixes, new JsonSerializerOptions { WriteIndented = true });
     }
 
     private async Task<string> ExecuteSearchCasesAsync(JsonElement args, CancellationToken ct)

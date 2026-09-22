@@ -19,7 +19,9 @@ public static class DependencyInjection
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<IClientService, ClientService>();
         services.AddScoped<ICatalogService, CatalogService>();
+        services.AddScoped<IVersionManagementService, VersionManagementService>();
         services.AddScoped<ICaseRelationService, CaseRelationService>();
+        services.AddScoped<ICaseSimilarityScoringService, CaseSimilarityScoringService>();
         services.AddScoped<IProductTechnicalContextService, ProductTechnicalContextService>();
         services.AddScoped<IInvestigationCopilotService, InvestigationCopilotService>();
         services.AddScoped<IExternalResearchQuerySanitizer, ExternalResearchQuerySanitizer>();

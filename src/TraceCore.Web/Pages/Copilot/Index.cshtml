@@ -218,6 +218,10 @@
         escaped = System.Text.RegularExpressions.Regex.Replace(
             escaped, @"\[FONTE\s+(\d+)\]", "<span class=\"tc-code-inline\">[FONTE $1]</span>");
 
+        // Links internos markdown [texto](/rota...)
+        escaped = System.Text.RegularExpressions.Regex.Replace(
+            escaped, @"\[([^\]]+)\]\((/[a-zA-Z0-9_\-\./#\?=&]+)\)", "<a href=\"$2\" class=\"text-primary fw-semibold\" target=\"_blank\">$1</a>");
+
         // Parágrafos e quebras simples
         var paragraphs = escaped
             .Split(new[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries)

@@ -1,4 +1,5 @@
 @page "{id:long}"
+@using TraceCore.Application.DTOs
 @model TraceCore.Web.Pages.Catalog.Products.DetailsModel
 @{
     ViewData["Title"] = $"{Model.Product?.Name} - Contexto Técnico - TraceCore";
@@ -139,59 +140,693 @@
                             <table class="tc-table">
                                 <thead>
                                     <tr>
+                                        <th>Ordem</th>
                                         <th>Versão</th>
                                         <th>Lançamento</th>
-                                        <th>Fim de Suporte</th>
                                         <th>Status</th>
+                                        <th>Casos Ocorridos</th>
+                                        <th>Correções</th>
+                                        <th>Adoção / Rollout</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var v in Model.Versions)
                                     {
-                                        <tr>
-                                            <td class="fw-semibold text-dark font-monospace">@v.VersionLabel</td>
-                                            <td>@(v.ReleasedAt?.ToString("dd/MM/yyyy") ?? "-")</td>
-                                            <td>@(v.EndOfSupportAt?.ToString("dd/MM/yyyy") ?? "-")</td>
-                                            <td><span class="tc-badge tc-badge-verified">@v.Status</span></td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                </div>
-            </div>
+                                        var changeCount = Model.ChangesByVersion.TryGetValue(v.Id, out var chg) ? chg.Count : 0;
+                                        var ind = Model.IndicatorsByVersion.TryGetValue(v.Id, out var ibv) ? ibv : null;
+                                        var casesOccurred = ind?.CasesOccurredCount ?? 0;
+                                        var publishedFixes = ind?.PublishedFixesCount ?? 0;
+                                        var deployedClients = ind?.DeployedClientsCount ?? 0;
+                                        var pendingClients = ind?.PendingClientsCount ?? 0;
 
-            <!-- MODAL: Nova Versão -->
-            <div class="modal fade" id="addVersionModal" tabindex="-1" aria-labelledby="addVersionModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content tc-modal-content">
-                        <form method="post" asp-page-handler="AddVersion" asp-route-id="@Model.Product?.Id">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="addVersionModalLabel">
-                                    <i class="bi bi-tags me-2 text-primary"></i>Nova Versão
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold" for="newVersionLabel">Rótulo da Versão <span class="text-danger">*</span></label>
-                                    <input type="text" id="newVersionLabel" class="tc-input" asp-for="NewVersion.VersionLabel" placeholder="Ex.: 3.6.0" required />
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold" for="newVersionReleasedAt">Data de Lançamento</label>
-                                    <input type="date" id="newVersionReleasedAt" class="tc-input" asp-for="NewVersion.ReleasedAt" />
-                                    <span class="tc-caption text-muted d-block mt-1">Opcional — usada para comparar métricas antes/depois desta versão.</span>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-check-lg me-1"></i>Registrar Versão</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+                                        <tr>
+                                            <td class="text-muted">@v.ReleaseOrder</td>
+                                            <td class="fw-semibold text-dark font-monospace">
+                                                @v.VersionLabel
+                                                @if (changeCount > 0)
+                                                {
+                                                    <span class="tc-badge tc-badge-neutral ms-1">@changeCount item(ns)</span>
+                                                }
+                                            </td>
+                                            <td>@(v.ReleasedAt?.ToString("dd/MM/yyyy") ?? "-")</td>
+                                            <td><span class="tc-badge tc-badge-verified">@v.Status</span></td>
+                                            <td>
+                                                <span class="badge bg-light text-dark border">@casesOccurred caso(s)</span>
+                                            </td>
+                                            <td>
+                                                @if (publishedFixes > 0)
+                                                {
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">@publishedFixes correção(ões)</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted small">0</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-success-subtle text-success">@deployedClients atualizado(s)</span>
+                                                @if (pendingClients > 0)
+                                                {
+                                                    <span class="badge bg-warning-subtle text-warning-emphasis ms-1">@pendingClients pendente(s)</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="collapse" data-bs-target="#versionDetails-@v.Id">
+                                                    <i class="bi bi-list-ul me-1"></i>Detalhar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="8" class="p-0 border-0">
+                                                <div class="collapse" id="versionDetails-@v.Id">
+                                                    <div class="p-3 border-top">
+                                                        @{
+                                                            var changes = Model.ChangesByVersion.TryGetValue(v.Id, out var ch) ? ch : new List<ProductVersionChangeDto>();
+                                                            var assignments = Model.AssignmentsByVersion.TryGetValue(v.Id, out var asg) ? asg : new List<ProductVersionAssignmentDto>();
+                                                            var linkedCases = Model.LinkedCasesByVersion.TryGetValue(v.Id, out var lkList) ? lkList : new List<VersionLinkedCaseDetailDto>();
+                                                        }
+
+                                                        <!-- Cards de Indicadores da Versão -->
+                                                        <div class="row g-2 mb-3">
+                                                            <div class="col-md-2 col-6">
+                                                                <div class="p-2 border rounded bg-light text-center">
+                                                                    <div class="tc-caption text-muted">Casos na Versão</div>
+                                                                    <div class="fs-5 fw-bold text-dark">@(ind?.CasesOccurredCount ?? 0)</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-2 col-6">
+                                                                <div class="p-2 border rounded bg-light text-center">
+                                                                    <div class="tc-caption text-muted">Correções</div>
+                                                                    <div class="fs-5 fw-bold text-primary">@(ind?.PublishedFixesCount ?? 0)</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-2 col-6">
+                                                                <div class="p-2 border rounded bg-light text-center">
+                                                                    <div class="tc-caption text-muted">Casos Vinculados</div>
+                                                                    <div class="fs-5 fw-bold text-dark">@(ind?.LinkedCasesCount ?? 0)</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-2 col-6">
+                                                                <div class="p-2 border rounded bg-light text-center">
+                                                                    <div class="tc-caption text-muted">Planejados</div>
+                                                                    <div class="fs-5 fw-bold text-secondary">@(ind?.PlannedClientsCount ?? 0)</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-2 col-6">
+                                                                <div class="p-2 border rounded bg-light text-center">
+                                                                    <div class="tc-caption text-muted">Atualizados</div>
+                                                                    <div class="fs-5 fw-bold text-success">@(ind?.DeployedClientsCount ?? 0)</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-2 col-6">
+                                                                <div class="p-2 border rounded bg-light text-center">
+                                                                    <div class="tc-caption text-muted">Pendentes</div>
+                                                                    <div class="fs-5 fw-bold text-warning">@(ind?.PendingClientsCount ?? 0)</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Navegação por Abas dentro do Detalhe da Versão -->
+                                                        <ul class="nav nav-tabs mb-3" id="vtabs-@v.Id" role="tablist">
+                                                            <li class="nav-item" role="presentation">
+                                                                <button class="nav-link active py-1 px-3" id="vtab-changes-tab-@v.Id" data-bs-toggle="tab" data-bs-target="#vtab-changes-@v.Id" type="button" role="tab">
+                                                                    <i class="bi bi-journal-text me-1"></i>Alterações (@changes.Count)
+                                                                </button>
+                                                            </li>
+                                                            <li class="nav-item" role="presentation">
+                                                                <button class="nav-link py-1 px-3" id="vtab-cases-tab-@v.Id" data-bs-toggle="tab" data-bs-target="#vtab-cases-@v.Id" type="button" role="tab">
+                                                                    <i class="bi bi-link-45deg me-1"></i>Casos (@linkedCases.Count)
+                                                                </button>
+                                                            </li>
+                                                            <li class="nav-item" role="presentation">
+                                                                <button class="nav-link py-1 px-3" id="vtab-rollout-tab-@v.Id" data-bs-toggle="tab" data-bs-target="#vtab-rollout-@v.Id" type="button" role="tab">
+                                                                    <i class="bi bi-send me-1"></i>Implantação por Cliente (@assignments.Count)
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+
+                                                        <div class="tab-content" id="vtabsContent-@v.Id">
+                                                            <!-- ABA 1: ALTERAÇÕES -->
+                                                            <div class="tab-pane fade show active" id="vtab-changes-@v.Id" role="tabpanel">
+                                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                                    <h6 class="tc-card-title mb-0"><i class="bi bi-journal-text me-2 text-primary"></i>Itens desta versão (alterações / releases)</h6>
+                                                                    <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddChange" onclick="openAddChangeModal('@v.Id', '@v.VersionLabel')">
+                                                                        <i class="bi bi-plus-lg me-1"></i>Nova Alteração
+                                                                    </button>
+                                                                </div>
+
+                                                                @if (changes.Count == 0)
+                                                                {
+                                                                    <p class="tc-caption text-muted mb-0">Nenhum item registrado nesta versão ainda.</p>
+                                                                }
+                                                                else
+                                                                {
+                                                                    @foreach (var c in changes)
+                                                                    {
+                                                                        <div class="tc-alert tc-alert-info mb-3">
+                                                                            <div class="d-flex justify-content-between align-items-start">
+                                                                                <div>
+                                                                                    <span class="tc-badge tc-badge-primary me-2">@c.ChangeTypeLabel</span>
+                                                                                    <span class="fw-semibold">@c.Title</span>
+                                                                                    @if (!string.IsNullOrEmpty(c.ErrorCode))
+                                                                                    {
+                                                                                        <span class="tc-badge tc-badge-neutral ms-1">@c.ErrorCode</span>
+                                                                                    }
+                                                                                    @if (!string.IsNullOrEmpty(c.ComponentName))
+                                                                                    {
+                                                                                        <span class="tc-caption text-muted d-block">Componente: @c.ComponentName</span>
+                                                                                    }
+                                                                                    @if (!string.IsNullOrEmpty(c.Description))
+                                                                                    {
+                                                                                        <div class="tc-caption text-muted">@c.Description</div>
+                                                                                    }
+
+                                                                                    <!-- Observação factual de recorrência pós-release para Correções (Fase 5) -->
+                                                                                    @if (string.Equals(c.ChangeType, "Fix", StringComparison.OrdinalIgnoreCase) && Model.RecurrenceByChangeId.TryGetValue(c.Id, out var rec))
+                                                                                    {
+                                                                                        <div class="p-2 mt-2 rounded bg-light border text-dark small">
+                                                                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                                                                                <span><i class="bi bi-clock-history me-1 text-primary"></i><strong>Casos históricos relacionados:</strong> @rec.HistoricalCasesCount</span>
+                                                                                                <span><i class="bi bi-people me-1 text-success"></i><strong>Clientes atualizados:</strong> @rec.DeployedClientsCount</span>
+                                                                                                <span class="badge bg-light text-dark border"><i class="bi bi-info-circle me-1 text-muted"></i>@rec.ObservationMessage</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    }
+
+                                                                                    @if (c.LinkedCases.Count > 0)
+                                                                                    {
+                                                                                        var resolvedCount = c.LinkedCases.Count(l => string.Equals(l.CaseStatus, "Resolved", StringComparison.OrdinalIgnoreCase));
+                                                                                        var openCount = c.LinkedCases.Count - resolvedCount;
+                                                                                        <div class="mt-2 pt-2 border-top">
+                                                                                            <div class="d-flex align-items-center gap-2 mb-1 small text-muted">
+                                                                                                <span><i class="bi bi-link-45deg me-1"></i><strong>Casos vinculados:</strong> @c.LinkedCases.Count</span>
+                                                                                                <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle me-1"></i>Resolvidos: @resolvedCount</span>
+                                                                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="bi bi-clock-history me-1"></i>Abertos: @openCount</span>
+                                                                                            </div>
+                                                                                            <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
+                                                                                                @foreach (var lk in c.LinkedCases)
+                                                                                                {
+                                                                                                    <span class="tc-badge tc-badge-verified d-inline-flex align-items-center me-1">
+                                                                                                        <a href="/Cases/Details?id=@lk.CaseId" class="text-decoration-none me-1" target="_blank">#@lk.CaseNumber</a>
+                                                                                                        <span class="text-muted small">(@lk.RelationTypeLabel@(string.IsNullOrEmpty(lk.CaseStatus) ? "" : $" - {lk.CaseStatus}"))</span>
+                                                                                                        <form method="post" asp-page-handler="UnlinkCase" asp-route-id="@Model.Product?.Id" asp-route-changeId="@c.Id" asp-route-caseId="@lk.CaseId" asp-route-relationType="@lk.RelationType" class="d-inline ms-1">
+                                                                                                            <button type="submit" class="btn btn-sm btn-link p-0 text-danger" title="Desvincular caso"><i class="bi bi-x-lg"></i></button>
+                                                                                                        </form>
+                                                                                                    </span>
+                                                                                                }
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    }
+                                                                                </div>
+                                                                            </div>
+                                                                            <form method="post" asp-page-handler="LinkCase" asp-route-id="@Model.Product?.Id" class="d-flex gap-2 align-items-center mt-2 pt-2 border-top">
+                                                                                <input type="hidden" asp-for="NewCaseLink.ChangeId" value="@c.Id" />
+                                                                                <div class="form-group mb-0" style="max-width: 220px;">
+                                                                                    <input type="number" class="tc-input tc-input-sm" asp-for="NewCaseLink.CaseNumber" placeholder="Vincular caso por nº..." min="1" required />
+                                                                                </div>
+                                                                                <div class="form-group mb-0" style="max-width: 180px;">
+                                                                                    <select class="tc-select tc-select-sm" asp-for="NewCaseLink.RelationType">
+                                                                                        @foreach (var t in Model.ValidRelationTypes)
+                                                                                        {
+                                                                                            <option value="@t">@TraceCore.Domain.Entities.ProductVersionChangeCase.Label(t)</option>
+                                                                                        }
+                                                                                    </select>
+                                                                                </div>
+                                                                                <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm py-1"><i class="bi bi-link-45deg me-1"></i>Vincular</button>
+                                                                            </form>
+                                                                        </div>
+                                                                    }
+                                                                }
+                                                            </div>
+
+                                                            <!-- ABA 2: CASOS VINCULADOS À VERSÃO (Fase 5) -->
+                                                            <div class="tab-pane fade" id="vtab-cases-@v.Id" role="tabpanel">
+                                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                                    <h6 class="tc-card-title mb-0"><i class="bi bi-link-45deg me-2 text-primary"></i>Casos Vinculados às Alterações da Versão</h6>
+                                                                </div>
+
+                                                                @if (linkedCases.Count == 0)
+                                                                {
+                                                                    <p class="tc-caption text-muted mb-0">Nenhum caso vinculado às alterações desta versão ainda.</p>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <div class="table-responsive">
+                                                                        <table class="tc-table tc-table-sm">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Correção</th>
+                                                                                    <th>Caso Vinculado</th>
+                                                                                    <th>Status</th>
+                                                                                    <th>Cliente</th>
+                                                                                    <th>Versão onde ocorreu</th>
+                                                                                    <th>Relação</th>
+                                                                                    <th>Data Vínculo</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                @foreach (var lc in linkedCases)
+                                                                                {
+                                                                                    <tr>
+                                                                                        <td class="fw-semibold">
+                                                                                            <span class="tc-badge tc-badge-primary me-1">@lc.ChangeTypeLabel</span>
+                                                                                            @lc.ChangeTitle
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <a href="/Cases/Details?id=@lc.CaseId" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none" target="_blank">
+                                                                                                #@lc.CaseNumber
+                                                                                            </a>
+                                                                                            <span class="small d-block text-muted">@lc.CaseTitle</span>
+                                                                                        </td>
+                                                                                        <td>
+                                                                                            <span class="badge @(lc.CaseStatus == "Resolved" ? "bg-success-subtle text-success border border-success-subtle" : "bg-warning-subtle text-warning-emphasis border border-warning-subtle")">@lc.CaseStatus</span>
+                                                                                        </td>
+                                                                                        <td>@(lc.ClientName ?? "—")</td>
+                                                                                        <td>
+                                                                                            @if (!string.IsNullOrEmpty(lc.OccurredInVersionLabel))
+                                                                                            {
+                                                                                                <span class="badge bg-light text-dark border font-monospace">v@lc.OccurredInVersionLabel</span>
+                                                                                            }
+                                                                                            else
+                                                                                            {
+                                                                                                <span class="text-muted small">Sem versão</span>
+                                                                                            }
+                                                                                        </td>
+                                                                                        <td><span class="badge bg-info-subtle text-info-emphasis border">@lc.RelationTypeLabel</span></td>
+                                                                                        <td class="small text-muted">@lc.LinkedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                                                                    </tr>
+                                                                                }
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                }
+                                                            </div>
+
+                                                            <!-- ABA 3: ROLLOUT / IMPLANTAÇÃO -->
+                                                            <div class="tab-pane fade" id="vtab-rollout-@v.Id" role="tabpanel">
+                                                                <h6 class="tc-card-title mb-2"><i class="bi bi-send me-2 text-primary"></i>Destinação / rollout para clientes</h6>
+                                                                <form method="post" asp-page-handler="CreateAssignment" asp-route-id="@Model.Product?.Id">
+                                                                    <input type="hidden" asp-for="NewAssignment.VersionId" value="@v.Id" />
+                                                                    <div class="row g-2 mb-2">
+                                                                        <div class="col-md-3">
+                                                                            <select class="tc-select" asp-for="NewAssignment.ClientId">
+                                                                                <option value="">Selecione o cliente...</option>
+                                                                                @foreach (var cl in Model.ClientsForRollout)
+                                                                                {
+                                                                                    <option value="@cl.Id">@cl.Name</option>
+                                                                                }
+                                                                            </select>
+                                                                        </div>
+                                                                        <div class="col-md-3">
+                                                                            <select class="tc-select" asp-for="NewAssignment.ClientUnitId">
+                                                                                <option value="">Cliente inteiro (sem unidade)</option>
+                                                                                @foreach (var cl in Model.ClientsForRollout)
+                                                                                {
+                                                                                    @foreach (var u in Model.UnitsByClient.TryGetValue(cl.Id, out var ul) ? ul : new List<ClientUnitDto>())
+                                                                                    {
+                                                                                        <option value="@u.Id">@cl.Name — @u.Name</option>
+                                                                                    }
+                                                                                }
+                                                                            </select>
+                                                                        </div>
+                                                                        <div class="col-md-4">
+                                                                            <input type="text" class="tc-input" asp-for="NewAssignment.Notes" placeholder="Observações (opcional)" />
+                                                                        </div>
+                                                                        <div class="col-md-2">
+                                                                            <button type="submit" class="tc-btn tc-btn-primary tc-btn-sm w-100"><i class="bi bi-plus-lg me-1"></i>Destinar</button>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span class="tc-caption text-muted">Criar uma destinação NÃO altera a versão corrente do cliente. Somente ao confirmar o deploy a versão é atualizada.</span>
+                                                                </form>
+
+                                                                @if (assignments.Count == 0)
+                                                                {
+                                                                    <p class="tc-caption text-muted mb-0">Nenhuma destinação registrada para esta versão.</p>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <div class="table-responsive mt-2">
+                                                                        <table class="tc-table tc-table-sm">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Cliente</th>
+                                                                                    <th>Unidade</th>
+                                                                                    <th>Status</th>
+                                                                                    <th>Agendado</th>
+                                                                                    <th>Implantado</th>
+                                                                                    <th></th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                @foreach (var a in assignments)
+                                                                                {
+                                                                                    var clientContexts = Model.ClientContextsMap.TryGetValue(a.ClientId, out var cc) ? cc : new List<ClientTechnicalContextDto>();
+                                                                                    var activeCtxs = clientContexts
+                                                                                        .Where(c => (c.ClientUnitId ?? 0) == (a.ClientUnitId ?? 0) && c.EffectiveTo == null)
+                                                                                        .ToList();
+                                                                                    var currentVersionLabel = activeCtxs.FirstOrDefault()?.VersionLabel ?? "Não definida";
+                                                                                    var envsList = activeCtxs.Where(c => c.EnvironmentId.HasValue).Select(c => new { id = c.EnvironmentId!.Value, name = c.EnvironmentName ?? $"Ambiente #{c.EnvironmentId}" }).Distinct().ToList();
+                                                                                    var clientActiveEnvsJson = System.Text.Json.JsonSerializer.Serialize(envsList);
+
+                                                                                    <tr>
+                                                                                        <td class="fw-semibold">@a.ClientName</td>
+                                                                                        <td>@(a.ClientUnitName ?? "—")</td>
+                                                                                        <td>
+                                                                                            @if (a.Status == "Deployed")
+                                                                                            {
+                                                                                                <span class="tc-badge tc-badge-verified">@a.StatusLabel</span>
+                                                                                            }
+                                                                                            else if (a.Status == "Failed")
+                                                                                            {
+                                                                                                <span class="tc-badge tc-badge-danger">@a.StatusLabel</span>
+                                                                                            }
+                                                                                            else if (a.Status == "Scheduled")
+                                                                                            {
+                                                                                                <span class="tc-badge tc-badge-primary">@a.StatusLabel</span>
+                                                                                            }
+                                                                                            else
+                                                                                            {
+                                                                                                <span class="tc-badge tc-badge-neutral">@a.StatusLabel</span>
+                                                                                            }
+                                                                                        </td>
+                                                                                        <td>@(a.ScheduledAt?.ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
+                                                                                        <td>@(a.DeployedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
+                                                                                        <td class="text-end text-nowrap">
+                                                                                            @if (a.Status == "Planned")
+                                                                                            {
+                                                                                                <button type="button" class="tc-btn tc-btn-primary tc-btn-sm me-1"
+                                                                                                        onclick="openConfirmDeployModal('@a.Id', '@a.ClientName', '@(a.ClientUnitName ?? "")', '@Model.Product?.Name', '@currentVersionLabel', '@v.VersionLabel', '@Html.Raw(clientActiveEnvsJson.Replace("'", "\\'"))')">
+                                                                                                    <i class="bi bi-check-lg me-1"></i>Confirmar Atualização
+                                                                                                </button>
+                                                                                                <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm me-1"
+                                                                                                        onclick="openScheduleModal('@a.Id', '@a.ClientName', '@v.VersionLabel')">
+                                                                                                    <i class="bi bi-calendar-event me-1"></i>Agendar
+                                                                                                </button>
+                                                                                                <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm me-1 text-danger"
+                                                                                                        onclick="openFailModal('@a.Id', '@a.ClientName', '@v.VersionLabel')">
+                                                                                                    <i class="bi bi-exclamation-octagon me-1"></i>Falha
+                                                                                                </button>
+                                                                                                <form method="post" asp-page-handler="RemoveAssignment" asp-route-id="@Model.Product?.Id" asp-route-assignmentId="@a.Id" class="d-inline" onsubmit="return confirm('Deseja realmente remover esta destinação do planejamento?');">
+                                                                                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm" title="Remover do planejamento"><i class="bi bi-trash"></i></button>
+                                                                                                </form>
+                                                                                            }
+                                                                                            else if (a.Status == "Scheduled")
+                                                                                            {
+                                                                                                <button type="button" class="tc-btn tc-btn-primary tc-btn-sm me-1"
+                                                                                                        onclick="openConfirmDeployModal('@a.Id', '@a.ClientName', '@(a.ClientUnitName ?? "")', '@Model.Product?.Name', '@currentVersionLabel', '@v.VersionLabel', '@Html.Raw(clientActiveEnvsJson.Replace("'", "\\'"))')">
+                                                                                                    <i class="bi bi-check-lg me-1"></i>Confirmar Atualização
+                                                                                                </button>
+                                                                                                <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm me-1 text-danger"
+                                                                                                        onclick="openFailModal('@a.Id', '@a.ClientName', '@v.VersionLabel')">
+                                                                                                    <i class="bi bi-exclamation-octagon me-1"></i>Falha
+                                                                                                </button>
+                                                                                                <form method="post" asp-page-handler="RemoveAssignment" asp-route-id="@Model.Product?.Id" asp-route-assignmentId="@a.Id" class="d-inline" onsubmit="return confirm('Deseja cancelar e remover este agendamento?');">
+                                                                                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm" title="Remover agendamento"><i class="bi bi-trash"></i></button>
+                                                                                                </form>
+                                                                                            }
+                                                                                            else if (a.Status == "Deployed")
+                                                                                            {
+                                                                                                <span class="tc-caption text-success fw-semibold"><i class="bi bi-check2-all me-1"></i>Atualizado</span>
+                                                                                            }
+                                                                                            else if (a.Status == "Failed" || a.Status == "Skipped")
+                                                                                            {
+                                                                                                <form method="post" asp-page-handler="ReopenAssignment" asp-route-id="@Model.Product?.Id" asp-route-assignmentId="@a.Id" class="d-inline">
+                                                                                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm" title="Retornar destinação para o status Planejado"><i class="bi bi-arrow-counterclockwise me-1"></i>Replanejar</button>
+                                                                                                </form>
+                                                                                            }
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                }
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                             </td>
+                                         </tr>
+                                     }
+                                 </tbody>
+                             </table>
+                         </div>
+                     }
+                 </div>
+             </div>
+
+             <!-- MODAL: Nova Versão -->
+             <div class="modal fade" id="addVersionModal" tabindex="-1" aria-labelledby="addVersionModalLabel" aria-hidden="true">
+                 <div class="modal-dialog">
+                     <div class="modal-content tc-modal-content">
+                         <form method="post" asp-page-handler="AddVersion" asp-route-id="@Model.Product?.Id">
+                             <div class="modal-header">
+                                 <h5 class="modal-title" id="addVersionModalLabel">
+                                     <i class="bi bi-tags me-2 text-primary"></i>Nova Versão
+                                 </h5>
+                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                             </div>
+                             <div class="modal-body">
+                                 <div class="mb-3">
+                                     <label class="form-label fw-semibold" for="newVersionLabel">Rótulo da Versão <span class="text-danger">*</span></label>
+                                     <input type="text" id="newVersionLabel" class="tc-input" asp-for="NewVersion.VersionLabel" placeholder="Ex.: 3.6.0" required />
+                                 </div>
+                                 <div class="mb-3">
+                                     <label class="form-label fw-semibold" for="newVersionReleasedAt">Data de Lançamento</label>
+                                     <input type="date" id="newVersionReleasedAt" class="tc-input" asp-for="NewVersion.ReleasedAt" />
+                                     <span class="tc-caption text-muted d-block mt-1">Opcional — usada para comparar métricas antes/depois desta versão.</span>
+                                 </div>
+                                 <div class="mb-3">
+                                     <label class="form-label fw-semibold">Destinar versão para clientes no lançamento (opcional)</label>
+                                     <div class="border rounded p-2" style="max-height: 160px; overflow-y: auto;">
+                                         @if (Model.ClientsForRollout.Count == 0)
+                                         {
+                                             <span class="tc-caption text-muted">Nenhum cliente ativo disponível.</span>
+                                         }
+                                         else
+                                         {
+                                             @foreach (var cl in Model.ClientsForRollout)
+                                             {
+                                                 <div class="form-check form-check-sm mb-1">
+                                                     <input class="form-check-input" type="checkbox" name="SelectedClientIdsForRollout" value="@cl.Id" id="rolloutClient_@cl.Id">
+                                                     <label class="form-check-label small" for="rolloutClient_@cl.Id">
+                                                         @cl.Name
+                                                     </label>
+                                                 </div>
+                                             }
+                                         }
+                                     </div>
+                                     <span class="tc-caption text-muted d-block mt-1">Os clientes selecionados receberão a versão em status 'Planejado'. O deploy poderá ser confirmado individualmente depois.</span>
+                                 </div>
+                             </div>
+                             <div class="modal-footer">
+                                 <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                 <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-check-lg me-1"></i>Registrar Versão</button>
+                             </div>
+                         </form>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- MODAL: Confirmar Deploy -->
+             <div class="modal fade" id="modalConfirmDeploy" tabindex="-1" aria-labelledby="modalConfirmDeployLabel" aria-hidden="true">
+                 <div class="modal-dialog">
+                     <div class="modal-content tc-modal-content">
+                         <form method="post" asp-page-handler="ConfirmDeploy" asp-route-id="@Model.Product?.Id">
+                             <input type="hidden" name="assignmentId" id="deployAssignmentId" />
+                             <div class="modal-header">
+                                 <h5 class="modal-title" id="modalConfirmDeployLabel">
+                                     <i class="bi bi-cloud-arrow-up text-primary me-2"></i>Confirmar Atualização de Versão
+                                 </h5>
+                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                             </div>
+                             <div class="modal-body">
+                                 <div class="tc-alert tc-alert-info mb-3">
+                                     <i class="bi bi-info-circle me-1"></i>
+                                     Ao confirmar o deploy, o contexto técnico atual do cliente será encerrado e um novo contexto técnico será registrado para a nova versão, preservando o histórico de vigência.
+                                 </div>
+                                 <dl class="row mb-3">
+                                     <dt class="col-sm-4 text-muted">Cliente:</dt>
+                                     <dd class="col-sm-8 fw-semibold" id="deployClientName">-</dd>
+                                     
+                                     <dt class="col-sm-4 text-muted">Sistema:</dt>
+                                     <dd class="col-sm-8" id="deployProductName">-</dd>
+                                     
+                                     <dt class="col-sm-4 text-muted">Versão Atual:</dt>
+                                     <dd class="col-sm-8" id="deployCurrentVersion">-</dd>
+                                     
+                                     <dt class="col-sm-4 text-muted">Nova Versão:</dt>
+                                     <dd class="col-sm-8 fw-bold text-success font-monospace" id="deployNewVersion">-</dd>
+                                 </dl>
+
+                                 <div class="mb-3" id="deployEnvContainer" style="display:none;">
+                                     <label class="form-label fw-semibold" for="deployEnvironmentId">Ambiente de Aplicação <span class="text-danger">*</span></label>
+                                     <select class="tc-select" name="environmentId" id="deployEnvironmentId">
+                                         <option value="">Selecione o ambiente...</option>
+                                     </select>
+                                     <span class="tc-caption text-muted d-block mt-1">Detectado mais de um ambiente ativo para este cliente. Selecione o ambiente específico.</span>
+                                 </div>
+
+                                 <div class="mb-3">
+                                     <label class="form-label fw-semibold">Data / Hora Efetiva</label>
+                                     <input type="text" class="tc-input" value="@DateTime.Now.ToString("dd/MM/yyyy HH:mm") (Imediata)" readonly disabled />
+                                 </div>
+                             </div>
+                             <div class="modal-footer">
+                                 <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                 <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-check-lg me-1"></i>Confirmar Deploy</button>
+                             </div>
+                         </form>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- MODAL: Agendar Atualização -->
+             <div class="modal fade" id="modalScheduleAssignment" tabindex="-1" aria-labelledby="modalScheduleLabel" aria-hidden="true">
+                 <div class="modal-dialog">
+                     <div class="modal-content tc-modal-content">
+                         <form method="post" asp-page-handler="ScheduleAssignment" asp-route-id="@Model.Product?.Id">
+                             <input type="hidden" name="assignmentId" id="scheduleAssignmentId" />
+                             <div class="modal-header">
+                                 <h5 class="modal-title" id="modalScheduleLabel">
+                                     <i class="bi bi-calendar-event text-primary me-2"></i>Agendar Atualização
+                                 </h5>
+                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                             </div>
+                             <div class="modal-body">
+                                 <p class="text-muted small mb-3">Defina a data e hora programadas para implantação da versão no cliente.</p>
+                                 <dl class="row mb-3">
+                                     <dt class="col-sm-4 text-muted">Cliente:</dt>
+                                     <dd class="col-sm-8 fw-semibold" id="scheduleClientName">-</dd>
+                                     <dt class="col-sm-4 text-muted">Versão:</dt>
+                                     <dd class="col-sm-8 font-monospace text-primary" id="scheduleVersionLabel">-</dd>
+                                 </dl>
+                                 <div class="mb-3">
+                                     <label class="form-label fw-semibold" for="scheduleDatetime">Data / Hora Programada <span class="text-danger">*</span></label>
+                                     <input type="datetime-local" class="tc-input" name="scheduledAt" id="scheduleDatetime" required />
+                                 </div>
+                             </div>
+                             <div class="modal-footer">
+                                 <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                 <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-calendar-check me-1"></i>Salvar Agendamento</button>
+                             </div>
+                         </form>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- MODAL: Marcar Falha -->
+             <div class="modal fade" id="modalFailAssignment" tabindex="-1" aria-labelledby="modalFailLabel" aria-hidden="true">
+                 <div class="modal-dialog">
+                     <div class="modal-content tc-modal-content">
+                         <form method="post" asp-page-handler="FailAssignment" asp-route-id="@Model.Product?.Id">
+                             <input type="hidden" name="assignmentId" id="failAssignmentId" />
+                             <div class="modal-header">
+                                 <h5 class="modal-title text-danger" id="modalFailLabel">
+                                     <i class="bi bi-exclamation-triangle-fill me-2"></i>Registrar Falha na Atualização
+                                 </h5>
+                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                             </div>
+                             <div class="modal-body">
+                                 <dl class="row mb-3">
+                                     <dt class="col-sm-4 text-muted">Cliente:</dt>
+                                     <dd class="col-sm-8 fw-semibold" id="failClientName">-</dd>
+                                     <dt class="col-sm-4 text-muted">Versão:</dt>
+                                     <dd class="col-sm-8 font-monospace" id="failVersionLabel">-</dd>
+                                 </dl>
+                                 <div class="mb-3">
+                                     <label class="form-label fw-semibold" for="failNotes">Motivo / Observações da Falha <span class="text-danger">*</span></label>
+                                     <textarea class="tc-textarea" name="notes" id="failNotes" rows="3" placeholder="Descreva o motivo da falha ou impedimento técnico..." required></textarea>
+                                 </div>
+                             </div>
+                             <div class="modal-footer">
+                                 <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                 <button type="submit" class="tc-btn tc-btn-danger"><i class="bi bi-exclamation-octagon me-1"></i>Confirmar Falha</button>
+                             </div>
+                         </form>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- MODAL: Nova Alteração (Fase 3 com ranking determinístico de casos) -->
+             <div class="modal fade" id="modalAddChange" tabindex="-1" aria-labelledby="modalAddChangeLabel" aria-hidden="true">
+                 <div class="modal-dialog modal-lg">
+                     <div class="modal-content tc-modal-content">
+                         <form method="post" asp-page-handler="AddChange" asp-route-id="@Model.Product?.Id" id="formAddChange">
+                             <input type="hidden" asp-for="NewChange.VersionId" id="addChangeVersionId" />
+                             <div class="modal-header">
+                                 <h5 class="modal-title" id="modalAddChangeLabel">
+                                     <i class="bi bi-plus-circle text-primary me-2"></i>Nova Alteração na Versão <span id="addChangeVersionLabel" class="font-monospace text-primary"></span>
+                                 </h5>
+                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                             </div>
+                             <div class="modal-body">
+                                 <div class="row g-3">
+                                     <div class="col-lg-6 border-end pe-lg-3">
+                                         <h6 class="tc-card-title mb-2 small text-muted"><i class="bi bi-pencil-square me-1"></i>Dados da Alteração</h6>
+                                         <div class="mb-3">
+                                             <label class="form-label fw-semibold" for="addChangeType">Tipo da Alteração <span class="text-danger">*</span></label>
+                                             <select class="tc-select" asp-for="NewChange.ChangeType" id="addChangeType" required>
+                                                 @foreach (var t in Model.ValidChangeTypes)
+                                                 {
+                                                     <option value="@t">@TraceCore.Domain.Entities.ProductVersionChange.Label(t)</option>
+                                                 }
+                                             </select>
+                                         </div>
+                                         <div class="mb-3">
+                                             <label class="form-label fw-semibold" for="addChangeTitle">Título <span class="text-danger">*</span></label>
+                                             <input type="text" class="tc-input" asp-for="NewChange.Title" id="addChangeTitle" placeholder="Ex.: Corrige timeout no gateway de pagamento" required />
+                                         </div>
+                                         <div class="mb-3">
+                                             <label class="form-label fw-semibold" for="addChangeDescription">Descrição Técnica (opcional)</label>
+                                             <textarea class="tc-textarea" asp-for="NewChange.Description" id="addChangeDescription" rows="3" placeholder="Detalhes técnicos, causa raiz ou contexto da modificação..."></textarea>
+                                         </div>
+                                         <div class="row g-2">
+                                             <div class="col-md-6 mb-3">
+                                                 <label class="form-label fw-semibold" for="addChangeComponent">Componente</label>
+                                                 <select class="tc-select" asp-for="NewChange.ComponentId" id="addChangeComponent">
+                                                     <option value="">Selecione...</option>
+                                                     @foreach (var comp in Model.AllComponents)
+                                                     {
+                                                         <option value="@comp.Id">@comp.Name</option>
+                                                     }
+                                                 </select>
+                                             </div>
+                                             <div class="col-md-6 mb-3">
+                                                 <label class="form-label fw-semibold" for="addChangeErrorCode">Código de Erro</label>
+                                                 <input type="text" class="tc-input" asp-for="NewChange.ErrorCode" id="addChangeErrorCode" placeholder="Ex.: ERR_TIMEOUT" />
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div class="col-lg-6 ps-lg-3">
+                                         <div class="d-flex justify-content-between align-items-center mb-2">
+                                             <h6 class="tc-card-title mb-0 small text-primary">
+                                                 <i class="bi bi-magic me-1"></i>Casos Sugeridos (FixedBy)
+                                             </h6>
+                                             <span class="tc-caption text-muted" id="changeSuggestionStatus">Motor determinístico</span>
+                                         </div>
+                                         <p class="tc-caption text-muted mb-2">
+                                             Casos de versões anteriores com sintomas, componentes ou erros semelhantes. Marque para vincular automaticamente.
+                                         </p>
+                                         <div id="changeCaseSuggestionsContainer" style="max-height: 380px; overflow-y: auto;">
+                                             <div class="tc-empty-state tc-empty-state-compact p-3 border rounded-2 bg-light text-center">
+                                                 <div class="tc-empty-icon text-muted mb-1"><i class="bi bi-search fs-4"></i></div>
+                                                 <div class="tc-empty-title small fw-semibold text-secondary">Aguardando dados</div>
+                                                 <p class="tc-empty-description small text-muted mb-0">Preencha o título para iniciar a busca determinística de casos.</p>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="modal-footer">
+                                 <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                 <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-check-lg me-1"></i>Registrar Alteração</button>
+                             </div>
+                         </form>
+                     </div>
+                 </div>
+             </div>
         </div>
 
         <!-- CONTEXTO TÉCNICO -->
@@ -1047,3 +1682,145 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        function openConfirmDeployModal(assignmentId, clientName, unitName, productName, currentVersion, newVersion, envsJson) {
+            document.getElementById('deployAssignmentId').value = assignmentId;
+            document.getElementById('deployClientName').textContent = clientName + (unitName ? ' (' + unitName + ')' : '');
+            document.getElementById('deployProductName').textContent = productName;
+            document.getElementById('deployCurrentVersion').textContent = currentVersion ? 'v' + currentVersion : 'Não vinculada';
+            document.getElementById('deployNewVersion').textContent = 'v' + newVersion;
+
+            var envContainer = document.getElementById('deployEnvContainer');
+            var envSelect = document.getElementById('deployEnvironmentId');
+            envSelect.innerHTML = '<option value="">Selecione o ambiente...</option>';
+
+            try {
+                var envs = JSON.parse(envsJson || '[]');
+                if (envs.length > 1) {
+                    envs.forEach(function(e) {
+                        var opt = document.createElement('option');
+                        opt.value = e.id;
+                        opt.textContent = e.name;
+                        envSelect.appendChild(opt);
+                    });
+                    envContainer.style.display = 'block';
+                    envSelect.required = true;
+                } else if (envs.length === 1) {
+                    var opt = document.createElement('option');
+                    opt.value = envs[0].id;
+                    opt.textContent = envs[0].name;
+                    opt.selected = true;
+                    envSelect.appendChild(opt);
+                    envContainer.style.display = 'none';
+                    envSelect.required = false;
+                } else {
+                    envContainer.style.display = 'none';
+                    envSelect.required = false;
+                }
+            } catch(e) {
+                envContainer.style.display = 'none';
+                envSelect.required = false;
+            }
+
+            var modal = new bootstrap.Modal(document.getElementById('modalConfirmDeploy'));
+            modal.show();
+        }
+
+        function openScheduleModal(assignmentId, clientName, versionLabel) {
+            document.getElementById('scheduleAssignmentId').value = assignmentId;
+            document.getElementById('scheduleClientName').textContent = clientName;
+            document.getElementById('scheduleVersionLabel').textContent = 'v' + versionLabel;
+            var now = new Date();
+            now.setDate(now.getDate() + 1);
+            now.setMinutes(0);
+            var offset = now.getTimezoneOffset() * 60000;
+            var localISOTime = (new Date(now.getTime() - offset)).toISOString().slice(0, 16);
+            document.getElementById('scheduleDatetime').value = localISOTime;
+            var modal = new bootstrap.Modal(document.getElementById('modalScheduleAssignment'));
+            modal.show();
+        }
+
+        function openFailModal(assignmentId, clientName, versionLabel) {
+            document.getElementById('failAssignmentId').value = assignmentId;
+            document.getElementById('failClientName').textContent = clientName;
+            document.getElementById('failVersionLabel').textContent = 'v' + versionLabel;
+            document.getElementById('failNotes').value = '';
+            var modal = new bootstrap.Modal(document.getElementById('modalFailAssignment'));
+            modal.show();
+        }
+
+        // ---------- Fase 3: Modal Nova Alteração com busca determinística ----------
+        var changeAbortController = null;
+        var changeDebounceTimer = null;
+
+        function openAddChangeModal(versionId, versionLabel) {
+            document.getElementById('addChangeVersionId').value = versionId;
+            document.getElementById('addChangeVersionLabel').textContent = 'v' + versionLabel;
+            document.getElementById('addChangeTitle').value = '';
+            document.getElementById('addChangeDescription').value = '';
+            document.getElementById('addChangeErrorCode').value = '';
+            document.getElementById('addChangeComponent').value = '';
+            document.getElementById('addChangeType').value = 'Fix';
+            document.getElementById('changeCaseSuggestionsContainer').innerHTML = 
+                '<div class="tc-empty-state tc-empty-state-compact p-3 border rounded-2 bg-light text-center">' +
+                '<div class="tc-empty-icon text-muted mb-1"><i class="bi bi-search fs-4"></i></div>' +
+                '<div class="tc-empty-title small fw-semibold text-secondary">Aguardando dados</div>' +
+                '<p class="tc-empty-description small text-muted mb-0">Preencha o título para iniciar a busca determinística de casos.</p>' +
+                '</div>';
+            var modal = new bootstrap.Modal(document.getElementById('modalAddChange'));
+            modal.show();
+        }
+
+        function scheduleChangeCaseSearch() {
+            clearTimeout(changeDebounceTimer);
+            changeDebounceTimer = setTimeout(triggerChangeCaseSearch, 450);
+        }
+
+        function triggerChangeCaseSearch() {
+            var versionId = document.getElementById('addChangeVersionId').value;
+            var title = document.getElementById('addChangeTitle').value.trim();
+            var description = document.getElementById('addChangeDescription').value.trim();
+            var componentId = document.getElementById('addChangeComponent').value;
+            var errorCode = document.getElementById('addChangeErrorCode').value.trim();
+            var container = document.getElementById('changeCaseSuggestionsContainer');
+
+            if (!versionId || (!title && !description && !errorCode)) {
+                return;
+            }
+
+            var params = new URLSearchParams();
+            params.set('handler', 'PreviewChangeCaseSuggestions');
+            params.set('productVersionId', versionId);
+            if (title) params.set('title', title);
+            if (description) params.set('description', description);
+            if (componentId) params.set('componentId', componentId);
+            if (errorCode) params.set('errorCode', errorCode);
+
+            if (changeAbortController) changeAbortController.abort();
+            changeAbortController = new AbortController();
+
+            container.style.opacity = '0.5';
+            fetch(window.location.pathname + '?' + params.toString(), { signal: changeAbortController.signal })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    container.innerHTML = html;
+                    container.style.opacity = '1';
+                })
+                .catch(function(err) {
+                    if (err.name !== 'AbortError') container.style.opacity = '1';
+                });
+        }
+
+        document.getElementById('addChangeTitle').addEventListener('input', scheduleChangeCaseSearch);
+        document.getElementById('addChangeDescription').addEventListener('input', scheduleChangeCaseSearch);
+        document.getElementById('addChangeErrorCode').addEventListener('input', scheduleChangeCaseSearch);
+        document.getElementById('addChangeComponent').addEventListener('change', scheduleChangeCaseSearch);
+        document.getElementById('addChangeType').addEventListener('change', function() {
+            if (this.value === 'Fix') {
+                scheduleChangeCaseSearch();
+            }
+        });
+    </script>
+}

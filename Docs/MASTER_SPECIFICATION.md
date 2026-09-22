@@ -1,4 +1,4 @@
-﻿# MASTER SPECIFICATION
+# MASTER SPECIFICATION
 
 > Documento consolidado gerado a partir dos arquivos fonte deste pacote. Em caso de conflito, prevalecem os arquivos individuais conforme README.
 
@@ -4014,6 +4014,78 @@ Novo caso encontra artigo antigo, mas a versão atual é incompatível. O sistem
 - manter artigo antigo acessível para casos históricos.
 
 
+
+---
+
+# 18 — Versionamento Inteligente, Histórico, Analytics e Copiloto
+
+## 1. Fundamentos e Regras de Negócio Centrais
+
+O versionamento inteligente no TraceCore transforma releases e registros de versão em vetores de decisão técnica, diagnóstico acelerado e governança de software.
+
+### Regra V-001 — Ordenação Numérica Estrita via `release_order`
+A cronologia e precedência entre versões é definida exclusivamente pela coluna inteira `product_versions.release_order`. Nomenclaturas de versão (`version_label`) são rótulos comerciais/arbitrários e **nunca** podem ser usadas para ordenação léxica ou textual (exemplo: a versão `5.9` lançada com `release_order = 1` precede cronologicamente a versão `5.10` com `release_order = 2`, embora `"5.10" < "5.9"` em ordenação alfabética).
+
+### Regra V-002 — Separação Estrita: `OccurredInVersion` vs `FixedByVersion`
+Um caso de suporte registra fatos no tempo:
+- **`OccurredInVersion` (`cases.product_version_id`)**: versão do produto em que o incidente ocorreu no cliente. **É imutável durante o ciclo de resolução da versão**.
+- **`FixedByVersion` (`product_version_change_cases`)**: versão em que a equipe de engenharia publicou uma alteração do tipo `Fix` que soluciona o defeito. O caso é vinculado à alteração através de `relation_type = 'FixedBy'`, sem jamais sobrescrever a versão onde o incidente se deu.
+
+### Regra V-003 — Observação Factual de Recorrência sem Atribuição Causal
+A persistência ou reaparecimento de sintomas pós-lançamento de uma versão é monitorada de forma puramente factual:
+- Mede-se a contagem de casos abertos com o mesmo código de erro ou componente afetado após a data de lançamento (`released_at`) da versão.
+- A redação apresentada ao operador, analista e Copiloto IA é sempre descritiva e factual: *"N ocorrência(s) semelhante(s) foi(ram) registrada(s) após a adoção da versão."*
+- É terminantemente proibido o uso de juízos de valor determinísticos ou acusações de falha (*"a correção falhou"*, *"a correção é defeituosa"*), pois fatores operacionais, de massa de dados ou configurações de cliente podem introduzir comportamentos distintos.
+
+### Regra V-004 — Vigência Temporal de Versão do Cliente (`EffectiveFrom` / `EffectiveTo`)
+O vínculo de versão do cliente em `client_technical_contexts` opera com semântica de vigência temporal:
+- Apenas um contexto pode estar ativo (`effective_to IS NULL`) por tupla `(client_id, product_id, client_unit_id, environment_id)`.
+- Atualizações de versão (manuais ou via confirmação de rollout) encerram a vigência anterior preenchendo `effective_to` e criam o novo registro com `effective_from`, preservando a rastreabilidade histórica completa.
+
+---
+
+## 2. As 5 Fases da Implementação
+
+1. **Fase 1 — Modelo Central & Rollout**:
+   - `release_order` com unicidade `(product_id, release_order)`.
+   - `product_version_changes`: cadastro de entregas com tipo (Fix, Feature, Improvement, Internal, Security), título, descrição, componente e código de erro.
+   - `product_version_change_cases`: tabela associativa para vincular casos a correções.
+   - `product_version_assignments`: planejamento, agendamento, implantação (`Deployed`) e rejeição (`Skipped`/`Failed`) de versões por cliente.
+
+2. **Fase 2 — Contexto do Cliente no Tempo**:
+   - Rastreabilidade de versões vigentes e passadas na tela de Clientes.
+   - Transição assistida de versão com validação de ambiguidade (`BR-VERSION-001`).
+
+3. **Fase 3 — Ranking & Sugestão Determinística de Casos para Correções**:
+   - Sugestão automática de casos históricos elegíveis para uma correção usando algoritmo ponderado determinístico (Cliente +15, Produto +30, Componente +25, Versão +20, Erro +35, Tag +10, Termos +20).
+   - Sem uso de modelos estatísticos ou LLMs probabilísticos para evitar alucinações.
+
+4. **Fase 4 — Versão do Cliente e Correções Posteriores na Abertura de Casos**:
+   - Preenchimento inteligente e contextual de versão em `Cases/Create`.
+   - Sugestão imediata de possíveis correções já disponíveis em versões posteriores à do cliente.
+
+5. **Fase 5 — Histórico Versões $\times$ Casos, Analytics, Copiloto e Consolidação**:
+   - **Visão Versão $\rightarrow$ Casos**: Aba na tela de produto/versão exibindo tabela detalhada de casos vinculados.
+   - **Indicadores da Versão**: Painel de métricas estruturadas (Casos Ocorridos, Correções Publicadas, Casos Vinculados, Clientes Planejados, Clientes Atualizados e Pendentes).
+   - **Linha do Tempo de Versões $\times$ Casos por Período**: Modal no cliente exibindo progressão (`5.17.9 -> 5.18.2 -> 5.18.4`) e os casos que foram abertos durante a vigência de cada release.
+   - **Copiloto IA de Investigação**: Ferramentas nativas `GetClientVersionContext` e `SearchVersionFixes`. O backend provê fatos e contagens numéricas; o Copiloto gera o parecer investigativo com links internos markdown clicáveis.
+   - **Dev Seed**: Migração compatível `M20260922_31` com o cenário realístico Atlas Transportes.
+
+---
+
+## 3. Cobertura de Testes Automatizados (Cenários A a I)
+
+A suíte `VersionIntelligencePhase5Tests` valida integralmente as garantias do sistema:
+- **Cenário A**: Cliente em versão antiga identifica correção disponível em versão posterior.
+- **Cenário B**: Cliente já na versão mais recente não recebe falsas sugestões de versões futuras.
+- **Cenário C**: Cliente com destinação planejada (`Planned`) mantém sua versão ativa inalterada até a efetiva confirmação de implantação.
+- **Cenário D**: Correção de versão compartilhada e associada com sucesso a casos de clientes múltiplos e distintos.
+- **Cenário E**: Casos sem versão informada comportam-se de forma resiliente e não quebram consultas de indicadores.
+- **Cenário F**: Versões recém-criadas sem correções retornam contadores zerados de forma consistente.
+- **Cenário G**: Versões não-léxicas (ex: `5.9` antes de `5.10`) respeitam a ordem de release numérica.
+- **Cenário H**: Recorrência observada fatualmente sem linguagem acusatória ou juízos causais.
+- **Cenário I**: Filiais/unidades operacionais com versões desiguais da matriz mantêm contextos isolados.
+- **Copiloto Tools**: Ferramentas do agente executam sem erro e retornam estruturas de dados enriquecidas.
 
 ---
 

@@ -133,7 +133,7 @@
 
                         <div class="col-md-6">
                             <label asp-for="Input.EnvironmentId" class="tc-form-label">Ambiente da Ocorrência</label>
-                            <select asp-for="Input.EnvironmentId" class="tc-select">
+                            <select asp-for="Input.EnvironmentId" class="tc-select" id="environmentSelect">
                                 <option value="">-- Ambiente não informado --</option>
                                 @foreach (var e in Model.Environments)
                                 {
@@ -147,6 +147,13 @@
                             <select asp-for="Input.ProductVersionId" class="tc-select" id="versionSelect" disabled>
                                 <option value="">-- Selecione um Sistema primeiro --</option>
                             </select>
+                            <span id="versionSuggestedNotice" class="tc-caption text-success d-none mt-1">
+                                <i class="bi bi-check-circle me-1"></i>Versão sugerida com base no contexto técnico do cliente.
+                            </span>
+                            <div id="ambiguousEnvNotice" class="alert alert-warning py-2 px-3 small d-none mt-2">
+                                <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Múltiplos ambientes ativos detectados:</div>
+                                <div id="ambiguousEnvOptions" class="d-flex flex-column gap-1"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -314,21 +321,40 @@
                 </div>
             </div>
 
-            <!-- COLUNA LATERAL: CASOS SEMELHANTES AO VIVO -->
+            <!-- COLUNA LATERAL: CASOS SEMELHANTES E CORREÇÕES AO VIVO -->
             <div class="col-lg-4">
-                <div class="tc-card p-3 mb-0" style="position: sticky; top: 1rem;">
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <i class="bi bi-intersect text-primary"></i>
-                        <h3 class="tc-title-section mb-0 fs-6">Casos Semelhantes</h3>
+                <div style="position: sticky; top: 1rem;" class="d-flex flex-column gap-3">
+                    <div class="tc-card p-3 mb-0">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="bi bi-intersect text-primary"></i>
+                            <h3 class="tc-title-section mb-0 fs-6">Casos Semelhantes</h3>
+                        </div>
+                        <p class="tc-caption text-muted mb-3">
+                            Busca automática enquanto você preenche — tente resolver com um caso já conhecido antes de abrir um novo.
+                        </p>
+                        <div id="similarCasesContainer">
+                            <div class="tc-empty-state tc-empty-state-compact p-3">
+                                <div class="tc-empty-icon"><i class="bi bi-search"></i></div>
+                                <div class="tc-empty-title small">Comece pelo relato</div>
+                                <p class="tc-empty-description small mb-0">Descreva a ocorrência na Etapa 1 para iniciar a busca.</p>
+                            </div>
+                        </div>
                     </div>
-                    <p class="tc-caption text-muted mb-3">
-                        Busca automática enquanto você preenche — tente resolver com um caso já conhecido antes de abrir um novo.
-                    </p>
-                    <div id="similarCasesContainer">
-                        <div class="tc-empty-state tc-empty-state-compact p-3">
-                            <div class="tc-empty-icon"><i class="bi bi-search"></i></div>
-                            <div class="tc-empty-title small">Comece pelo relato</div>
-                            <p class="tc-empty-description small mb-0">Descreva a ocorrência na Etapa 1 para iniciar a busca.</p>
+
+                    <div class="tc-card p-3 mb-0">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="bi bi-shield-check text-success"></i>
+                            <h3 class="tc-title-section mb-0 fs-6">Possíveis Correções Disponíveis</h3>
+                        </div>
+                        <p class="tc-caption text-muted mb-3">
+                            Correções já entregues em versões posteriores à selecionada que podem resolver este sintoma.
+                        </p>
+                        <div id="possibleFixesContainer">
+                            <div class="tc-empty-state tc-empty-state-compact p-3">
+                                <div class="tc-empty-icon"><i class="bi bi-shield-check"></i></div>
+                                <div class="tc-empty-title small">Nenhuma correção posterior</div>
+                                <p class="tc-empty-description small mb-0">Selecione Sistema e Versão para verificar possíveis correções já lançadas.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -483,6 +509,7 @@
                     clientPickerLabel.textContent = opt.dataset.clientLabel;
                     clientPickerLabel.classList.toggle('text-muted', !opt.dataset.clientId);
                     bootstrap.Modal.getOrCreateInstance(clientPickerModalEl).hide();
+                    checkClientActiveVersion();
                     scheduleSimilarSearch();
                 });
             });
@@ -532,9 +559,72 @@
 
             productSelect.addEventListener('change', function () {
                 refreshVersionOptions();
+                checkClientActiveVersion();
                 scheduleSimilarSearch();
             });
             refreshVersionOptions();
+
+            // ---------- Versão Ativa do Cliente (Fase 4: auto-preenchimento sem decisão silenciosa) ----------
+            function checkClientActiveVersion() {
+                var cId = clientIdInput.value;
+                var pId = productSelect.value;
+                var notice = document.getElementById('versionSuggestedNotice');
+                var ambNotice = document.getElementById('ambiguousEnvNotice');
+                var ambOptions = document.getElementById('ambiguousEnvOptions');
+                var envSelect = document.getElementById('environmentSelect');
+
+                if (notice) notice.classList.add('d-none');
+                if (ambNotice) ambNotice.classList.add('d-none');
+                if (ambOptions) ambOptions.innerHTML = '';
+
+                if (!cId || !pId) return;
+
+                fetch(window.location.pathname + '?handler=ClientCurrentVersion&clientId=' + encodeURIComponent(cId) + '&productId=' + encodeURIComponent(pId))
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (!data || !data.hasContext) {
+                            return;
+                        }
+
+                        if (data.isAmbiguous) {
+                            // Múltiplos ambientes: mostrar opções sem escolher sozinho (Regra 4)
+                            if (ambNotice && ambOptions) {
+                                ambNotice.classList.remove('d-none');
+                                data.ambiguousEnvironments.forEach(function(envItem) {
+                                    var btn = document.createElement('button');
+                                    btn.type = 'button';
+                                    btn.className = 'btn btn-sm btn-outline-warning text-dark text-start d-flex justify-content-between align-items-center py-1 px-2 mb-1';
+                                    btn.innerHTML = '<span><i class="bi bi-hdd-network me-1"></i><strong>' + (envItem.environmentName || 'Ambiente') + '</strong></span>' +
+                                                    '<span class="badge bg-light text-dark border">' + (envItem.versionLabel || 'Versão não def.') + '</span>';
+                                    btn.addEventListener('click', function() {
+                                        if (envItem.environmentId && envSelect) envSelect.value = envItem.environmentId;
+                                        if (envItem.productVersionId && versionSelect) {
+                                            versionSelect.value = envItem.productVersionId;
+                                            if (notice) notice.classList.remove('d-none');
+                                        }
+                                        ambNotice.classList.add('d-none');
+                                        scheduleSimilarSearch();
+                                    });
+                                    ambOptions.appendChild(btn);
+                                });
+                            }
+                            return;
+                        }
+
+                        // Contexto inequívoco: sugerir versão e ambiente
+                        if (data.environmentId && envSelect) {
+                            envSelect.value = data.environmentId;
+                        }
+                        if (data.productVersionId && versionSelect) {
+                            versionSelect.value = data.productVersionId;
+                            if (notice) notice.classList.remove('d-none');
+                        }
+                        scheduleSimilarSearch();
+                    })
+                    .catch(function(err) {
+                        console.error('Erro ao verificar contexto ativo do cliente:', err);
+                    });
+            }
 
             // ---------- Sintomas / Evidências: linhas repetíveis (1→N) ----------
             function setupRepeatableList(containerId, templateId, addBtnId, onChange) {
@@ -622,10 +712,12 @@
                 });
             })();
 
-            // ---------- Casos semelhantes: pré-visualização ao vivo (debounced) ----------
+            // ---------- Casos semelhantes e possíveis correções: pré-visualização ao vivo (debounced) ----------
             var similarCasesContainer = document.getElementById('similarCasesContainer');
+            var possibleFixesContainer = document.getElementById('possibleFixesContainer');
             var debounceTimer = null;
             var lastAbortController = null;
+            var lastFixAbortController = null;
 
             function scheduleSimilarSearch() {
                 clearTimeout(debounceTimer);
@@ -643,39 +735,85 @@
                         '<div class="tc-empty-icon"><i class="bi bi-search"></i></div>' +
                         '<div class="tc-empty-title small">Comece pelo relato</div>' +
                         '<p class="tc-empty-description small mb-0">Descreva a ocorrência na Etapa 1 para iniciar a busca.</p></div>';
+                } else {
+                    var componentIds = Array.from(document.querySelectorAll('.component-checkbox:checked')).map(function (c) { return c.value; });
+
+                    var params = new URLSearchParams();
+                    params.set('handler', 'PreviewSimilarCases');
+                    if (report) params.set('reportText', report);
+                    if (clientIdInput.value) params.set('clientId', clientIdInput.value);
+                    if (productSelect.value) params.set('productId', productSelect.value);
+                    if (versionSelect.value) params.set('productVersionId', versionSelect.value);
+                    var errorCode = document.getElementById('errorCodeInput').value.trim();
+                    if (errorCode) params.set('errorCode', errorCode);
+                    componentIds.forEach(function (id) { params.append('componentIds', id); });
+                    symptoms.forEach(function (s) { params.append('symptoms', s); });
+
+                    if (lastAbortController) lastAbortController.abort();
+                    lastAbortController = new AbortController();
+
+                    similarCasesContainer.style.opacity = '0.6';
+                    fetch(window.location.pathname + '?' + params.toString(), { signal: lastAbortController.signal })
+                        .then(function (r) { return r.text(); })
+                        .then(function (html) {
+                            similarCasesContainer.innerHTML = html;
+                            similarCasesContainer.style.opacity = '1';
+                        })
+                        .catch(function (err) {
+                            if (err.name !== 'AbortError') similarCasesContainer.style.opacity = '1';
+                        });
+                }
+
+                // Busca paralela debounced de possíveis correções posteriores (Fase 4)
+                runPossibleFixesSearch(report);
+            }
+
+            function runPossibleFixesSearch(reportText) {
+                var pId = productSelect.value;
+                var vId = versionSelect.value;
+
+                if (!pId || !vId) {
+                    possibleFixesContainer.innerHTML = '<div class="tc-empty-state tc-empty-state-compact p-3">' +
+                        '<div class="tc-empty-icon"><i class="bi bi-shield-check"></i></div>' +
+                        '<div class="tc-empty-title small">Nenhuma correção posterior</div>' +
+                        '<p class="tc-empty-description small mb-0">Selecione Sistema e Versão para verificar possíveis correções já lançadas.</p></div>';
                     return;
                 }
 
-                var componentIds = Array.from(document.querySelectorAll('.component-checkbox:checked')).map(function (c) { return c.value; });
-
-                var params = new URLSearchParams();
-                params.set('handler', 'PreviewSimilarCases');
-                if (report) params.set('reportText', report);
-                if (clientIdInput.value) params.set('clientId', clientIdInput.value);
-                if (productSelect.value) params.set('productId', productSelect.value);
-                if (versionSelect.value) params.set('productVersionId', versionSelect.value);
+                var titleInput = document.getElementById('Input_TitleSummary');
+                var titleText = titleInput ? titleInput.value.trim() : '';
                 var errorCode = document.getElementById('errorCodeInput').value.trim();
-                if (errorCode) params.set('errorCode', errorCode);
-                componentIds.forEach(function (id) { params.append('componentIds', id); });
-                symptoms.forEach(function (s) { params.append('symptoms', s); });
+                var firstCheckedComponent = document.querySelector('.component-checkbox:checked');
+                var componentId = firstCheckedComponent ? firstCheckedComponent.value : '';
 
-                if (lastAbortController) lastAbortController.abort();
-                lastAbortController = new AbortController();
+                var fixParams = new URLSearchParams();
+                fixParams.set('handler', 'PreviewPossibleFixes');
+                fixParams.set('productId', pId);
+                fixParams.set('productVersionId', vId);
+                if (titleText) fixParams.set('title', titleText);
+                else if (reportText) fixParams.set('title', reportText);
+                if (reportText) fixParams.set('description', reportText);
+                if (errorCode) fixParams.set('errorCode', errorCode);
+                if (componentId) fixParams.set('componentId', componentId);
 
-                similarCasesContainer.style.opacity = '0.6';
-                fetch(window.location.pathname + '?' + params.toString(), { signal: lastAbortController.signal })
+                if (lastFixAbortController) lastFixAbortController.abort();
+                lastFixAbortController = new AbortController();
+
+                possibleFixesContainer.style.opacity = '0.6';
+                fetch(window.location.pathname + '?' + fixParams.toString(), { signal: lastFixAbortController.signal })
                     .then(function (r) { return r.text(); })
                     .then(function (html) {
-                        similarCasesContainer.innerHTML = html;
-                        similarCasesContainer.style.opacity = '1';
+                        possibleFixesContainer.innerHTML = html;
+                        possibleFixesContainer.style.opacity = '1';
                     })
                     .catch(function (err) {
-                        if (err.name !== 'AbortError') similarCasesContainer.style.opacity = '1';
+                        if (err.name !== 'AbortError') possibleFixesContainer.style.opacity = '1';
                     });
             }
 
             document.getElementById('originalReportInput').addEventListener('input', scheduleSimilarSearch);
             document.getElementById('errorCodeInput').addEventListener('input', scheduleSimilarSearch);
+            versionSelect.addEventListener('change', scheduleSimilarSearch);
             document.querySelectorAll('.component-checkbox').forEach(function (cb) {
                 cb.addEventListener('change', scheduleSimilarSearch);
             });

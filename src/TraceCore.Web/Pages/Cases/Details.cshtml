@@ -600,6 +600,104 @@
                         </div>
                     </div>
 
+                    <!-- Contexto de Versão e Correções (Fase 4) -->
+                    <div class="tc-card mb-4">
+                        <div class="tc-card-header d-flex align-items-center justify-content-between">
+                            <h3 class="tc-card-title d-flex align-items-center gap-2">
+                                <i class="bi bi-git text-primary"></i>
+                                <span>Contexto de Versão & Correções</span>
+                            </h3>
+                            @if (Model.VersionContext?.ReleaseOrder.HasValue == true)
+                            {
+                                <span class="badge bg-secondary-subtle text-secondary border small">Release Order: @Model.VersionContext.ReleaseOrder</span>
+                            }
+                        </div>
+                        <div class="tc-card-body">
+                            <div class="mb-3 p-2 bg-body-tertiary rounded border">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace small">OccurredInVersion</span>
+                                    <span class="tc-caption text-muted fw-semibold">Versão do Incidente</span>
+                                </div>
+                                <div class="d-flex align-items-baseline gap-2">
+                                    <strong class="text-dark fs-6">@(Model.VersionContext?.VersionLabel ?? Model.Case.VersionLabel ?? "Não informada")</strong>
+                                    <span class="tc-caption text-muted">(Versão em que a ocorrência foi registrada pelo cliente)</span>
+                                </div>
+                            </div>
+
+                            @if (Model.VersionContext?.ConfirmedFixes != null && Model.VersionContext.ConfirmedFixes.Count > 0)
+                            {
+                                <div class="mb-3">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace small">FixedByVersion</span>
+                                        <span class="tc-caption text-success fw-semibold text-uppercase">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Correções Confirmadas (@Model.VersionContext.ConfirmedFixes.Count)
+                                        </span>
+                                    </div>
+                                    <div class="d-flex flex-column gap-2">
+                                        @foreach (var fix in Model.VersionContext.ConfirmedFixes)
+                                        {
+                                            <div class="p-2 px-3 border rounded bg-success-subtle bg-opacity-10 border-success-subtle d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                <div>
+                                                    <span class="badge bg-success text-white small me-1">@fix.VersionLabel</span>
+                                                    <strong class="text-dark small">@fix.ChangeTitle</strong>
+                                                    <span class="tc-caption text-muted ms-2">(@fix.RelationType em @fix.LinkedAt.ToString("dd/MM/yyyy"))</span>
+                                                </div>
+                                                <a href="/Catalog/Products/Details?id=@Model.Case.ProductId&tab=versions" class="tc-btn tc-btn-secondary tc-btn-sm py-0 px-2" target="_blank" style="font-size: 0.75rem;">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i>Ver Correção
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <div>
+                                <span class="tc-caption text-muted text-uppercase fw-semibold d-block mb-2">
+                                    <i class="bi bi-lightbulb me-1"></i>Possíveis Correções em Versões Posteriores
+                                </span>
+                                @if (Model.VersionContext?.PossibleFixes != null && Model.VersionContext.PossibleFixes.Count > 0)
+                                {
+                                    <div class="d-flex flex-column gap-2">
+                                        @foreach (var fix in Model.VersionContext.PossibleFixes)
+                                        {
+                                            <div class="p-2 px-3 border rounded bg-light d-flex align-items-center justify-content-between flex-wrap gap-2 border-start border-4 border-info">
+                                                <div>
+                                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                                        <span class="badge bg-primary-subtle text-primary border small">@fix.VersionLabel</span>
+                                                        <strong class="text-dark small">@fix.ChangeTitle</strong>
+                                                        <span class="badge bg-secondary-subtle text-secondary small">Score: @fix.Score</span>
+                                                        <span class="tc-caption text-muted">Casos relacionados: @fix.LinkedCaseCount</span>
+                                                    </div>
+                                                    @if (fix.MatchedFactors.Count > 0)
+                                                    {
+                                                        <div class="d-flex flex-wrap gap-1">
+                                                            @foreach (var factor in fix.MatchedFactors)
+                                                            {
+                                                                <span class="badge bg-info-subtle text-info border small" style="font-size: 0.68rem;">@factor</span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                                <a href="/Catalog/Products/Details?id=@Model.Case.ProductId&tab=versions" class="tc-btn tc-btn-secondary tc-btn-sm py-0 px-2" target="_blank" style="font-size: 0.75rem;">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i>Ver Correção
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                    <p class="tc-caption text-muted mt-2 mb-0">
+                                        <i class="bi bi-info-circle me-1"></i>Possíveis correções identificadas com base no componente, código de erro e termos relatados.
+                                    </p>
+                                }
+                                else
+                                {
+                                    <p class="tc-caption text-muted mb-0 fst-italic">
+                                        Nenhuma correção posterior relacionada foi encontrada.
+                                    </p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Sintomas Mapeados -->
                     <div class="tc-card">
                         <div class="tc-card-header">

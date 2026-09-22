@@ -30,6 +30,7 @@ public class DetailsModel : PageModel
     private readonly IKnowledgeService _knowledgeService;
     private readonly ICaseRelationService _caseRelationService;
     private readonly IIntegrationRepository _integrationRepository;
+    private readonly IVersionManagementService _versionManagementService;
 
     public DetailsModel(
         ICaseService caseService,
@@ -42,7 +43,8 @@ public class DetailsModel : PageModel
         IAuthorizationService authorizationService,
         IKnowledgeService knowledgeService,
         ICaseRelationService caseRelationService,
-        IIntegrationRepository integrationRepository)
+        IIntegrationRepository integrationRepository,
+        IVersionManagementService versionManagementService)
     {
         _caseService = caseService;
         _investigationService = investigationService;
@@ -55,12 +57,14 @@ public class DetailsModel : PageModel
         _knowledgeService = knowledgeService;
         _caseRelationService = caseRelationService;
         _integrationRepository = integrationRepository;
+        _versionManagementService = versionManagementService;
     }
 
     public CaseDto Case { get; set; } = null!;
     public CaseInvestigationTimelineDto InvestigationTimeline { get; set; } = null!;
     public CaseResolutionDto? Resolution { get; set; }
     public CaseRelationsOverviewDto RelationsOverview { get; set; } = null!;
+    public CaseVersionContextDto? VersionContext { get; set; }
     public bool CanDiagnose { get; set; }
     public bool CanResolve { get; set; }
     public bool CanReopen { get; set; }
@@ -212,6 +216,7 @@ public class DetailsModel : PageModel
         InvestigationTimeline = await _investigationService.GetInvestigationTimelineAsync(id);
         Resolution = await _caseResolutionService.GetResolutionByCaseIdAsync(id);
         Evidences = await _investigationService.GetEvidencesByCaseIdAsync(id);
+        VersionContext = await _versionManagementService.GetVersionContextForCaseAsync(id);
 
         // Fase 05 — Integrações do sistema (produto) do caso, candidatas a teste de health-check
         if (item.ProductId.HasValue)

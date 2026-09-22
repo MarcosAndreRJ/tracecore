@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using TraceCore.Application.DTOs;
 using TraceCore.Application.Services;
 using TraceCore.Domain.Entities;
+using TraceCore.Domain.Repositories;
 
 namespace TraceCore.Web.Pages.Catalog.Products;
 
@@ -18,23 +19,35 @@ namespace TraceCore.Web.Pages.Catalog.Products;
 public class DetailsModel : PageModel
 {
     private readonly ICatalogService _catalogService;
+    private readonly ICatalogRepository _catalogRepository;
     private readonly IProductTechnicalContextService _technicalContextService;
     private readonly IIntegrationService _integrationService;
     private readonly IIntegrationHealthCheckService _integrationHealthCheckService;
     private readonly IDepartmentService _departmentService;
+    private readonly IVersionManagementService _versionManagementService;
+    private readonly IClientService _clientService;
+    private readonly ICaseService _caseService;
 
     public DetailsModel(
         ICatalogService catalogService,
+        ICatalogRepository catalogRepository,
         IProductTechnicalContextService technicalContextService,
         IIntegrationService integrationService,
         IIntegrationHealthCheckService integrationHealthCheckService,
-        IDepartmentService departmentService)
+        IDepartmentService departmentService,
+        IVersionManagementService versionManagementService,
+        IClientService clientService,
+        ICaseService caseService)
     {
         _catalogService = catalogService;
+        _catalogRepository = catalogRepository;
         _technicalContextService = technicalContextService;
         _integrationService = integrationService;
         _integrationHealthCheckService = integrationHealthCheckService;
         _departmentService = departmentService;
+        _versionManagementService = versionManagementService;
+        _clientService = clientService;
+        _caseService = caseService;
     }
 
     public Product? Product { get; private set; }
@@ -43,6 +56,21 @@ public class DetailsModel : PageModel
 
     // Aba Versões — rastreabilidade de em qual versão um problema aparece (Bloco 7.A.2).
     public IReadOnlyList<ProductVersion> Versions { get; private set; } = [];
+
+    // Fase 1 & 2 (Versionamento Inteligente): itens de release e destinação por versão.
+    public IReadOnlyDictionary<long, IReadOnlyList<ProductVersionChangeDto>> ChangesByVersion { get; private set; } = new System.Collections.Generic.Dictionary<long, IReadOnlyList<ProductVersionChangeDto>>();
+    public IReadOnlyDictionary<long, IReadOnlyList<ProductVersionAssignmentDto>> AssignmentsByVersion { get; private set; } = new System.Collections.Generic.Dictionary<long, IReadOnlyList<ProductVersionAssignmentDto>>();
+    public IReadOnlyDictionary<long, VersionIndicatorsDto> IndicatorsByVersion { get; private set; } = new System.Collections.Generic.Dictionary<long, VersionIndicatorsDto>();
+    public IReadOnlyDictionary<long, IReadOnlyList<VersionLinkedCaseDetailDto>> LinkedCasesByVersion { get; private set; } = new System.Collections.Generic.Dictionary<long, IReadOnlyList<VersionLinkedCaseDetailDto>>();
+    public IReadOnlyDictionary<long, FixRecurrenceObservationDto> RecurrenceByChangeId { get; private set; } = new System.Collections.Generic.Dictionary<long, FixRecurrenceObservationDto>();
+    public IReadOnlyDictionary<long, int> CasesCountByVersion { get; private set; } = new System.Collections.Generic.Dictionary<long, int>();
+    public IReadOnlyList<ClientDto> ClientsForRollout { get; private set; } = [];
+    public IReadOnlyDictionary<long, IReadOnlyList<ClientUnitDto>> UnitsByClient { get; private set; } = new System.Collections.Generic.Dictionary<long, IReadOnlyList<ClientUnitDto>>();
+    public IReadOnlyDictionary<long, IReadOnlyList<ClientTechnicalContextDto>> ClientContextsMap { get; private set; } = new System.Collections.Generic.Dictionary<long, IReadOnlyList<ClientTechnicalContextDto>>();
+    public IReadOnlyList<EnvironmentEntity> AvailableEnvironments { get; private set; } = [];
+
+    [BindProperty]
+    public List<long> SelectedClientIdsForRollout { get; set; } = new();
 
     // Aba Componentes (entidades completas — precisamos de Id/Status/ProductId para as ações).
     public IReadOnlyList<ComponentEntity> Components { get; private set; } = [];
@@ -55,6 +83,10 @@ public class DetailsModel : PageModel
     public IReadOnlyList<IntegrationType> IntegrationTypesList { get; private set; } = [];
 
     public string[] SystemTypes { get; } = ProductTechnicalProfile.ValidSystemTypes;
+
+    public string[] ValidChangeTypes { get; } = ProductVersionChange.ValidChangeTypes;
+    public string[] ValidRelationTypes { get; } = ProductVersionChangeCase.ValidRelationTypes;
+    public string[] ValidAssignmentStatuses { get; } = ProductVersionAssignment.ValidStatuses;
 
     public string[] ValidResponsibilities { get; } = Integration.ValidResponsibilities;
     public string[] ValidHostingLocations { get; } = Integration.ValidHostingLocations;
@@ -83,6 +115,19 @@ public class DetailsModel : PageModel
 
     [BindProperty]
     public IntegrationInput EditIntegration { get; set; } = new();
+
+    // Fase 1 (Versionamento Inteligente) — formulários da aba Versões.
+    [BindProperty]
+    public ChangeInput NewChange { get; set; } = new();
+
+    [BindProperty]
+    public ChangeInput EditChange { get; set; } = new();
+
+    [BindProperty]
+    public CaseLinkInput NewCaseLink { get; set; } = new();
+
+    [BindProperty]
+    public AssignmentInput NewAssignment { get; set; } = new();
 
     [TempData]
     public string? SuccessMessage { get; set; }
@@ -150,6 +195,35 @@ public class DetailsModel : PageModel
         public string? Direction { get; set; }
     }
 
+    public record ChangeInput
+    {
+        public long VersionId { get; set; }
+        public long Id { get; set; }
+        public string ChangeType { get; set; } = "Improvement";
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public long? ComponentId { get; set; }
+        public string? ErrorCode { get; set; }
+        public List<long> SelectedCaseIdsToLink { get; set; } = new();
+    }
+
+    public record CaseLinkInput
+    {
+        public long ChangeId { get; set; }
+        public ulong CaseNumber { get; set; }
+        public string RelationType { get; set; } = "FixedBy";
+    }
+
+    public record AssignmentInput
+    {
+        public long VersionId { get; set; }
+        public long ClientId { get; set; }
+        public long? ClientUnitId { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public IReadOnlyList<ComponentEntity> AllComponents { get; private set; } = [];
+
     public async Task<IActionResult> OnGetAsync(long id)
     {
         Product = await _catalogService.GetProductByIdAsync(id);
@@ -194,13 +268,60 @@ public class DetailsModel : PageModel
         AllowedDomainList = allDomains.Where(d => d.IsActive).ToList();
 
         Versions = (await _catalogService.GetVersionsByProductIdAsync(productId))
-            .OrderByDescending(v => v.ReleasedAt ?? DateTime.MinValue)
-            .ThenByDescending(v => v.Id)
+            .OrderBy(v => v.ReleaseOrder)
+            .ThenBy(v => v.Id)
             .ToList();
+
+        // Fase 1, 2 e 5 (Versionamento Inteligente): itens de alteração, destinação, indicadores e casos vinculados.
+        var changesMap = new System.Collections.Generic.Dictionary<long, IReadOnlyList<ProductVersionChangeDto>>();
+        var assignmentsMap = new System.Collections.Generic.Dictionary<long, IReadOnlyList<ProductVersionAssignmentDto>>();
+        var linkedCasesMap = new System.Collections.Generic.Dictionary<long, IReadOnlyList<VersionLinkedCaseDetailDto>>();
+        var recurrenceMap = new System.Collections.Generic.Dictionary<long, FixRecurrenceObservationDto>();
+
+        var indicatorsList = await _versionManagementService.GetVersionIndicatorsForProductAsync(productId);
+        IndicatorsByVersion = indicatorsList.ToDictionary(i => i.ProductVersionId);
+        CasesCountByVersion = indicatorsList.ToDictionary(i => i.ProductVersionId, i => i.CasesOccurredCount);
+
+        foreach (var v in Versions)
+        {
+            changesMap[v.Id] = await _versionManagementService.GetChangesByVersionIdAsync(v.Id);
+            assignmentsMap[v.Id] = await _versionManagementService.GetAssignmentsByVersionIdAsync(v.Id);
+            linkedCasesMap[v.Id] = await _versionManagementService.GetVersionLinkedCasesAsync(v.Id);
+
+            foreach (var ch in changesMap[v.Id])
+            {
+                if (string.Equals(ch.ChangeType, "Fix", StringComparison.OrdinalIgnoreCase))
+                {
+                    recurrenceMap[ch.Id] = await _versionManagementService.GetFixRecurrenceAsync(ch.Id);
+                }
+            }
+        }
+        ChangesByVersion = changesMap;
+        AssignmentsByVersion = assignmentsMap;
+        LinkedCasesByVersion = linkedCasesMap;
+        RecurrenceByChangeId = recurrenceMap;
+
+        // Dados para a destinação (rollout) de versões a clientes.
+        ClientsForRollout = (await _clientService.GetAllClientsAsync())
+            .Where(c => c.Status == "Active")
+            .OrderBy(c => c.Name)
+            .ToList();
+        var unitsMap = new System.Collections.Generic.Dictionary<long, IReadOnlyList<ClientUnitDto>>();
+        var clientContextsMap = new System.Collections.Generic.Dictionary<long, IReadOnlyList<ClientTechnicalContextDto>>();
+        foreach (var c in ClientsForRollout)
+        {
+            var details = await _clientService.GetClientDetailsAsync(c.Id);
+            unitsMap[c.Id] = details?.Units.Where(u => u.Status == "Active").OrderBy(u => u.Name).ToList() ?? [];
+            clientContextsMap[c.Id] = details?.TechnicalContexts.Where(tc => tc.ProductId == productId).ToList() ?? [];
+        }
+        UnitsByClient = unitsMap;
+        ClientContextsMap = clientContextsMap;
+        AvailableEnvironments = await _catalogRepository.GetAllEnvironmentsAsync();
 
         Components = await _catalogService.GetAllComponentsAsync(productId);
         ComponentTypesList = await _catalogService.GetComponentTypesAsync(includeInactive: true);
         DepartmentsList = await _departmentService.GetAllDepartmentsAsync();
+        AllComponents = await _catalogService.GetAllComponentsAsync(productId: null);
 
         var allIntegrations = await _integrationService.GetIntegrationsAsync();
         Integrations = allIntegrations.Where(i => i.ProductId == productId).OrderBy(i => i.Code).ToList();
@@ -341,13 +462,42 @@ public class DetailsModel : PageModel
 
         try
         {
-            await _catalogService.CreateVersionAsync(
+            var versionId = await _catalogService.CreateVersionAsync(
                 id,
                 NewVersion.VersionLabel.Trim(),
                 NewVersion.ReleasedAt,
                 GetCurrentUserId());
 
-            SuccessMessage = $"Versão '{NewVersion.VersionLabel}' registrada para este sistema.";
+            // Seleção de clientes no rollout já na criação da versão (Item 6)
+            if (SelectedClientIdsForRollout != null && SelectedClientIdsForRollout.Count > 0)
+            {
+                var assignedCount = 0;
+                foreach (var clientId in SelectedClientIdsForRollout.Where(cid => cid > 0).Distinct())
+                {
+                    try
+                    {
+                        await _versionManagementService.CreateAssignmentAsync(
+                            versionId,
+                            clientId,
+                            clientUnitId: null,
+                            notes: "Destinação incluída no cadastro da versão.",
+                            currentUserId: GetCurrentUserId());
+                        assignedCount++;
+                    }
+                    catch
+                    {
+                        // Prossegue se um cliente falhar (ex: duplicidade)
+                    }
+                }
+
+                SuccessMessage = assignedCount > 0
+                    ? $"Versão '{NewVersion.VersionLabel}' registrada e destinada a {assignedCount} cliente(s)."
+                    : $"Versão '{NewVersion.VersionLabel}' registrada para este sistema.";
+            }
+            else
+            {
+                SuccessMessage = $"Versão '{NewVersion.VersionLabel}' registrada para este sistema.";
+            }
         }
         catch (Exception ex)
         {
@@ -359,7 +509,233 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { id, tab = "versions" });
     }
 
-    // --- Aba Componentes ---------------------------------------------------
+    // --- Fase 1 & 2 (Versionamento Inteligente): alterações, vínculo de casos e destinação ----
+
+    public async Task<PartialViewResult> OnGetPreviewChangeCaseSuggestionsAsync(
+        long productVersionId,
+        string? title,
+        string? description,
+        long? componentId,
+        string? errorCode)
+    {
+        var version = await _catalogRepository.GetProductVersionByIdAsync(productVersionId);
+        if (version == null)
+        {
+            return Partial("~/Pages/Shared/Partials/_ChangeCaseSuggestionList.cshtml", Array.Empty<VersionChangeCaseSuggestionDto>());
+        }
+
+        var input = new VersionChangeCaseSuggestionInput(
+            ProductVersionChangeId: null,
+            ProductVersionId: productVersionId,
+            ProductId: version.ProductId,
+            ComponentId: componentId,
+            ErrorCode: errorCode,
+            Title: title,
+            Description: description
+        );
+
+        var results = await _versionManagementService.SuggestCasesForChangeAsync(input);
+        return Partial("~/Pages/Shared/Partials/_ChangeCaseSuggestionList.cshtml", results);
+    }
+
+    public async Task<IActionResult> OnPostAddChangeAsync(long id)
+    {
+        if (string.IsNullOrWhiteSpace(NewChange.Title))
+        {
+            ErrorMessage = "O título da alteração é obrigatório.";
+            return RedirectToPage(new { id, tab = "versions" });
+        }
+
+        try
+        {
+            var changeId = await _versionManagementService.CreateChangeAsync(
+                NewChange.VersionId,
+                NewChange.ChangeType,
+                NewChange.Title.Trim(),
+                NewChange.Description,
+                NewChange.ComponentId,
+                NewChange.ErrorCode,
+                GetCurrentUserId());
+
+            if (NewChange.SelectedCaseIdsToLink != null && NewChange.SelectedCaseIdsToLink.Count > 0)
+            {
+                var userId = GetCurrentUserId();
+                foreach (var caseId in NewChange.SelectedCaseIdsToLink.Distinct())
+                {
+                    try
+                    {
+                        await _versionManagementService.LinkCaseAsync(
+                            changeId,
+                            caseId,
+                            "FixedBy",
+                            matchScore: null,
+                            matchedFactorsJson: null,
+                            currentUserId: userId);
+                    }
+                    catch
+                    {
+                        // Falha pontual de vínculo não impede o cadastro da alteração
+                    }
+                }
+            }
+
+            SuccessMessage = "Alteração registrada na versão com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao registrar alteração: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
+
+    public async Task<IActionResult> OnPostLinkCaseAsync(long id)
+    {
+        try
+        {
+            var caseDto = await _caseService.GetCaseByNumberAsync(NewCaseLink.CaseNumber);
+            if (caseDto == null)
+                throw new KeyNotFoundException($"Nenhum caso encontrado com o número #{NewCaseLink.CaseNumber}.");
+
+            await _versionManagementService.LinkCaseAsync(
+                NewCaseLink.ChangeId,
+                caseDto.Id,
+                NewCaseLink.RelationType,
+                currentUserId: GetCurrentUserId());
+            SuccessMessage = "Caso vinculado à alteração (a versão do caso não é alterada).";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao vincular caso: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
+
+    public async Task<IActionResult> OnPostUnlinkCaseAsync(long id, long changeId, long caseId, string relationType)
+    {
+        try
+        {
+            await _versionManagementService.UnlinkCaseAsync(changeId, caseId, relationType, GetCurrentUserId());
+            SuccessMessage = "Caso desvinculado da alteração.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao desvincular caso: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
+
+    public async Task<IActionResult> OnPostCreateAssignmentAsync(long id)
+    {
+        try
+        {
+            await _versionManagementService.CreateAssignmentAsync(
+                NewAssignment.VersionId,
+                NewAssignment.ClientId,
+                NewAssignment.ClientUnitId,
+                NewAssignment.Notes,
+                GetCurrentUserId());
+            SuccessMessage = "Destinação registrada. O deploy confirmado atualizará a versão corrente do cliente.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao registrar destinação: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
+
+    public async Task<IActionResult> OnPostConfirmDeployAsync(long id, long assignmentId, long? environmentId = null)
+    {
+        try
+        {
+            await _versionManagementService.ConfirmAssignmentDeployedAsync(assignmentId, environmentId, GetCurrentUserId());
+            SuccessMessage = "Deploy confirmado: a versão anterior foi encerrada e a nova versão do cliente agora está ativa com histórico preservado.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao confirmar deploy: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
+
+    public async Task<IActionResult> OnPostScheduleAssignmentAsync(long id, long assignmentId, DateTime scheduledAt)
+    {
+        try
+        {
+            await _versionManagementService.ScheduleAssignmentAsync(assignmentId, scheduledAt, GetCurrentUserId());
+            SuccessMessage = "Destinação agendada com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao agendar destinação: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
+
+    public async Task<IActionResult> OnPostFailAssignmentAsync(long id, long assignmentId, string? notes)
+    {
+        try
+        {
+            await _versionManagementService.FailAssignmentAsync(assignmentId, notes, GetCurrentUserId());
+            SuccessMessage = "Destinação marcada como falha.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao marcar falha: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
+
+    public async Task<IActionResult> OnPostRemoveAssignmentAsync(long id, long assignmentId)
+    {
+        try
+        {
+            await _versionManagementService.RemoveAssignmentAsync(assignmentId, GetCurrentUserId());
+            SuccessMessage = "Destinação removida do planejamento.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao remover destinação: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
+
+    public async Task<IActionResult> OnPostReopenAssignmentAsync(long id, long assignmentId)
+    {
+        try
+        {
+            await _versionManagementService.ReopenAssignmentAsync(assignmentId, GetCurrentUserId());
+            SuccessMessage = "Destinação reaberta para o planejamento.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao reabrir destinação: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
+
+    public async Task<IActionResult> OnPostSkipAssignmentAsync(long id, long assignmentId)
+    {
+        try
+        {
+            await _versionManagementService.SkipAssignmentAsync(assignmentId, GetCurrentUserId());
+            SuccessMessage = "Destinação marcada como ignorada.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao ignorar destinação: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "versions" });
+    }
 
     public async Task<IActionResult> OnPostAddComponentAsync(long id)
     {

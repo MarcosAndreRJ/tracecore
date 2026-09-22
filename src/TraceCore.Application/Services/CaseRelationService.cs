@@ -17,19 +17,22 @@ public class CaseRelationService : ICaseRelationService
     private readonly ICatalogRepository _catalogRepository;
     private readonly IAuditEventRepository _auditEventRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ICaseSimilarityScoringService _scoringService;
 
     public CaseRelationService(
         ICaseRelationRepository caseRelationRepository,
         ICaseRepository caseRepository,
         ICatalogRepository catalogRepository,
         IAuditEventRepository auditEventRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        ICaseSimilarityScoringService scoringService)
     {
         _caseRelationRepository = caseRelationRepository;
         _caseRepository = caseRepository;
         _catalogRepository = catalogRepository;
         _auditEventRepository = auditEventRepository;
         _userRepository = userRepository;
+        _scoringService = scoringService;
     }
 
     public async Task<IReadOnlyList<CaseRelationDto>> ComputeSimilarCasesAsync(long caseId, CancellationToken ct = default)
@@ -47,9 +50,9 @@ public class CaseRelationService : ICaseRelationService
         );
 
         var sourceCompIds = sourceCase.AffectedComponents.Select(c => c.ComponentId).ToList();
-        var sourceText = BuildSourceText(sourceCase.NormalizedSummary ?? sourceCase.OriginalReport, sourceCase.Symptoms.Select(s => s.SymptomText));
+        var sourceText = _scoringService.BuildSourceText(sourceCase.NormalizedSummary ?? sourceCase.OriginalReport, sourceCase.Symptoms.Select(s => s.SymptomText));
 
-        var topSimilar = ScoreAndRankCandidates(
+        var topSimilar = _scoringService.ScoreAndRankCandidates(
             candidates,
             sourceClientId: sourceCase.ClientId,
             sourceProductId: sourceCase.ProductId,
@@ -113,9 +116,9 @@ public class CaseRelationService : ICaseRelationService
             ct: ct
         );
 
-        var sourceText = BuildSourceText(input.ReportText, input.Symptoms ?? new List<string>());
+        var sourceText = _scoringService.BuildSourceText(input.ReportText, input.Symptoms ?? new List<string>());
 
-        var topSimilar = ScoreAndRankCandidates(
+        var topSimilar = _scoringService.ScoreAndRankCandidates(
             candidates,
             sourceClientId: input.ClientId,
             sourceProductId: input.ProductId,
@@ -143,109 +146,6 @@ public class CaseRelationService : ICaseRelationService
             CreatedByName: "Pré-visualização",
             CreatedAt: now
         )).ToList();
-    }
-
-    // Núcleo de pontuação compartilhado entre a similaridade "oficial" (caso já persistido,
-    // ComputeSimilarCasesAsync) e a pré-visualização durante a abertura do caso
-    // (PreviewSimilarCasesAsync) — mesmos pesos e fatores nos dois casos, para que o que o
-    // usuário vê no formulário não divirja do que fica gravado quando o caso é salvo.
-    private static List<(Case candidate, double score, List<string> factors)> ScoreAndRankCandidates(
-        IReadOnlyList<Case> candidates,
-        long? sourceClientId,
-        long? sourceProductId,
-        long? sourceVersionId,
-        string? sourceErrorCode,
-        IReadOnlyCollection<long> sourceComponentIds,
-        string sourceText,
-        IReadOnlyCollection<string>? sourceTags = null)
-    {
-        var sourceCompIdSet = sourceComponentIds.ToHashSet();
-        var sourceWords = ExtractSignificantWords(sourceText);
-        var sourceTagSet = new HashSet<string>(sourceTags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-
-        var scored = new List<(Case candidate, double score, List<string> factors)>();
-
-        foreach (var candidate in candidates)
-        {
-            double score = 0;
-            var factors = new List<string>();
-
-            // 0. Mesmo cliente (+15) — Camada 1 (Prompt 3): reforça candidatos do
-            // mesmo cliente quando combinados com outros fatores técnicos.
-            if (sourceClientId.HasValue && candidate.ClientId.HasValue && sourceClientId.Value == candidate.ClientId.Value)
-            {
-                score += 15;
-                factors.Add("Mesmo cliente");
-            }
-
-            // 1. Mesmo produto (+30)
-            if (sourceProductId.HasValue && candidate.ProductId.HasValue && sourceProductId.Value == candidate.ProductId.Value)
-            {
-                score += 30;
-                factors.Add("Mesmo produto");
-            }
-
-            // 2. Mesmo componente (+25)
-            var candidateCompIds = candidate.AffectedComponents.Select(c => c.ComponentId).ToHashSet();
-            if (sourceCompIdSet.Count > 0 && sourceCompIdSet.Overlaps(candidateCompIds))
-            {
-                score += 25;
-                factors.Add("Mesmo componente");
-            }
-
-            // 3. Mesma versão (+20)
-            if (sourceVersionId.HasValue && candidate.ProductVersionId.HasValue && sourceVersionId.Value == candidate.ProductVersionId.Value)
-            {
-                score += 20;
-                factors.Add("Mesma versão");
-            }
-
-            // 4. Mesmo código de erro (+35)
-            if (!string.IsNullOrWhiteSpace(sourceErrorCode) && !string.IsNullOrWhiteSpace(candidate.ErrorCode) &&
-                string.Equals(sourceErrorCode, candidate.ErrorCode, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 35;
-                factors.Add($"Mesmo erro ({candidate.ErrorCode})");
-            }
-
-            // 5. Tag manual em comum (+10) — sinal deliberadamente mais fraco que os
-            // sinais técnicos automáticos: reflete uma associação editorial/manual,
-            // não uma correspondência estrutural verificável.
-            if (sourceTagSet.Count > 0 && candidate.Tags.Count > 0 && sourceTagSet.Overlaps(candidate.Tags))
-            {
-                score += 10;
-                factors.Add("Tag em comum");
-            }
-
-            // 6. Correspondência textual de palavras-chave no relato + sintomas (+10 a +20)
-            var candidateText = BuildSourceText(candidate.NormalizedSummary ?? candidate.OriginalReport, candidate.Symptoms.Select(s => s.SymptomText));
-            var candidateWords = ExtractSignificantWords(candidateText);
-            int overlapWords = sourceWords.Intersect(candidateWords, StringComparer.OrdinalIgnoreCase).Count();
-            if (overlapWords > 0)
-            {
-                score += Math.Min(overlapWords * 5.0, 20.0);
-                factors.Add("Termos semelhantes no relato/sintomas");
-            }
-
-            if (score <= 0) continue;
-
-            // Princípio P-006: Similaridade é score determinístico, não probabilidade estatística.
-            double normalizedScore = Math.Min(100.0, Math.Round(score, 1));
-            scored.Add((candidate, normalizedScore, factors));
-        }
-
-        return scored
-            .OrderByDescending(s => s.score)
-            .Take(5)
-            .ToList();
-    }
-
-    private static string BuildSourceText(string? reportText, IEnumerable<string> symptomTexts)
-    {
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(reportText)) parts.Add(reportText);
-        parts.AddRange(symptomTexts.Where(s => !string.IsNullOrWhiteSpace(s)));
-        return string.Join(" ", parts);
     }
 
     public async Task<CaseRelationsOverviewDto> GetCaseRelationsOverviewAsync(long caseId, CancellationToken ct = default)
@@ -532,32 +432,4 @@ public class CaseRelationService : ICaseRelationService
         );
         await _auditEventRepository.AddAsync(audit, ct);
     }
-
-    private static HashSet<string> ExtractSignificantWords(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return new HashSet<string>();
-
-        var words = Regex.Matches(text, @"\b[A-Za-z0-9_]{3,}\b")
-            .Select(m => m.Value.ToLowerInvariant())
-            .Where(w => !Stopwords.Contains(w));
-
-        return new HashSet<string>(words, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static readonly HashSet<string> Stopwords = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "que", "para", "com", "não", "uma", "por", "mais", "dos", "como", "mas",
-        "foi", "ao", "ele", "das", "tem", "à", "seu", "sua", "ou", "ser",
-        "quando", "muito", "há", "nos", "já", "está", "eu", "também", "só",
-        "pelo", "pela", "até", "isso", "ela", "entre", "era", "depois", "sem",
-        "mesmo", "aos", "ter", "seus", "quem", "nas", "me", "esse", "eles",
-        "estão", "você", "tinha", "foram", "essa", "num", "nem", "suas", "meu",
-        "às", "minha", "têm", "numa", "pelos", "elas", "havia", "seja", "qual",
-        "será", "nós", "tenho", "lhe", "deles", "essas", "esses", "pelas", "este",
-        "fosse", "dele", "tu", "te", "vocês", "vos", "lhes", "meus", "minhas",
-        "teu", "tua", "teus", "tuas", "nosso", "nossa", "nossos", "nossas", "dela",
-        "delas", "esta", "estes", "estas", "aquele", "aquela", "aqueles", "aquelas",
-        "isto", "aquilo", "estou", "está", "estamos", "estão", "estive", "esteve",
-        "estivemos", "estiveram", "estava", "estávamos", "estavam", "caso", "erro"
-    };
 }

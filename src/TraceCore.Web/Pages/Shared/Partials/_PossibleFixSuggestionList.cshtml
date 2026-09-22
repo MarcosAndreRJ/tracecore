@@ -1,0 +1,60 @@
+@model System.Collections.Generic.IReadOnlyList<TraceCore.Application.DTOs.PossibleFixSuggestionDto>
+
+@if (Model == null || Model.Count == 0)
+{
+    <div class="tc-empty-state tc-empty-state-compact p-3 border rounded-2 bg-light text-center">
+        <div class="tc-empty-icon text-muted mb-1"><i class="bi bi-shield-check fs-4"></i></div>
+        <div class="tc-empty-title small fw-semibold text-secondary">Nenhuma correção posterior</div>
+        <p class="tc-empty-description small text-muted mb-0">Nenhuma correção posterior relacionada foi encontrada.</p>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column gap-2">
+        @foreach (var fix in Model)
+        {
+            <div class="tc-card p-2 px-3 mb-0 border-start border-4 border-info">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle small fw-semibold">
+                            @fix.VersionLabel
+                        </span>
+                        <span class="tc-caption text-muted">Casos relacionados: @fix.LinkedCaseCount</span>
+                    </div>
+                    <span class="badge bg-secondary-subtle text-secondary border small fw-semibold"
+                          title="Score de correspondência determinística (não é probabilidade)">
+                        @fix.Score
+                    </span>
+                </div>
+                <div class="small fw-semibold text-dark mb-1 tc-truncate" style="max-width: 100%;" title="@fix.ChangeTitle">
+                    @fix.ChangeTitle
+                </div>
+                @if (!string.IsNullOrWhiteSpace(fix.ChangeDescription))
+                {
+                    <div class="tc-caption text-muted mb-1 tc-truncate" style="max-width: 100%;" title="@fix.ChangeDescription">
+                        @fix.ChangeDescription
+                    </div>
+                }
+                @if (fix.MatchedFactors.Count > 0)
+                {
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        @foreach (var factor in fix.MatchedFactors)
+                        {
+                            <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.68rem;">
+                                @factor
+                            </span>
+                        }
+                    </div>
+                }
+                <div class="d-flex justify-content-end mt-1">
+                    <a href="/Catalog/Products/Details?id=@fix.ProductVersionId&tab=versions" target="_blank" class="tc-btn tc-btn-ghost tc-btn-sm py-0 px-2" style="font-size: 0.75rem;" title="Abrir catálogo do produto na aba de versões">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Ver Correção
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+    <p class="tc-caption text-muted mt-2 mb-0">
+        <i class="bi bi-info-circle me-1"></i>Possível correção disponível em versão posterior à do cliente, relacionada a casos anteriores com sintomas semelhantes.
+    </p>
+}

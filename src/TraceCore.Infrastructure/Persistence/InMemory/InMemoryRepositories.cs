@@ -68,6 +68,9 @@ public class InMemoryDataStore
     public ConcurrentDictionary<long, ProductTechnicalProfile> ProductTechnicalProfiles { get; } = new();
     public ConcurrentDictionary<long, ProductTechnicalSource> ProductTechnicalSources { get; } = new();
     public ConcurrentDictionary<long, ProductExternalResearchDomain> ProductExternalResearchDomains { get; } = new();
+    public ConcurrentDictionary<long, ProductVersionChange> ProductVersionChanges { get; } = new();
+    public ConcurrentDictionary<long, ProductVersionAssignment> ProductVersionAssignments { get; } = new();
+    public List<ProductVersionChangeCase> ProductVersionChangeCases { get; } = new();
     public List<(long ProductId, long TechnologyId)> ProductTechnologies { get; } = new();
 
     public List<UserDepartment> UserDepartments { get; } = new();
@@ -153,6 +156,8 @@ public class InMemoryDataStore
     public long NextProductTechnicalProfileId() => Interlocked.Increment(ref _productTechnicalProfileIdSeq);
     public long NextProductTechnicalSourceId() => Interlocked.Increment(ref _productTechnicalSourceIdSeq);
     public long NextProductExternalResearchDomainId() => Interlocked.Increment(ref _productExternalResearchDomainIdSeq);
+    public long NextVersionChangeId() => Interlocked.Increment(ref _versionChangeIdSeq);
+    public long NextVersionAssignmentId() => Interlocked.Increment(ref _versionAssignmentIdSeq);
     public long NextTagId() => Interlocked.Increment(ref _tagIdSeq);
     public long NextKnowledgeUsageId() => Interlocked.Increment(ref _knowledgeUsageIdSeq);
     public long NextSearchSessionId() => Interlocked.Increment(ref _searchSessionIdSeq);
@@ -172,6 +177,8 @@ public class InMemoryDataStore
     private long _productTechnicalProfileIdSeq = 0;
     private long _productTechnicalSourceIdSeq = 0;
     private long _productExternalResearchDomainIdSeq = 0;
+    private long _versionChangeIdSeq = 0;
+    private long _versionAssignmentIdSeq = 0;
     private long _tagIdSeq = 0;
     private long _knowledgeUsageIdSeq = 0;
     private long _searchSessionIdSeq = 0;
@@ -251,6 +258,9 @@ public class InMemoryDataStore
         ProductTechnicalProfiles.Clear();
         ProductTechnicalSources.Clear();
         ProductExternalResearchDomains.Clear();
+        ProductVersionChanges.Clear();
+        ProductVersionAssignments.Clear();
+        lock (ProductVersionChangeCases) ProductVersionChangeCases.Clear();
         lock (ProductTechnologies) ProductTechnologies.Clear();
         lock (KnowledgeTechnologies) KnowledgeTechnologies.Clear();
         lock (KnowledgeTags) KnowledgeTags.Clear();
@@ -301,7 +311,8 @@ public class InMemoryDataStore
         _productTechnicalProfileIdSeq = 0;
         _productTechnicalSourceIdSeq = 0;
         _productExternalResearchDomainIdSeq = 0;
-        _tagIdSeq = 0;
+        _versionChangeIdSeq = 0;
+        _versionAssignmentIdSeq = 0;
         _knowledgeUsageIdSeq = 0;
         _componentDependencyIdSeq = 0;
         _componentOwnerIdSeq = 0;
@@ -474,11 +485,11 @@ public class InMemoryDataStore
         var api = new Product("API Comercial", "PRD-API", "Gateway e serviços de integração comercial") { Id = NextProductId() };
         Products[api.Id] = api;
 
-        var v1 = new ProductVersion(erp.Id, "v1.0.0") { Id = NextVersionId() };
+        var v1 = new ProductVersion(erp.Id, "v1.0.0", releaseOrder: 1) { Id = NextVersionId() };
         ProductVersions[v1.Id] = v1;
-        var v2 = new ProductVersion(erp.Id, "v2.4.1") { Id = NextVersionId() };
+        var v2 = new ProductVersion(erp.Id, "v2.4.1", releaseOrder: 2) { Id = NextVersionId() };
         ProductVersions[v2.Id] = v2;
-        var v3 = new ProductVersion(web.Id, "v3.0.0") { Id = NextVersionId() };
+        var v3 = new ProductVersion(web.Id, "v3.0.0", releaseOrder: 1) { Id = NextVersionId() };
         ProductVersions[v3.Id] = v3;
 
         var c1 = new ComponentEntity("Módulo Financeiro", "Desktop", erp.Id, "MOD-FIN") { Id = NextCompId() };
@@ -1221,9 +1232,12 @@ public class InMemoryCatalogRepository : ICatalogRepository
 
     public Task<IReadOnlyList<ProductVersion>> GetVersionsByProductIdAsync(long productId, CancellationToken ct = default)
     {
+        // Ordenação por release_order (ordem real de lançamento) — a label nunca
+        // influencia a ordenação (Fase 1, Versionamento Inteligente).
         IReadOnlyList<ProductVersion> list = _store.ProductVersions.Values
             .Where(v => v.ProductId == productId)
-            .OrderByDescending(v => v.VersionLabel)
+            .OrderBy(v => v.ReleaseOrder)
+            .ThenBy(v => v.Id)
             .ToList();
         return Task.FromResult(list);
     }
@@ -1278,6 +1292,17 @@ public class InMemoryCatalogRepository : ICatalogRepository
 
     public Task<long> AddProductVersionAsync(ProductVersion version, CancellationToken ct = default)
     {
+        // release_order sequencial por produto (MAX+1), espelhando o comportamento MySQL.
+        if (version.ReleaseOrder <= 0)
+        {
+            var nextOrder = _store.ProductVersions.Values
+                .Where(v => v.ProductId == version.ProductId)
+                .Select(v => v.ReleaseOrder)
+                .DefaultIfEmpty(0)
+                .Max() + 1;
+            version.ReleaseOrder = nextOrder;
+        }
+
         version.Id = _store.NextVersionId();
         _store.ProductVersions[version.Id] = version;
         return Task.FromResult(version.Id);

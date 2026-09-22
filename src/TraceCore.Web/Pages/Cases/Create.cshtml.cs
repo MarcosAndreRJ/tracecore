@@ -23,19 +23,22 @@ public class CreateModel : PageModel
     private readonly IUserService _userService;
     private readonly ICatalogService _catalogService;
     private readonly ICaseRelationService _caseRelationService;
+    private readonly IVersionManagementService _versionManagementService;
 
     public CreateModel(
         ICaseService caseService,
         IDepartmentService departmentService,
         IUserService userService,
         ICatalogService catalogService,
-        ICaseRelationService caseRelationService)
+        ICaseRelationService caseRelationService,
+        IVersionManagementService versionManagementService)
     {
         _caseService = caseService;
         _departmentService = departmentService;
         _userService = userService;
         _catalogService = catalogService;
         _caseRelationService = caseRelationService;
+        _versionManagementService = versionManagementService;
     }
 
     [BindProperty]
@@ -141,6 +144,39 @@ public class CreateModel : PageModel
 
         var results = await _caseRelationService.PreviewSimilarCasesAsync(input);
         return Partial("~/Pages/Shared/Partials/_SimilarCasePreviewList.cshtml", results);
+    }
+
+    // Auto-preenchimento da versão ativa do cliente com base no contexto técnico ativo (Fase 4)
+    public async Task<JsonResult> OnGetClientCurrentVersionAsync(long clientId, long productId)
+    {
+        var dto = await _versionManagementService.GetActiveVersionForClientAsync(clientId, productId, null);
+        return new JsonResult(dto);
+    }
+
+    // Pré-visualização de possíveis correções lançadas em versões posteriores à versão selecionada (Fase 4)
+    public async Task<PartialViewResult> OnGetPreviewPossibleFixesAsync(
+        long? productId,
+        long? productVersionId,
+        string? title,
+        string? description,
+        long? componentId,
+        string? errorCode)
+    {
+        if (!productId.HasValue || !productVersionId.HasValue)
+        {
+            return Partial("~/Pages/Shared/Partials/_PossibleFixSuggestionList.cshtml", Array.Empty<PossibleFixSuggestionDto>());
+        }
+
+        var results = await _versionManagementService.SuggestPossibleFixesAsync(
+            productId: productId.Value,
+            currentProductVersionId: productVersionId.Value,
+            title: title,
+            description: description,
+            componentId: componentId,
+            errorCode: errorCode
+        );
+
+        return Partial("~/Pages/Shared/Partials/_PossibleFixSuggestionList.cshtml", results);
     }
 
     public async Task<IActionResult> OnPostAsync()

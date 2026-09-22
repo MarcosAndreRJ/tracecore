@@ -194,11 +194,103 @@
                     </div>
                 </div>
 
-                <!-- Technical Contexts Section -->
+                var activeContexts = client.TechnicalContexts
+                    .Where(c => c.EffectiveTo == null)
+                    .OrderBy(c => c.ProductName)
+                    .ToList();
+                var allContexts = client.TechnicalContexts
+                    .OrderByDescending(c => c.EffectiveFrom)
+                    .ToList();
+
+                <!-- Seção 1: Versões dos Sistemas (Fase 2 - Visão de Leitura e Rollout) -->
+                <div class="tc-card p-0 mb-4">
+                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="tc-card-title mb-0">
+                                <i class="bi bi-tags text-primary me-2"></i>Versões dos Sistemas (@activeContexts.Count vigentes)
+                            </h6>
+                            <span class="tc-caption text-muted">Versão corrente em produção para este cliente, com período de vigência e histórico rastreável.</span>
+                        </div>
+                    </div>
+                    <div class="p-0">
+                        @if (activeContexts.Count == 0)
+                        {
+                            <div class="p-4 text-center text-muted small">
+                                Nenhuma versão de sistema ativa vinculada a este cliente. Utilize o botão abaixo para vincular sistemas ou faça o rollout pelo Catálogo.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="tc-table-responsive">
+                                <table class="tc-table mb-0">
+                                    <thead class="small">
+                                        <tr>
+                                            <th>Sistema</th>
+                                            <th>Versão Atual</th>
+                                            <th>Desde</th>
+                                            <th>Ambiente</th>
+                                            <th>Unidade</th>
+                                            <th class="text-end">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var act in activeContexts)
+                                        {
+                                            var historyList = allContexts
+                                                .Where(c => c.ProductId == act.ProductId && (c.ClientUnitId ?? 0) == (act.ClientUnitId ?? 0))
+                                                .Select(c => new {
+                                                    id = c.Id,
+                                                    versionLabel = c.VersionLabel,
+                                                    environmentName = c.EnvironmentName,
+                                                    effectiveFromFormatted = c.EffectiveFrom.ToString("dd/MM/yyyy"),
+                                                    effectiveToFormatted = c.EffectiveTo?.ToString("dd/MM/yyyy"),
+                                                    effectiveTo = c.EffectiveTo,
+                                                    status = c.Status
+                                                })
+                                                .ToList();
+                                            var historyJson = System.Text.Json.JsonSerializer.Serialize(historyList);
+
+                                            <tr>
+                                                <td class="fw-bold text-dark">
+                                                    <i class="bi bi-laptop text-primary me-1"></i>@act.ProductName
+                                                </td>
+                                                <td>
+                                                    @if (!string.IsNullOrEmpty(act.VersionLabel))
+                                                    {
+                                                        <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle font-monospace">v@act.VersionLabel</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">Não definida</span>
+                                                    }
+                                                </td>
+                                                <td class="small text-muted">@act.EffectiveFrom.ToString("dd/MM/yyyy")</td>
+                                                <td>@(act.EnvironmentName ?? "Padrão")</td>
+                                                <td>@(act.UnitName ?? "Cliente Global")</td>
+                                                <td class="text-end text-nowrap">
+                                                    <button type="button" class="tc-btn tc-btn-primary tc-btn-sm me-1"
+                                                            onclick="openManualVersionUpdateModal('@client.Id', '@client.Name', '@act.ProductId', '@act.ProductName', '@(act.VersionLabel ?? "")', '@(act.ClientUnitId ?? 0)', '@(act.EnvironmentId ?? 0)')">
+                                                        <i class="bi bi-arrow-repeat me-1"></i>Atualizar Versão
+                                                    </button>
+                                                    <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm"
+                                                            onclick="openVersionHistoryModal('@client.Id', '@act.ProductId', '@(act.ClientUnitId ?? 0)', '@Html.Raw(client.Name.Replace("'", "\\'"))', '@Html.Raw(act.ProductName.Replace("'", "\\'"))', '@(act.UnitName ?? "")')">
+                                                        <i class="bi bi-clock-history me-1"></i>Ver histórico
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Seção 2: Todos os Contextos Técnicos (Administração Geral) -->
                 <div class="tc-card p-0">
                     <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
                         <h6 class="tc-card-title mb-0">
-                            <i class="bi bi-cpu text-primary me-2"></i>Contextos Técnicos & Sistemas Vinculados (@client.TechnicalContexts.Count)
+                            <i class="bi bi-cpu text-primary me-2"></i>Contextos Técnicos & Ambientes (@client.TechnicalContexts.Count total)
                         </h6>
                         <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddContext">
                             <i class="bi bi-plus-lg me-1"></i>Vincular Sistema / Ambiente
@@ -226,16 +318,17 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach (var ctx in client.TechnicalContexts)
+                                        @foreach (var ctx in allContexts)
                                         {
-                                            <tr>
-                                                <td class="fw-bold text-primary">
-                                                    <i class="bi bi-box me-1"></i>@ctx.ProductName
+                                            var isCurrent = ctx.EffectiveTo == null;
+                                            <tr class="@(isCurrent ? "" : "text-muted opacity-75")">
+                                                <td class="fw-semibold">
+                                                    @ctx.ProductName
                                                 </td>
                                                 <td>
                                                     @if (!string.IsNullOrEmpty(ctx.VersionLabel))
                                                     {
-                                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">v@ctx.VersionLabel</span>
+                                                        <span class="badge @(isCurrent ? "bg-info-subtle text-info-emphasis border border-info-subtle" : "bg-light text-muted border")">v@ctx.VersionLabel</span>
                                                     }
                                                     else
                                                     {
@@ -245,11 +338,14 @@
                                                 <td>@(ctx.EnvironmentName ?? "Geral / Padrão")</td>
                                                 <td>@(ctx.UnitName ?? "Cliente Global")</td>
                                                 <td><span class="badge @(ctx.Status == "Active" ? "bg-success" : "bg-secondary")">@ctx.Status</span></td>
-                                                <td class="small text-muted">
-                                                    De @ctx.EffectiveFrom.ToString("dd/MM/yyyy")
-                                                    @if (ctx.EffectiveTo.HasValue)
+                                                <td class="small">
+                                                    @if (isCurrent)
                                                     {
-                                                        <span> até @ctx.EffectiveTo.Value.ToString("dd/MM/yyyy")</span>
+                                                        <span class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>Desde @ctx.EffectiveFrom.ToString("dd/MM/yyyy") (Atual)</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">De @ctx.EffectiveFrom.ToString("dd/MM/yyyy") até @ctx.EffectiveTo.Value.ToString("dd/MM/yyyy")</span>
                                                     }
                                                 </td>
                                             </tr>
@@ -453,6 +549,96 @@
             </div>
         </div>
     </div>
+    <!-- Modal: Atualizar Versão do Sistema Manualmente (Fase 2 - Item 8) -->
+    <div class="modal fade" id="modalManualVersionUpdate" tabindex="-1" aria-labelledby="modalManualVersionUpdateLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="ManualUpdateVersion">
+                    <input type="hidden" asp-for="VersionUpdateInput.ClientId" id="manualClientId" />
+                    <input type="hidden" asp-for="VersionUpdateInput.ProductId" id="manualProductId" />
+                    <input type="hidden" asp-for="VersionUpdateInput.ClientUnitId" id="manualClientUnitId" />
+                    <input type="hidden" asp-for="VersionUpdateInput.EnvironmentId" id="manualEnvironmentId" />
+                    
+                    <div class="modal-header">
+                        <h5 class="modal-title tc-modal-title" id="modalManualVersionUpdateLabel">
+                            <i class="bi bi-arrow-repeat me-2 text-primary"></i>Atualizar Versão do Sistema
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="tc-alert tc-alert-info mb-3 small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Esta ação encerra a vigência da versão atual na data informada e ativa a nova versão selecionada. Se houver uma destinação planejada correspondente, ela será marcada como implantada.
+                        </div>
+
+                        <dl class="row mb-3">
+                            <dt class="col-sm-4 text-muted">Cliente:</dt>
+                            <dd class="col-sm-8 fw-semibold" id="manualClientDisplay">-</dd>
+                            
+                            <dt class="col-sm-4 text-muted">Sistema:</dt>
+                            <dd class="col-sm-8" id="manualProductDisplay">-</dd>
+                            
+                            <dt class="col-sm-4 text-muted">Versão Atual:</dt>
+                            <dd class="col-sm-8" id="manualCurrentVersionDisplay">-</dd>
+                        </dl>
+
+                        <div class="mb-3">
+                            <label class="tc-form-label">Nova Versão <span class="text-danger">*</span></label>
+                            <select asp-for="VersionUpdateInput.NewProductVersionId" id="manualNewVersionId" class="tc-select" required>
+                                <option value="">Carregando versões...</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="tc-form-label">Data Efetiva da Atualização <span class="text-danger">*</span></label>
+                            <input type="date" asp-for="VersionUpdateInput.EffectiveFrom" class="tc-input" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="tc-form-label">Observações / Registro de Mudança</label>
+                            <textarea asp-for="VersionUpdateInput.Notes" class="tc-textarea" rows="2" placeholder="Ex: Atualização solicitada pelo cliente / Chamado #..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-check-lg me-1"></i>Confirmar Atualização</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Histórico de Versões do Sistema (Fases 2 e 5 - Timeline e Casos por Período) -->
+    <div class="modal fade" id="modalVersionHistory" tabindex="-1" aria-labelledby="modalVersionHistoryLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content tc-modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title tc-modal-title" id="modalVersionHistoryLabel">
+                        <i class="bi bi-clock-history me-2 text-primary"></i>Linha do Tempo e Casos por Versão — <span id="historySystemTitle"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div id="historyTimelineBox" class="p-3 mb-3 bg-light border-start border-4 border-primary rounded">
+                        <span class="tc-caption text-muted text-uppercase fw-semibold d-block mb-1">
+                            <i class="bi bi-arrow-right-circle me-1"></i>Linha do Tempo de Versões
+                        </span>
+                        <div id="historyProgressionDisplay" class="fw-bold text-dark font-monospace small">Carregando...</div>
+                    </div>
+
+                    <div id="historyPeriodsContainer">
+                        <div class="text-center py-4 text-muted">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            Carregando histórico e casos por período...
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 }
 
 @section Scripts {
@@ -484,6 +670,142 @@
                 }
             } catch (err) {
                 console.error('Erro ao buscar versões do produto:', err);
+            }
+        }
+
+        async function openManualVersionUpdateModal(clientId, clientName, productId, productName, currentVersion, unitId, envId) {
+            document.getElementById('manualClientId').value = clientId;
+            document.getElementById('manualProductId').value = productId;
+            document.getElementById('manualClientUnitId').value = unitId > 0 ? unitId : '';
+            document.getElementById('manualEnvironmentId').value = envId > 0 ? envId : '';
+            
+            document.getElementById('manualClientDisplay').textContent = clientName;
+            document.getElementById('manualProductDisplay').textContent = productName;
+            document.getElementById('manualCurrentVersionDisplay').textContent = currentVersion ? 'v' + currentVersion : 'Não definida';
+
+            const versionSelect = document.getElementById('manualNewVersionId');
+            versionSelect.innerHTML = '<option value="">Carregando versões disponíveis...</option>';
+
+            try {
+                const response = await fetch(`?handler=ProductVersions&productId=${productId}`);
+                if (response.ok) {
+                    const versions = await response.json();
+                    versionSelect.innerHTML = '<option value="">Selecione a nova versão...</option>';
+                    versions.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.textContent = `v${v.versionLabel}` + (v.status ? ` (${v.status})` : '');
+                        versionSelect.appendChild(opt);
+                    });
+                }
+            } catch(err) {
+                console.error('Erro ao carregar versões:', err);
+                versionSelect.innerHTML = '<option value="">Erro ao carregar versões</option>';
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('modalManualVersionUpdate'));
+            modal.show();
+        }
+
+        async function openVersionHistoryModal(clientId, productId, unitId, clientName, productName, unitName) {
+            const systemTitle = productName + (unitName ? ' (' + unitName + ')' : '') + ' — ' + clientName;
+            document.getElementById('historySystemTitle').textContent = systemTitle;
+            const timelineBox = document.getElementById('historyProgressionDisplay');
+            const periodsContainer = document.getElementById('historyPeriodsContainer');
+            
+            timelineBox.textContent = 'Carregando linha do tempo...';
+            periodsContainer.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>Carregando histórico e casos por período...</div>';
+
+            const modal = new bootstrap.Modal(document.getElementById('modalVersionHistory'));
+            modal.show();
+
+            try {
+                const url = `?handler=ClientVersionTimeline&clientId=${clientId}&productId=${productId}` + (unitId > 0 ? `&clientUnitId=${unitId}` : '');
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Falha ao obter histórico (' + response.status + ')');
+                }
+                const data = await response.json();
+                
+                timelineBox.textContent = data.progressionSummary || 'Nenhuma evolução registrada';
+
+                if (!data.periods || data.periods.length === 0) {
+                    periodsContainer.innerHTML = '<div class="p-4 text-center text-muted small">Nenhum histórico de versão registrado para este cliente e sistema.</div>';
+                    return;
+                }
+
+                let html = '<div class="d-flex flex-column gap-3">';
+                data.periods.forEach(p => {
+                    const isCurrent = p.isCurrent;
+                    const versionBadge = p.versionLabel ? `v${p.versionLabel}` : 'Geral';
+                    const caseBadgeClass = p.casesCount > 0 ? 'bg-primary text-white' : 'bg-secondary-subtle text-secondary';
+                    
+                    html += `
+                        <div class="card border ${isCurrent ? 'border-success shadow-sm' : 'border-light-subtle'}">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge ${isCurrent ? 'bg-success' : 'bg-secondary'} font-monospace fs-6">${versionBadge}</span>
+                                    ${isCurrent ? '<span class="badge bg-success-subtle text-success border border-success-subtle small">Atual / Vigente</span>' : '<span class="badge bg-light text-muted border small">Histórico</span>'}
+                                    <span class="small text-muted ms-2"><i class="bi bi-calendar3 me-1"></i>${p.periodDescription}</span>
+                                    <span class="small text-muted ms-2"><i class="bi bi-hdd-network me-1"></i>${p.environmentName || 'Padrão'}</span>
+                                </div>
+                                <div>
+                                    <span class="badge ${caseBadgeClass} rounded-pill px-3 py-2 small">
+                                        <i class="bi bi-folder me-1"></i>${p.casesCount} caso(s) aberto(s)
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">`;
+
+                    if (!p.cases || p.cases.length === 0) {
+                        html += `<div class="p-3 text-muted small"><i class="bi bi-info-circle me-1"></i>Nenhum caso de suporte registrado durante a vigência desta versão.</div>`;
+                    } else {
+                        html += `
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light small">
+                                        <tr>
+                                            <th class="ps-3">Caso</th>
+                                            <th>Título</th>
+                                            <th>Aberto em</th>
+                                            <th>Status</th>
+                                            <th>Severidade</th>
+                                            <th class="text-end pe-3">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="small">`;
+                        p.cases.forEach(c => {
+                            const dateFormatted = c.openedAt ? new Date(c.openedAt).toLocaleDateString('pt-BR') : '-';
+                            html += `
+                                <tr>
+                                    <td class="ps-3 fw-bold font-monospace text-primary">#${c.caseNumber || c.caseId}</td>
+                                    <td>${c.title}</td>
+                                    <td class="text-muted">${dateFormatted}</td>
+                                    <td><span class="badge bg-light text-dark border">${c.status}</span></td>
+                                    <td><span class="badge bg-secondary-subtle text-secondary">${c.severity || 'Normal'}</span></td>
+                                    <td class="text-end pe-3">
+                                        <a href="/Cases/Details?id=${c.caseId}" target="_blank" class="tc-btn tc-btn-secondary tc-btn-sm py-0 px-2" style="font-size: 0.75rem;">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i>Ver Caso
+                                        </a>
+                                    </td>
+                                </tr>`;
+                        });
+                        html += `
+                                    </tbody>
+                                </table>
+                            </div>`;
+                    }
+
+                    html += `
+                            </div>
+                        </div>`;
+                });
+                html += '</div>';
+
+                periodsContainer.innerHTML = html;
+            } catch(e) {
+                console.error('Erro ao buscar histórico de versões:', e);
+                periodsContainer.innerHTML = '<div class="alert alert-danger mb-0 small">Erro ao carregar o histórico de versões e casos. Verifique a conexão com o servidor.</div>';
             }
         }
     </script>

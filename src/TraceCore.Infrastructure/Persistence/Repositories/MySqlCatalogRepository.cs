@@ -27,7 +27,9 @@ public class MySqlCatalogRepository : ICatalogRepository
 
     public async Task<IReadOnlyList<ProductVersion>> GetVersionsByProductIdAsync(long productId, CancellationToken ct = default)
     {
-        const string sql = "SELECT id, product_id AS ProductId, version_label AS VersionLabel, released_at AS ReleasedAt, end_of_support_at AS EndOfSupportAt, status FROM product_versions WHERE product_id = @ProductId ORDER BY version_label DESC;";
+        // Ordenação por release_order (ordem real de lançamento) — a label nunca
+        // influencia a ordenação (Fase 1, Versionamento Inteligente).
+        const string sql = "SELECT id, product_id AS ProductId, version_label AS VersionLabel, released_at AS ReleasedAt, end_of_support_at AS EndOfSupportAt, status, release_order AS ReleaseOrder FROM product_versions WHERE product_id = @ProductId ORDER BY release_order ASC, id ASC;";
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
         var list = await conn.QueryAsync<ProductVersion>(sql, new { ProductId = productId });
         return list.ToList();
@@ -64,7 +66,7 @@ public class MySqlCatalogRepository : ICatalogRepository
 
     public async Task<ProductVersion?> GetProductVersionByIdAsync(long id, CancellationToken ct = default)
     {
-        const string sql = "SELECT id, product_id AS ProductId, version_label AS VersionLabel, released_at AS ReleasedAt, end_of_support_at AS EndOfSupportAt, status FROM product_versions WHERE id = @Id;";
+        const string sql = "SELECT id, product_id AS ProductId, version_label AS VersionLabel, released_at AS ReleasedAt, end_of_support_at AS EndOfSupportAt, status, release_order AS ReleaseOrder FROM product_versions WHERE id = @Id;";
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
         return await conn.QuerySingleOrDefaultAsync<ProductVersion>(sql, new { Id = id });
     }
@@ -113,11 +115,16 @@ public class MySqlCatalogRepository : ICatalogRepository
 
     public async Task<long> AddProductVersionAsync(ProductVersion version, CancellationToken ct = default)
     {
+        // release_order é atribuído automaticamente: próximo número sequencial por produto
+        // (MAX+1). Único por (product_id, release_order) — constraint de garantia extra.
+        const string nextOrderSql = "SELECT COALESCE(MAX(release_order), 0) + 1 FROM product_versions WHERE product_id = @ProductId;";
         const string sql = @"
-            INSERT INTO product_versions (product_id, version_label, released_at, end_of_support_at, status)
-            VALUES (@ProductId, @VersionLabel, @ReleasedAt, @EndOfSupportAt, @Status);
+            INSERT INTO product_versions (product_id, version_label, released_at, end_of_support_at, status, release_order)
+            VALUES (@ProductId, @VersionLabel, @ReleasedAt, @EndOfSupportAt, @Status, @ReleaseOrder);
             SELECT LAST_INSERT_ID();";
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        var nextOrder = await conn.ExecuteScalarAsync<int>(nextOrderSql, new { version.ProductId });
+        version.ReleaseOrder = nextOrder;
         var id = await conn.ExecuteScalarAsync<long>(sql, version);
         version.Id = id;
         return id;

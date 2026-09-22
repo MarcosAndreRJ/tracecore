@@ -104,7 +104,7 @@ public class CatalogService : ICatalogService
             entityType: "product_versions",
             entityId: id.ToString(),
             actorUserId: currentUserId,
-            after: new { Id = id, ProductId = productId, VersionLabel = versionLabel, ReleasedAt = releasedAt },
+            after: new { Id = id, ProductId = productId, VersionLabel = versionLabel, ReleasedAt = releasedAt, ReleaseOrder = version.ReleaseOrder },
             ct: ct
         );
 

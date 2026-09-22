@@ -105,6 +105,7 @@ public static class DependencyInjection
             services.AddScoped<ISearchRepository, MySqlSearchRepository>();
             services.AddScoped<ICaseRelationRepository, MySqlCaseRelationRepository>();
             services.AddScoped<IProductTechnicalContextRepository, MySqlProductTechnicalContextRepository>();
+            services.AddScoped<IProductVersionManagementRepository, MySqlProductVersionManagementRepository>();
             services.AddScoped<IDiagnosticFlowRepository, MySqlDiagnosticFlowRepository>();
             services.AddScoped<IIntegrationRepository, MySqlIntegrationRepository>();
             services.AddScoped<IManagementAnalyticsRepository, MySqlManagementAnalyticsRepository>();
@@ -146,6 +147,7 @@ public static class DependencyInjection
             services.AddScoped<ISearchRepository, InMemorySearchRepository>();
             services.AddScoped<ICaseRelationRepository, InMemoryCaseRelationRepository>();
             services.AddScoped<IProductTechnicalContextRepository, InMemoryProductTechnicalContextRepository>();
+            services.AddScoped<IProductVersionManagementRepository, InMemoryProductVersionManagementRepository>();
             services.AddScoped<IDiagnosticFlowRepository, InMemoryDiagnosticFlowRepository>();
             services.AddScoped<IManagementAnalyticsRepository, InMemoryManagementAnalyticsRepository>();
             services.AddScoped<IIntegrationRepository, InMemoryIntegrationRepository>();

@@ -140,6 +140,33 @@ public static class AiToolDefinitions
   },
   ""required"": [""metricType""]
 }"
+        ),
+        new LlmToolDefinition(
+            "GetClientVersionContext",
+            "Obtém o contexto estruturado e factual de versão do cliente para um produto: versão atual instalada/ativa (CurrentVersion), histórico de versões anteriores (PreviousVersions), versões posteriores lançadas (LaterVersions), correções cadastradas em versões posteriores (LaterVersionFixes) com casos históricos tratados e quantidade de clientes atualizados, e implantações planejadas (PlannedAssignments). Use sempre que o relato mencionar um cliente e um produto/sistema para verificar se o cliente está desatualizado e se já existe correção publicada em versão posterior. O backend entrega dados estruturados; não realize cálculos arbitrários de versões.",
+            @"{
+  ""type"": ""object"",
+  ""properties"": {
+    ""clientId"": { ""type"": ""integer"", ""description"": ""ID do cliente"" },
+    ""productId"": { ""type"": ""integer"", ""description"": ""ID do produto/sistema"" },
+    ""clientUnitId"": { ""type"": ""integer"", ""description"": ""ID da unidade do cliente, se informada"" }
+  },
+  ""required"": [""clientId"", ""productId""]
+}"
+        ),
+        new LlmToolDefinition(
+            "SearchVersionFixes",
+            "Pesquisa correções (itens de alteração do tipo Fix) publicadas em versões de um produto, opcionalmente a partir de uma versão de referência do cliente (retornando apenas versões posteriores). Retorna lista factual de correções, versão do lançamento, casos históricos vinculados e clientes atualizados. Não afirma causalidade ('a correção falhou') — use os dados retornados de forma estritamente factual.",
+            @"{
+  ""type"": ""object"",
+  ""properties"": {
+    ""productId"": { ""type"": ""integer"", ""description"": ""ID do produto/sistema"" },
+    ""currentProductVersionId"": { ""type"": ""integer"", ""description"": ""ID da versão atual/referência do produto (para filtrar apenas versões posteriores)"" },
+    ""query"": { ""type"": ""string"", ""description"": ""Termo de busca no título ou descrição da correção"" },
+    ""errorCode"": { ""type"": ""string"", ""description"": ""Código de erro exato (ex.: Access Violation, HTTP 500)"" }
+  },
+  ""required"": [""productId""]
+}"
         )
     };
 

@@ -38,9 +38,14 @@ public class ProductVersion
     public DateTime? EndOfSupportAt { get; set; }
     public string Status { get; set; } = "Active";
 
+    // Fase 1 (Versionamento Inteligente): ordem real de lançamento/perspectiva do produto,
+    // crescente da mais antiga para a mais nova, única por produto. Labels arbitrárias
+    // (ex.: "5.9", "5.10") nunca influenciam a ordenação — apenas ReleaseOrder.
+    public int ReleaseOrder { get; set; }
+
     public ProductVersion() { }
 
-    public ProductVersion(long productId, string versionLabel, string status = "Active")
+    public ProductVersion(long productId, string versionLabel, string status = "Active", int releaseOrder = 0)
     {
         if (productId <= 0)
             throw new ArgumentException("ProductId inválido.", nameof(productId));
@@ -50,6 +55,7 @@ public class ProductVersion
         ProductId = productId;
         VersionLabel = versionLabel.Trim();
         Status = status;
+        ReleaseOrder = releaseOrder;
     }
 }
 
