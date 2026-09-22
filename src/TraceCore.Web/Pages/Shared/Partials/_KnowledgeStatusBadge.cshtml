@@ -20,6 +20,12 @@
             iconClass = "bi-shield-check";
             label = "Verificado";
             break;
+        case "review":
+        case "revisão":
+            badgeClass = "tc-badge-stale";
+            iconClass = "bi-send-check";
+            label = "Em Revisão";
+            break;
         case "stale":
         case "obsoleto":
             badgeClass = "tc-badge-stale";
@@ -31,6 +37,12 @@
             badgeClass = "tc-badge-deprecated";
             iconClass = "bi-x-octagon";
             label = "Depreciado";
+            break;
+        case "archived":
+        case "arquivado":
+            badgeClass = "tc-badge-deprecated";
+            iconClass = "bi-x-circle";
+            label = "Arquivado/Cancelado";
             break;
         default:
             badgeClass = "tc-badge-draft";

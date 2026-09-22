@@ -43,6 +43,13 @@ public class Integration
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
+    // Campos estruturais do mundo real da empresa (Fase 01 — Ajuste do Ecossistema):
+    // strings controladas simples (opcionais), validadas em Application — deliberadamente
+    // sem tabela própria (poucos valores estáveis, sem necessidade de administração dinâmica).
+    public string? Responsibility { get; set; } // NossaEmpresa, Cliente, Terceiro
+    public string? HostingLocation { get; set; } // Empresa, Cliente, Terceiro, Cloud-SaaS, Hibrido
+    public string? Direction { get; set; } // Entrada, Saida, Bidirecional
+
     // Propriedades auxiliares para exibição (não mapeadas ou preenchidas por query)
     public string? OwnerDepartmentName { get; set; }
 
@@ -61,7 +68,10 @@ public class Integration
         string healthCheckMethod = "Http",
         int healthCheckTimeoutSeconds = 5,
         int? healthCheckExpectedStatusCode = 200,
-        long? productId = null)
+        long? productId = null,
+        string? responsibility = null,
+        string? hostingLocation = null,
+        string? direction = null)
     {
         if (string.IsNullOrWhiteSpace(code))
             throw new ArgumentException("Código da integração é obrigatório.", nameof(code));
@@ -83,8 +93,17 @@ public class Integration
         HealthCheckTimeoutSeconds = healthCheckTimeoutSeconds > 0 ? healthCheckTimeoutSeconds : 5;
         HealthCheckExpectedStatusCode = healthCheckExpectedStatusCode;
         ProductId = productId;
+        Responsibility = string.IsNullOrWhiteSpace(responsibility) ? null : responsibility.Trim();
+        HostingLocation = string.IsNullOrWhiteSpace(hostingLocation) ? null : hostingLocation.Trim();
+        Direction = string.IsNullOrWhiteSpace(direction) ? null : direction.Trim();
         CreatedAt = DateTime.UtcNow;
     }
+
+    // Valores aceitos (strings controladas, não enum fechado — padrão
+    // ProductTechnicalProfile.ValidExternalResearchPolicies).
+    public static readonly string[] ValidResponsibilities = { "NossaEmpresa", "Cliente", "Terceiro" };
+    public static readonly string[] ValidHostingLocations = { "Empresa", "Cliente", "Terceiro", "Cloud-SaaS", "Hibrido" };
+    public static readonly string[] ValidDirections = { "Entrada", "Saida", "Bidirecional" };
 }
 
 /// <summary>
@@ -109,6 +128,12 @@ public class IntegrationRun
 
     // Distingue log manual de execução automática de verificação (Fase 15)
     public string TriggeredBy { get; set; } = "Manual"; // "Manual", "Automated"
+
+    // Fase 05 — Origem da execução (mecanismo único com contexto), preenchido
+    // pela camada de Application conforme o fluxo que a gerou. Espaço de valores
+    // controlados: ValidRunContexts.
+    public string? RunContext { get; set; }
+    public long? CaseId { get; set; }
 
     public IntegrationRun() { }
 
@@ -137,4 +162,15 @@ public class IntegrationRun
         RecordedAt = DateTime.UtcNow;
         TriggeredBy = string.IsNullOrWhiteSpace(triggeredBy) ? "Manual" : triggeredBy.Trim();
     }
+
+    // Valores aceitos para RunContext (strings controladas, padrão das demais
+    // constantes do domínio — Fase 05). Identificam a origem/contexto que
+    // gerou a execução dentro do mecanismo único de IntegrationRun.
+    public static readonly string[] ValidRunContexts =
+    {
+        "Administrative",           // Registrado manualmente (Registrar Execução) — comportamento legado
+        "Diagnostic",               // Teste realizado durante a investigação de um caso (Steps + evidência opcional)
+        "SolutionValidation",       // Teste realizado durante a validação da solução (evidência da iteração)
+        "AutomatedHealthCheck"      // Verificação automática: health-check da tela de Integrações e motor de diagnóstico
+    };
 }

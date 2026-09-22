@@ -13,6 +13,9 @@ public interface ICaseService
     Task<IReadOnlyList<CaseDto>> GetAllCasesAsync(int limit = 50, CancellationToken ct = default);
     Task UpdateNormalizedSummaryAsync(long caseId, string? normalizedSummary, long? currentUserId = null, CancellationToken ct = default);
     Task<CaseIterationDto> ReopenCaseAsync(long caseId, string reason, long reopenedBy, CancellationToken ct = default);
+    Task AddTagAsync(long caseId, string tagName, long? currentUserId = null, CancellationToken ct = default);
+    Task RemoveTagAsync(long caseId, string tagName, CancellationToken ct = default);
+    Task AddSymptomAsync(long caseId, string symptomText, long? currentUserId = null, CancellationToken ct = default);
 
     // Apoio ao preenchimento da UI (catálogo e clientes)
     Task<IReadOnlyList<ClientDto>> GetClientsAsync(CancellationToken ct = default);

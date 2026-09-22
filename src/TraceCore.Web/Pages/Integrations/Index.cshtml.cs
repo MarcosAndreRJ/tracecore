@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using TraceCore.Application.DTOs;
 using TraceCore.Application.Services;
+using TraceCore.Domain.Entities;
 
 namespace TraceCore.Web.Pages.Integrations;
 
@@ -15,23 +16,31 @@ public class IndexModel : PageModel
 {
     private readonly IIntegrationService _integrationService;
     private readonly IDepartmentService _departmentService;
+    private readonly ICatalogService _catalogService;
     private readonly IIntegrationHealthCheckService _healthCheckService;
 
     public IndexModel(
         IIntegrationService integrationService,
         IDepartmentService departmentService,
+        ICatalogService catalogService,
         IIntegrationHealthCheckService healthCheckService)
     {
         _integrationService = integrationService;
         _departmentService = departmentService;
+        _catalogService = catalogService;
         _healthCheckService = healthCheckService;
     }
 
     public IReadOnlyList<IntegrationDto> IntegrationsList { get; private set; } = [];
     public IReadOnlyList<DepartmentDto> DepartmentsList { get; private set; } = [];
+    public IReadOnlyList<Product> ProductsList { get; private set; } = [];
+    public IReadOnlyList<IntegrationType> IntegrationTypesList { get; private set; } = [];
 
     [BindProperty]
     public CreateIntegrationInput NewIntegration { get; set; } = new();
+
+    [BindProperty]
+    public EditIntegrationInput EditIntegration { get; set; } = new();
 
     [BindProperty]
     public RegisterRunInput RunInput { get; set; } = new();
@@ -53,9 +62,28 @@ public class IndexModel : PageModel
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string IntegrationType { get; set; } = "Other";
+        public long? ProductId { get; set; }
         public string? TargetSystemDescription { get; set; }
         public long? OwnerDepartmentId { get; set; }
         public string? ContractNotes { get; set; }
+        public string? Responsibility { get; set; }
+        public string? HostingLocation { get; set; }
+        public string? Direction { get; set; }
+    }
+
+    public record EditIntegrationInput
+    {
+        public long Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string IntegrationType { get; set; } = string.Empty;
+        public long? ProductId { get; set; }
+        public string? TargetSystemDescription { get; set; }
+        public long? OwnerDepartmentId { get; set; }
+        public string? ContractNotes { get; set; }
+        public string? Responsibility { get; set; }
+        public string? HostingLocation { get; set; }
+        public string? Direction { get; set; }
     }
 
     public record RegisterRunInput
@@ -87,6 +115,8 @@ public class IndexModel : PageModel
     {
         IntegrationsList = await _integrationService.GetIntegrationsAsync();
         DepartmentsList = await _departmentService.GetAllDepartmentsAsync();
+        ProductsList = await _catalogService.GetAllProductsAsync();
+        IntegrationTypesList = await _integrationService.GetIntegrationTypesAsync();
     }
 
     public async Task<IActionResult> OnPostCreateIntegrationAsync()
@@ -106,13 +136,71 @@ public class IndexModel : PageModel
                 TargetSystemDescription: NewIntegration.TargetSystemDescription,
                 OwnerDepartmentId: NewIntegration.OwnerDepartmentId,
                 ContractNotes: NewIntegration.ContractNotes,
-                CreatedBy: GetCurrentUserId()));
+                CreatedBy: GetCurrentUserId(),
+                ProductId: NewIntegration.ProductId,
+                Responsibility: NewIntegration.Responsibility,
+                HostingLocation: NewIntegration.HostingLocation,
+                Direction: NewIntegration.Direction));
 
             SuccessMessage = $"Integração '{NewIntegration.Name}' cadastrada no catálogo com status 'Configured' (nenhuma conexão ativa).";
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Erro ao cadastrar integração: {ex.Message}";
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostUpdateIntegrationAsync()
+    {
+        if (EditIntegration.Id <= 0 || string.IsNullOrWhiteSpace(EditIntegration.Code) || string.IsNullOrWhiteSpace(EditIntegration.Name) || string.IsNullOrWhiteSpace(EditIntegration.IntegrationType))
+        {
+            ErrorMessage = "Código, Nome e Tipo da integração são obrigatórios para edição.";
+            return RedirectToPage();
+        }
+
+        try
+        {
+            await _integrationService.UpdateIntegrationAsync(new UpdateIntegrationCommand(
+                Id: EditIntegration.Id,
+                Code: EditIntegration.Code,
+                Name: EditIntegration.Name,
+                IntegrationType: EditIntegration.IntegrationType,
+                ProductId: EditIntegration.ProductId,
+                TargetSystemDescription: EditIntegration.TargetSystemDescription,
+                OwnerDepartmentId: EditIntegration.OwnerDepartmentId,
+                ContractNotes: EditIntegration.ContractNotes,
+                Responsibility: EditIntegration.Responsibility,
+                HostingLocation: EditIntegration.HostingLocation,
+                Direction: EditIntegration.Direction), GetCurrentUserId());
+
+            SuccessMessage = $"Integração '{EditIntegration.Name}' atualizada com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao atualizar integração: {ex.Message}";
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostUnlinkIntegrationAsync(long integrationId)
+    {
+        if (integrationId <= 0)
+        {
+            ErrorMessage = "Integração inválida para desvincular.";
+            return RedirectToPage();
+        }
+
+        try
+        {
+            await _integrationService.UnlinkIntegrationFromProductAsync(integrationId, GetCurrentUserId());
+            SuccessMessage = "Integração desvinculada do sistema. Histórico de execuções mantido.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao desvincular integração: {ex.Message}";
         }
 
         return RedirectToPage();

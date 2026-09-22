@@ -9,6 +9,7 @@ public interface IKnowledgeRepository
 {
     Task<KnowledgeItem?> GetByIdAsync(long id, CancellationToken ct = default);
     Task<KnowledgeItem?> GetByCodeAsync(string code, CancellationToken ct = default);
+    Task<IReadOnlyList<KnowledgeItem>> GetByProvenanceCaseIdAsync(long caseId, CancellationToken ct = default);
     Task<long> CreateItemAsync(KnowledgeItem item, CancellationToken ct = default);
     Task UpdateItemAsync(KnowledgeItem item, CancellationToken ct = default);
     Task<IReadOnlyList<KnowledgeItem>> SearchAsync(

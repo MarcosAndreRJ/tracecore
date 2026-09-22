@@ -25,6 +25,7 @@ public class MySqlProductTechnicalContextRepository : IProductTechnicalContextRe
                 id, product_id AS ProductId,
                 business_purpose AS BusinessPurpose,
                 architecture_summary AS ArchitectureSummary,
+                system_type AS SystemType,
                 frontend_stack AS FrontendStack,
                 backend_stack AS BackendStack,
                 primary_database AS PrimaryDatabase,
@@ -49,22 +50,59 @@ public class MySqlProductTechnicalContextRepository : IProductTechnicalContextRe
         return await conn.QuerySingleOrDefaultAsync<ProductTechnicalProfile>(sql, new { ProductId = productId });
     }
 
+    public async Task<IReadOnlyList<ProductTechnicalProfile>> GetProfilesByProductIdsAsync(IReadOnlyList<long> productIds, CancellationToken ct = default)
+    {
+        if (productIds.Count == 0)
+            return Array.Empty<ProductTechnicalProfile>();
+
+        const string sql = @"
+            SELECT
+                id, product_id AS ProductId,
+                business_purpose AS BusinessPurpose,
+                architecture_summary AS ArchitectureSummary,
+                system_type AS SystemType,
+                frontend_stack AS FrontendStack,
+                backend_stack AS BackendStack,
+                primary_database AS PrimaryDatabase,
+                runtime_platform AS RuntimePlatform,
+                hosting_model AS HostingModel,
+                authentication_model AS AuthenticationModel,
+                observability_stack AS ObservabilityStack,
+                deployment_model AS DeploymentModel,
+                vendor,
+                support_notes AS SupportNotes,
+                known_constraints AS KnownConstraints,
+                investigation_notes AS InvestigationNotes,
+                external_research_policy AS ExternalResearchPolicy,
+                created_at AS CreatedAt,
+                created_by AS CreatedBy,
+                updated_at AS UpdatedAt,
+                updated_by AS UpdatedBy
+            FROM product_technical_profiles
+            WHERE product_id IN @ProductIds;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        var rows = await conn.QueryAsync<ProductTechnicalProfile>(sql, new { ProductIds = productIds });
+        return rows.ToList();
+    }
+
     public async Task UpsertProfileAsync(ProductTechnicalProfile profile, CancellationToken ct = default)
     {
         const string sql = @"
             INSERT INTO product_technical_profiles
-                (product_id, business_purpose, architecture_summary, frontend_stack, backend_stack, primary_database,
+                (product_id, business_purpose, architecture_summary, system_type, frontend_stack, backend_stack, primary_database,
                  runtime_platform, hosting_model, authentication_model, observability_stack, deployment_model, vendor,
                  support_notes, known_constraints, investigation_notes, external_research_policy,
                  created_at, created_by, updated_at, updated_by)
             VALUES
-                (@ProductId, @BusinessPurpose, @ArchitectureSummary, @FrontendStack, @BackendStack, @PrimaryDatabase,
+                (@ProductId, @BusinessPurpose, @ArchitectureSummary, @SystemType, @FrontendStack, @BackendStack, @PrimaryDatabase,
                  @RuntimePlatform, @HostingModel, @AuthenticationModel, @ObservabilityStack, @DeploymentModel, @Vendor,
                  @SupportNotes, @KnownConstraints, @InvestigationNotes, @ExternalResearchPolicy,
                  @CreatedAt, @CreatedBy, @UpdatedAt, @UpdatedBy)
             ON DUPLICATE KEY UPDATE
                 business_purpose = VALUES(business_purpose),
                 architecture_summary = VALUES(architecture_summary),
+                system_type = VALUES(system_type),
                 frontend_stack = VALUES(frontend_stack),
                 backend_stack = VALUES(backend_stack),
                 primary_database = VALUES(primary_database),

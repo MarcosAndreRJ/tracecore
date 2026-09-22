@@ -17,6 +17,10 @@ public class CaseEvidence
     public long? CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Fase 05 — Execução de integração cujo resultado fundamentou esta evidência
+    // (teste durante investigação ou validação de solução).
+    public long? IntegrationRunId { get; set; }
+
     public List<CaseHypothesisEvidence> HypothesisRelations { get; set; } = [];
 
     public CaseEvidence() { }

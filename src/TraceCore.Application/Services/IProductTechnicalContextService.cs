@@ -8,6 +8,7 @@ namespace TraceCore.Application.Services;
 public interface IProductTechnicalContextService
 {
     Task<ProductTechnicalProfileDto?> GetTechnicalProfileAsync(long productId, CancellationToken ct = default);
+    Task<IReadOnlyDictionary<long, ProductTechnicalProfileDto>> GetTechnicalProfilesForAsync(IReadOnlyList<long> productIds, CancellationToken ct = default);
     Task UpsertTechnicalProfileAsync(UpsertProductTechnicalProfileCommand command, long? currentUserId, CancellationToken ct = default);
 
     Task<IReadOnlyList<string>> GetProductTechnologiesAsync(long productId, CancellationToken ct = default);

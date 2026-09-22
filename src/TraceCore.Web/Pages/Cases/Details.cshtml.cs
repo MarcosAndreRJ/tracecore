@@ -29,6 +29,7 @@ public class DetailsModel : PageModel
     private readonly IAuthorizationService _authorizationService;
     private readonly IKnowledgeService _knowledgeService;
     private readonly ICaseRelationService _caseRelationService;
+    private readonly IIntegrationRepository _integrationRepository;
 
     public DetailsModel(
         ICaseService caseService,
@@ -40,7 +41,8 @@ public class DetailsModel : PageModel
         IFileStorage fileStorage,
         IAuthorizationService authorizationService,
         IKnowledgeService knowledgeService,
-        ICaseRelationService caseRelationService)
+        ICaseRelationService caseRelationService,
+        IIntegrationRepository integrationRepository)
     {
         _caseService = caseService;
         _investigationService = investigationService;
@@ -52,6 +54,7 @@ public class DetailsModel : PageModel
         _authorizationService = authorizationService;
         _knowledgeService = knowledgeService;
         _caseRelationService = caseRelationService;
+        _integrationRepository = integrationRepository;
     }
 
     public CaseDto Case { get; set; } = null!;
@@ -65,6 +68,21 @@ public class DetailsModel : PageModel
     public bool CanRelate { get; set; }
     public IReadOnlyList<ComponentDependency> RelatedDependencies { get; set; } = [];
     public IReadOnlyList<CaseEvidenceDto> Evidences { get; set; } = [];
+
+    // Fase 05 — Integrações do sistema (produto) do caso, candidatas a teste
+    public IReadOnlyList<Integration> CaseIntegrations { get; set; } = [];
+    public bool CanTestIntegrations => CanDiagnose && Case.ProductId.HasValue && CaseIntegrations.Count > 0;
+    public bool CanTestIntegrationsForValidation => CanResolve && Case.ProductId.HasValue && CaseIntegrations.Count > 0;
+
+    // Inputs do teste de integração (Fase 05) — usados por ambos os fluxos
+    [BindProperty]
+    public long TestIntegrationIdInput { get; set; }
+    [BindProperty]
+    public long? TestIntegrationHypothesisIdInput { get; set; }
+    [BindProperty]
+    public bool TestIntegrationRecordAsEvidenceInput { get; set; }
+    [BindProperty]
+    public string TestIntegrationRelationTypeInput { get; set; } = "Inconclusive";
 
     // Inputs para relacionamento manual (Fase 8)
     [BindProperty]
@@ -167,6 +185,12 @@ public class DetailsModel : PageModel
     public string? PreventiveActionsInput { get; set; }
     [BindProperty]
     public int? EffortMinutesInput { get; set; }
+    // Hipóteses do caso apontadas como causa raiz real investigada (pode ser mais de uma).
+    [BindProperty]
+    public List<long> ResolveHypothesisIdsInput { get; set; } = new();
+    // Casos semelhantes em aberto confirmados como o mesmo problema (cria vínculo "Causa Comum").
+    [BindProperty]
+    public List<long> ResolveLinkedCaseIdsInput { get; set; } = new();
 
     [TempData]
     public string? StatusMessage { get; set; }
@@ -188,6 +212,16 @@ public class DetailsModel : PageModel
         InvestigationTimeline = await _investigationService.GetInvestigationTimelineAsync(id);
         Resolution = await _caseResolutionService.GetResolutionByCaseIdAsync(id);
         Evidences = await _investigationService.GetEvidencesByCaseIdAsync(id);
+
+        // Fase 05 — Integrações do sistema (produto) do caso, candidatas a teste de health-check
+        if (item.ProductId.HasValue)
+        {
+            CaseIntegrations = await _integrationRepository.GetIntegrationsByProductIdAsync(item.ProductId.Value);
+        }
+        else
+        {
+            CaseIntegrations = [];
+        }
 
         var authDiagnose = await _authorizationService.AuthorizeAsync(User, "caso.diagnosticar");
         CanDiagnose = authDiagnose.Succeeded;
@@ -315,6 +349,81 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { id });
     }
 
+    public async Task<IActionResult> OnPostTestIntegrationAsync(long id)
+    {
+        var authTest = await _authorizationService.AuthorizeAsync(User, "caso.diagnosticar");
+        if (!authTest.Succeeded) return Forbid();
+
+        var currentUser = GetCurrentUserId();
+        if (!currentUser.HasValue) return Challenge();
+
+        if (TestIntegrationIdInput <= 0)
+        {
+            ErrorMessage = "Selecione uma integração para testar.";
+            return RedirectToPage(new { id, tab = "diagnosis" });
+        }
+
+        try
+        {
+            var step = await _investigationService.TestIntegrationDuringInvestigationAsync(
+                caseId: id,
+                integrationId: TestIntegrationIdInput,
+                currentUserId: currentUser.Value,
+                hypothesisId: TestIntegrationHypothesisIdInput,
+                recordAsEvidence: TestIntegrationRecordAsEvidenceInput,
+                evidenceRelationType: TestIntegrationRelationTypeInput
+            );
+
+            StatusMessage = $"Integração testada durante a investigação: passo de diagnóstico Run #{step.IntegrationRunId} registrado (BR-025/BR-026).";
+        }
+        catch (BusinessRuleValidationException ex)
+        {
+            ErrorMessage = $"Regra de Negócio: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao testar integração: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "diagnosis" });
+    }
+
+    public async Task<IActionResult> OnPostTestIntegrationForValidationAsync(long id)
+    {
+        var authTest = await _authorizationService.AuthorizeAsync(User, "caso.encerrar");
+        if (!authTest.Succeeded) return Forbid();
+
+        var currentUser = GetCurrentUserId();
+        if (!currentUser.HasValue) return Challenge();
+
+        if (TestIntegrationIdInput <= 0)
+        {
+            ErrorMessage = "Selecione uma integração para testar.";
+            return RedirectToPage(new { id, tab = "overview" });
+        }
+
+        try
+        {
+            var evidence = await _investigationService.TestIntegrationForSolutionValidationAsync(
+                caseId: id,
+                integrationId: TestIntegrationIdInput,
+                currentUserId: currentUser.Value
+            );
+
+            StatusMessage = $"Integração testada para validação da solução: evidência registrada (Run #{evidence.IntegrationRunId}).";
+        }
+        catch (BusinessRuleValidationException ex)
+        {
+            ErrorMessage = $"Regra de Negócio: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao testar integração: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "overview" });
+    }
+
     public async Task<IActionResult> OnPostEvaluateHypothesisAsync(long id)
     {
         var authResult = await _authorizationService.AuthorizeAsync(User, "caso.diagnosticar");
@@ -363,7 +472,9 @@ public class DetailsModel : PageModel
                 RecurrenceRisk: RecurrenceRiskInput,
                 RecurrenceNotes: RecurrenceNotesInput,
                 PreventiveActions: PreventiveActionsInput,
-                EffortMinutes: EffortMinutesInput
+                EffortMinutes: EffortMinutesInput,
+                RootCauseHypothesisIds: ResolveHypothesisIdsInput,
+                LinkedSimilarCaseIds: ResolveLinkedCaseIdsInput
             );
 
             await _caseResolutionService.ResolveCaseAsync(command, currentUserId.Value);
@@ -379,6 +490,33 @@ public class DetailsModel : PageModel
         }
 
         return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostApplyResolutionToLinkedCasesAsync(long id)
+    {
+        var authResult = await _authorizationService.AuthorizeAsync(User, "caso.encerrar");
+        if (!authResult.Succeeded) return Forbid();
+
+        var currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue) return Forbid();
+
+        try
+        {
+            var closedIds = await _caseResolutionService.ApplyResolutionToLinkedCasesAsync(id, currentUserId.Value);
+            StatusMessage = closedIds.Count > 0
+                ? $"Mesma resolução aplicada com sucesso a {closedIds.Count} caso(s) vinculado(s) por causa comum."
+                : "Nenhum caso vinculado por causa comum estava em aberto para aplicar a resolução.";
+        }
+        catch (BusinessRuleValidationException ex)
+        {
+            ErrorMessage = $"Regra de Negócio ({ex.RuleId}): {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao aplicar resolução aos casos vinculados: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "related" });
     }
 
     public async Task<IActionResult> OnGetDownloadAttachmentAsync(long attachmentId)
@@ -503,7 +641,7 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { id });
     }
 
-    public async Task<IActionResult> OnPostAddRelationAsync(long id)
+    public async Task<IActionResult> OnPostAddRelationAsync(long id, bool alsoResolveCurrentCase = false)
     {
         var authRelate = await _authorizationService.AuthorizeAsync(User, "caso.relacionar");
         if (!authRelate.Succeeded) return Forbid();
@@ -524,6 +662,20 @@ public class DetailsModel : PageModel
             ), currentUserId);
 
             StatusMessage = "Relacionamento entre casos registrado com sucesso.";
+
+            // O analista confirmou explicitamente que quer encerrar o caso atual usando a
+            // mesma resolução do caso já fechado ao qual acabou de vinculá-lo.
+            if (alsoResolveCurrentCase)
+            {
+                var targetCase = await _caseService.GetCaseByNumberAsync(ManualTargetCaseNumberInput);
+                if (targetCase != null)
+                {
+                    var applied = await _caseResolutionService.ApplyResolutionFromRelatedCaseAsync(id, targetCase.Id, currentUserId);
+                    StatusMessage = applied
+                        ? "Relacionamento registrado e caso encerrado com a mesma resolução do caso vinculado."
+                        : "Relacionamento registrado, mas não foi possível encerrar o caso atual automaticamente (verifique se ele já está resolvido).";
+                }
+            }
         }
         catch (BusinessRuleValidationException ex)
         {
@@ -535,6 +687,92 @@ public class DetailsModel : PageModel
         }
 
         return RedirectToPage(new { id, activeTab = "related" });
+    }
+
+    public async Task<IActionResult> OnPostDeleteRelationAsync(long id, long relationId)
+    {
+        var authRelate = await _authorizationService.AuthorizeAsync(User, "caso.relacionar");
+        if (!authRelate.Succeeded) return Forbid();
+
+        var currentUserId = GetCurrentUserId() ?? 1L;
+
+        try
+        {
+            await _caseRelationService.DeleteManualRelationAsync(relationId, currentUserId);
+            StatusMessage = "Relacionamento manual excluído com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao excluir relacionamento: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id, tab = "related" });
+    }
+
+    public async Task<IActionResult> OnPostAddSymptomAsync(long id, string symptomText)
+    {
+        var authDiagnose = await _authorizationService.AuthorizeAsync(User, "caso.diagnosticar");
+        if (!authDiagnose.Succeeded) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(symptomText))
+        {
+            ErrorMessage = "Informe o texto do sintoma.";
+            return RedirectToPage(new { id });
+        }
+
+        try
+        {
+            await _caseService.AddSymptomAsync(id, symptomText, GetCurrentUserId());
+            StatusMessage = "Sintoma registrado com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao registrar sintoma: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostAddTagAsync(long id, string tagName)
+    {
+        var authDiagnose = await _authorizationService.AuthorizeAsync(User, "caso.diagnosticar");
+        if (!authDiagnose.Succeeded) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(tagName))
+        {
+            ErrorMessage = "Informe um nome para a tag.";
+            return RedirectToPage(new { id });
+        }
+
+        try
+        {
+            await _caseService.AddTagAsync(id, tagName, GetCurrentUserId());
+            StatusMessage = "Tag adicionada com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao adicionar tag: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostRemoveTagAsync(long id, string tagName)
+    {
+        var authDiagnose = await _authorizationService.AuthorizeAsync(User, "caso.diagnosticar");
+        if (!authDiagnose.Succeeded) return Forbid();
+
+        try
+        {
+            await _caseService.RemoveTagAsync(id, tagName);
+            StatusMessage = "Tag removida.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao remover tag: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id });
     }
 
     private long? GetCurrentUserId()

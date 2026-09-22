@@ -15,4 +15,9 @@ public interface IIntegrationRepository
 
     Task<IReadOnlyList<IntegrationRun>> GetRunsByIntegrationIdAsync(long integrationId, CancellationToken ct = default);
     Task<long> AddRunAsync(IntegrationRun run, CancellationToken ct = default);
+
+    Task<IReadOnlyList<IntegrationType>> GetIntegrationTypesAsync(bool includeInactive = false, CancellationToken ct = default);
+    Task<IntegrationType?> GetIntegrationTypeByIdAsync(long id, CancellationToken ct = default);
+    Task<long> AddIntegrationTypeAsync(IntegrationType type, CancellationToken ct = default);
+    Task UpdateIntegrationTypeAsync(IntegrationType type, CancellationToken ct = default);
 }

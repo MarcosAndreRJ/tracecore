@@ -65,7 +65,9 @@ public class MySqlCaseResolutionRepository : ICaseResolutionRepository
             LIMIT 1;";
 
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
-        return await conn.QueryFirstOrDefaultAsync<CaseResolution>(sql, new { CaseId = caseId });
+        var resolution = await conn.QueryFirstOrDefaultAsync<CaseResolution>(sql, new { CaseId = caseId });
+        if (resolution != null) resolution.RootCauseHypothesisIds = await LoadHypothesisIdsAsync(conn, resolution.Id);
+        return resolution;
     }
 
     public async Task<CaseResolution?> GetByIterationIdAsync(long iterationId, CancellationToken ct = default)
@@ -92,7 +94,9 @@ public class MySqlCaseResolutionRepository : ICaseResolutionRepository
             LIMIT 1;";
 
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
-        return await conn.QueryFirstOrDefaultAsync<CaseResolution>(sql, new { IterationId = iterationId });
+        var resolution = await conn.QueryFirstOrDefaultAsync<CaseResolution>(sql, new { IterationId = iterationId });
+        if (resolution != null) resolution.RootCauseHypothesisIds = await LoadHypothesisIdsAsync(conn, resolution.Id);
+        return resolution;
     }
 
     public async Task<IReadOnlyList<CaseResolution>> GetAllResolutionsByCaseIdAsync(long caseId, CancellationToken ct = default)
@@ -119,8 +123,12 @@ public class MySqlCaseResolutionRepository : ICaseResolutionRepository
             ORDER BY id ASC;";
 
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
-        var list = await conn.QueryAsync<CaseResolution>(sql, new { CaseId = caseId });
-        return list.ToList();
+        var list = (await conn.QueryAsync<CaseResolution>(sql, new { CaseId = caseId })).ToList();
+        foreach (var res in list)
+        {
+            res.RootCauseHypothesisIds = await LoadHypothesisIdsAsync(conn, res.Id);
+        }
+        return list;
     }
 
     public async Task<CaseResolution?> GetByIdAsync(long id, CancellationToken ct = default)
@@ -147,7 +155,29 @@ public class MySqlCaseResolutionRepository : ICaseResolutionRepository
             LIMIT 1;";
 
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
-        return await conn.QueryFirstOrDefaultAsync<CaseResolution>(sql, new { Id = id });
+        var resolution = await conn.QueryFirstOrDefaultAsync<CaseResolution>(sql, new { Id = id });
+        if (resolution != null) resolution.RootCauseHypothesisIds = await LoadHypothesisIdsAsync(conn, resolution.Id);
+        return resolution;
+    }
+
+    private static async Task<List<long>> LoadHypothesisIdsAsync(System.Data.Common.DbConnection conn, long resolutionId)
+    {
+        const string sql = "SELECT case_hypothesis_id FROM case_resolution_hypotheses WHERE case_resolution_id = @ResolutionId;";
+        var ids = await conn.QueryAsync<long>(sql, new { ResolutionId = resolutionId });
+        return ids.ToList();
+    }
+
+    public async Task SetResolutionHypothesesAsync(long resolutionId, IEnumerable<long> hypothesisIds, CancellationToken ct = default)
+    {
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+
+        await conn.ExecuteAsync("DELETE FROM case_resolution_hypotheses WHERE case_resolution_id = @ResolutionId;", new { ResolutionId = resolutionId });
+
+        const string insertSql = "INSERT IGNORE INTO case_resolution_hypotheses (case_resolution_id, case_hypothesis_id) VALUES (@ResolutionId, @HypothesisId);";
+        foreach (var hypId in hypothesisIds.Distinct())
+        {
+            await conn.ExecuteAsync(insertSql, new { ResolutionId = resolutionId, HypothesisId = hypId });
+        }
     }
 
     public async Task<long> AddRootCauseAsync(RootCause rootCause, CancellationToken ct = default)
@@ -197,5 +227,33 @@ public class MySqlCaseResolutionRepository : ICaseResolutionRepository
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
         var list = await conn.QueryAsync<RootCause>(sql);
         return list.ToList();
+    }
+
+    public async Task UpdateRootCauseAsync(RootCause rootCause, CancellationToken ct = default)
+    {
+        const string sql = @"
+            UPDATE root_causes
+            SET code = @Code, name = @Name, category = @Category, description = @Description
+            WHERE id = @Id;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        await conn.ExecuteAsync(sql, rootCause);
+    }
+
+    public async Task<bool> DeleteRootCauseAsync(long id, CancellationToken ct = default)
+    {
+        const string sql = "DELETE FROM root_causes WHERE id = @Id;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        int affected = await conn.ExecuteAsync(sql, new { Id = id });
+        return affected > 0;
+    }
+
+    public async Task<int> CountResolutionsUsingRootCauseAsync(long rootCauseId, CancellationToken ct = default)
+    {
+        const string sql = "SELECT COUNT(*) FROM case_resolutions WHERE root_cause_id = @RootCauseId;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        return await conn.ExecuteScalarAsync<int>(sql, new { RootCauseId = rootCauseId });
     }
 }

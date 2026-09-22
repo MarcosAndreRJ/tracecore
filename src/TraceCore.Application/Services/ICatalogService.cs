@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,7 +14,7 @@ public interface ICatalogService
     Task UpdateProductAsync(long id, string name, string? code, string? description, string status, bool isExternal, long? currentUserId = null, CancellationToken ct = default);
 
     Task<IReadOnlyList<ProductVersion>> GetVersionsByProductIdAsync(long productId, CancellationToken ct = default);
-    Task<long> CreateVersionAsync(long productId, string versionLabel, long? currentUserId = null, CancellationToken ct = default);
+    Task<long> CreateVersionAsync(long productId, string versionLabel, DateTime? releasedAt = null, long? currentUserId = null, CancellationToken ct = default);
 
     Task<IReadOnlyList<ComponentEntity>> GetAllComponentsAsync(long? productId = null, CancellationToken ct = default);
     Task<ComponentEntity?> GetComponentByIdAsync(long id, CancellationToken ct = default);
@@ -27,4 +28,8 @@ public interface ICatalogService
     Task<IReadOnlyList<ComponentOwner>> GetComponentOwnersAsync(long? componentId = null, CancellationToken ct = default);
     Task<long> AddComponentOwnerAsync(long componentId, long departmentId, string ownershipRole, long? currentUserId = null, CancellationToken ct = default);
     Task<bool> DeleteComponentOwnerAsync(long id, long? currentUserId = null, CancellationToken ct = default);
+
+    Task<IReadOnlyList<ComponentType>> GetComponentTypesAsync(bool includeInactive = false, CancellationToken ct = default);
+    Task<long> CreateComponentTypeAsync(string code, string name, long? currentUserId = null, CancellationToken ct = default);
+    Task DeactivateComponentTypeAsync(long id, long? currentUserId = null, CancellationToken ct = default);
 }

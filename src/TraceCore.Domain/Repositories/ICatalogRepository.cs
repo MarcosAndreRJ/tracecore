@@ -33,5 +33,10 @@ public interface ICatalogRepository
     Task<IReadOnlyList<ComponentOwner>> GetComponentOwnersAsync(long? componentId = null, CancellationToken ct = default);
     Task<long> AddComponentOwnerAsync(ComponentOwner owner, CancellationToken ct = default);
     Task<bool> DeleteComponentOwnerAsync(long id, CancellationToken ct = default);
+
+    Task<IReadOnlyList<ComponentType>> GetComponentTypesAsync(bool includeInactive = false, CancellationToken ct = default);
+    Task<ComponentType?> GetComponentTypeByIdAsync(long id, CancellationToken ct = default);
+    Task<long> AddComponentTypeAsync(ComponentType type, CancellationToken ct = default);
+    Task UpdateComponentTypeAsync(ComponentType type, CancellationToken ct = default);
 }
 

@@ -49,6 +49,10 @@ public class DetailsModel : PageModel
     [BindProperty]
     public string? NewVersionChangeSummary { get; set; }
 
+    // Input para arquivar/cancelar a solução (libera nova solução para o mesmo caso)
+    [BindProperty]
+    public string? ArchiveReasonInput { get; set; }
+
     // Inputs para registrar uso (BR-047, BR-048)
     [BindProperty]
     public long UsageCaseId { get; set; }
@@ -248,6 +252,31 @@ public class DetailsModel : PageModel
         catch (Exception ex)
         {
             ErrorMessage = $"Erro ao descontinuar item: {ex.Message}";
+        }
+
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostArchiveAsync(long id)
+    {
+        var auth = await _authorizationService.AuthorizeAsync(User, "solucao.criar");
+        if (!auth.Succeeded) return Forbid();
+
+        long? userId = GetCurrentUserId();
+        if (!userId.HasValue) return Challenge();
+
+        try
+        {
+            await _knowledgeService.ArchiveKnowledgeAsync(new ArchiveKnowledgeCommand(id, ArchiveReasonInput), userId.Value);
+            StatusMessage = "Solução arquivada/cancelada com sucesso. Já é possível gerar uma nova solução para o caso de origem, se necessário.";
+        }
+        catch (BusinessRuleValidationException ex)
+        {
+            ErrorMessage = $"Regra de Negócio ({ex.RuleId}): {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao arquivar solução: {ex.Message}";
         }
 
         return RedirectToPage(new { id });

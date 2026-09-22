@@ -134,6 +134,42 @@ else
                         <span class="tc-caption text-muted">
                             Código: <span class="font-monospace">@integration.Code</span>
                         </span>
+                        <div class="mt-1">
+                            <span class="tc-caption text-muted">
+                                <i class="bi bi-box-seam me-1"></i>Sistema:
+                                <strong>@(Model.ProductsList.FirstOrDefault(p => p.Id == integration.ProductId)?.Name ?? "Nenhum sistema associado")</strong>
+                            </span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(integration.Responsibility) || !string.IsNullOrWhiteSpace(integration.HostingLocation) || !string.IsNullOrWhiteSpace(integration.Direction))
+                        {
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                @if (!string.IsNullOrWhiteSpace(integration.Responsibility))
+                                {
+                                    <span class="tc-badge tc-badge-sm tc-badge-open" title="Responsabilidade / Fornecedor">Resp: @integration.Responsibility</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(integration.HostingLocation))
+                                {
+                                    <span class="tc-badge tc-badge-sm tc-badge-open" title="Hospedagem / Local de Execução">Hosp: @integration.HostingLocation</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(integration.Direction))
+                                {
+                                    <span class="tc-badge tc-badge-sm tc-badge-open" title="Direção do fluxo">Direção: @integration.Direction</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="button" class="tc-btn tc-btn-sm tc-btn-secondary" data-bs-toggle="modal" data-bs-target="#editIntegrationModal-@integration.Id">
+                            <i class="bi bi-pencil me-1"></i>Editar
+                        </button>
+                        @if (integration.ProductId.HasValue)
+                        {
+                            <form method="post" asp-page-handler="UnlinkIntegration" asp-route-integrationId="@integration.Id" class="d-inline">
+                                <button type="submit" class="tc-btn tc-btn-sm tc-btn-secondary" title="Desvincular do sistema mantendo a integração e o histórico">
+                                    <i class="bi bi-link-45deg me-1"></i>Desvincular
+                                </button>
+                            </form>
+                        }
                     </div>
                     <span class="tc-badge tc-badge-sm tc-badge-progress">
                         <i class="bi bi-diagram-3" aria-hidden="true"></i>
@@ -194,11 +230,11 @@ else
                         </div>
                         <div class="col-lg-7">
                             <div class="fw-semibold mb-2">
-                                <i class="bi bi-clock-history text-secondary me-1"></i>Histórico de Execuções (@integration.Runs.Count)
+                                <i class="bi bi-clock-history text-secondary me-1"></i>Histórico de Execuções e Verificações (@integration.Runs.Count)
                             </div>
                             @if (integration.Runs.Count == 0)
                             {
-                                <p class="tc-caption text-muted mb-0">Nenhuma execução registrada. Use "Registrar Execução" para registrar um log manual.</p>
+                                <p class="tc-caption text-muted mb-0">Nenhuma execução ou verificação registrada. Use "Registrar Execução" para um log manual ou "Testar Health-Check" para uma verificação técnica.</p>
                             }
                             else
                             {
@@ -230,8 +266,8 @@ else
                                                     <td>
                                                         @if (run.TriggeredBy == "Automated")
                                                         {
-                                                            <span class="tc-badge tc-badge-sm tc-badge-verified" title="Execução automatizada pelo sistema">
-                                                                <i class="bi bi-robot me-1"></i>Auto
+                                                            <span class="tc-badge tc-badge-sm tc-badge-verified" title="Verificação técnica de health-check (automática, sem ação manual)">
+                                                                <i class="bi bi-heart-pulse me-1"></i>Verificação
                                                             </span>
                                                         }
                                                         else
@@ -303,12 +339,114 @@ else
                 </div>
             </div>
         </div>
+
+        <!-- MODAL: Editar Integração -->
+        <div class="modal fade" id="editIntegrationModal-@integration.Id" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content tc-modal-content">
+                    <form method="post" asp-page-handler="UpdateIntegration">
+                        <input type="hidden" name="EditIntegration.Id" value="@integration.Id" />
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-pencil-square me-2 text-primary"></i>Editar Integração — @integration.Name
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Código <span class="text-danger">*</span></label>
+                                    <input type="text" class="tc-input" name="EditIntegration.Code" value="@integration.Code" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Nome <span class="text-danger">*</span></label>
+                                    <input type="text" class="tc-input" name="EditIntegration.Name" value="@integration.Name" required />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Tipo de Integração <span class="text-danger">*</span></label>
+                                    <select class="tc-select" name="EditIntegration.IntegrationType" required>
+                                        @foreach (var type in Model.IntegrationTypesList)
+                                        {
+                                            <option value="@type.Code" selected="@(integration.IntegrationType == type.Code)">@type.Name (@type.Code)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Responsabilidade / Fornecedor</label>
+                                    <select class="tc-select" name="EditIntegration.Responsibility">
+                                        <option value="">-- Não informado --</option>
+                                        @foreach (var value in TraceCore.Domain.Entities.Integration.ValidResponsibilities)
+                                        {
+                                            <option value="@value" selected="@(integration.Responsibility == value)">@value</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Hospedagem / Local de Execução</label>
+                                    <select class="tc-select" name="EditIntegration.HostingLocation">
+                                        <option value="">-- Não informado --</option>
+                                        @foreach (var value in TraceCore.Domain.Entities.Integration.ValidHostingLocations)
+                                        {
+                                            <option value="@value" selected="@(integration.HostingLocation == value)">@value</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Direção</label>
+                                    <select class="tc-select" name="EditIntegration.Direction">
+                                        <option value="">-- Não informado --</option>
+                                        @foreach (var value in TraceCore.Domain.Entities.Integration.ValidDirections)
+                                        {
+                                            <option value="@value" selected="@(integration.Direction == value)">@value</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Sistema</label>
+                                    <select class="tc-select" name="EditIntegration.ProductId">
+                                        <option value="">-- Sem sistema associado --</option>
+                                        @foreach (var prod in Model.ProductsList)
+                                        {
+                                            <option value="@prod.Id" selected="@(integration.ProductId == prod.Id)">@prod.Name @(prod.IsExternal ? "(Externo)" : "")</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Departamento Responsável</label>
+                                    <select class="tc-select" name="EditIntegration.OwnerDepartmentId">
+                                        <option value="">-- Não atribuído --</option>
+                                        @foreach (var dept in Model.DepartmentsList)
+                                        {
+                                            <option value="@dept.Id" selected="@(integration.OwnerDepartmentId == dept.Id)">@dept.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-3 mt-3">
+                                <label class="form-label fw-semibold">Sistema Alvo / Descrição</label>
+                                <textarea class="tc-textarea" name="EditIntegration.TargetSystemDescription" rows="2">@integration.TargetSystemDescription</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Notas de Contrato</label>
+                                <textarea class="tc-textarea" name="EditIntegration.ContractNotes" rows="2">@integration.ContractNotes</textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="tc-btn tc-btn-primary">
+                                <i class="bi bi-save me-1"></i>Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     }
 }
 
 <!-- MODAL: Nova Integração -->
 <div class="modal fade" id="newIntegrationModal" tabindex="-1" aria-labelledby="newIntegrationModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content tc-modal-content">
             <form method="post" asp-page-handler="CreateIntegration">
                 <div class="modal-header">
@@ -322,45 +460,84 @@ else
                         <i class="bi bi-info-circle-fill me-2"></i>
                         Integração entra no catálogo com status <strong>Configurada</strong> — nunca como conexão ativa.
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="newIntCode">Código <span class="text-danger">*</span></label>
-                        <input type="text" id="newIntCode" class="tc-input" asp-for="NewIntegration.Code" placeholder="Ex.: INT-SAP" required />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="newIntCode">Código <span class="text-danger">*</span></label>
+                            <input type="text" id="newIntCode" class="tc-input" asp-for="NewIntegration.Code" placeholder="Ex.: INT-SAP" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="newIntName">Nome <span class="text-danger">*</span></label>
+                            <input type="text" id="newIntName" class="tc-input" asp-for="NewIntegration.Name" placeholder="Ex.: Integração SAP" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="newIntType">Tipo de Integração <span class="text-danger">*</span></label>
+                            <select id="newIntType" class="tc-select" asp-for="NewIntegration.IntegrationType" required>
+                                @foreach (var type in Model.IntegrationTypesList)
+                                {
+                                    <option value="@type.Code" selected="@(Model.NewIntegration.IntegrationType == type.Code)">@type.Name (@type.Code)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="newIntProduct">Sistema</label>
+                            <select id="newIntProduct" class="tc-select" asp-for="NewIntegration.ProductId">
+                                <option value="">-- Sem sistema associado --</option>
+                                @foreach (var prod in Model.ProductsList)
+                                {
+                                    <option value="@prod.Id" selected="@(Model.NewIntegration.ProductId == prod.Id)">@prod.Name @(prod.IsExternal ? "(Externo)" : "")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="newIntDept">Departamento Responsável</label>
+                            <select id="newIntDept" class="tc-select" asp-for="NewIntegration.OwnerDepartmentId">
+                                <option value="">-- Não atribuído --</option>
+                                @foreach (var dept in Model.DepartmentsList)
+                                {
+                                    <option value="@dept.Id">@dept.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="newIntResp">Responsabilidade / Fornecedor</label>
+                            <select id="newIntResp" class="tc-select" asp-for="NewIntegration.Responsibility">
+                                <option value="">-- Não informado --</option>
+                                @foreach (var value in TraceCore.Domain.Entities.Integration.ValidResponsibilities)
+                                {
+                                    <option value="@value" selected="@(Model.NewIntegration.Responsibility == value)">@value</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="newIntHost">Hospedagem / Local de Execução</label>
+                            <select id="newIntHost" class="tc-select" asp-for="NewIntegration.HostingLocation">
+                                <option value="">-- Não informado --</option>
+                                @foreach (var value in TraceCore.Domain.Entities.Integration.ValidHostingLocations)
+                                {
+                                    <option value="@value" selected="@(Model.NewIntegration.HostingLocation == value)">@value</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="newIntDir">Direção</label>
+                            <select id="newIntDir" class="tc-select" asp-for="NewIntegration.Direction">
+                                <option value="">-- Não informado --</option>
+                                @foreach (var value in TraceCore.Domain.Entities.Integration.ValidDirections)
+                                {
+                                    <option value="@value" selected="@(Model.NewIntegration.Direction == value)">@value</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" for="newIntTarget">Sistema Alvo / Descrição</label>
+                            <textarea id="newIntTarget" class="tc-textarea" asp-for="NewIntegration.TargetSystemDescription" rows="2" placeholder="Ex.: ERP SAP — dados mestre e financeiro"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" for="newIntNotes">Notas de Contrato</label>
+                            <textarea id="newIntNotes" class="tc-textarea" asp-for="NewIntegration.ContractNotes" rows="2" placeholder="Ex.: Contrato / Acordo de nível de serviço, isolamento, responsável pelo conector..."></textarea>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="newIntName">Nome <span class="text-danger">*</span></label>
-                        <input type="text" id="newIntName" class="tc-input" asp-for="NewIntegration.Name" placeholder="Ex.: Integração SAP" required />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="newIntType">Tipo de Integração <span class="text-danger">*</span></label>
-                        <select id="newIntType" class="tc-select" asp-for="NewIntegration.IntegrationType" required>
-                            <option value="Sap">SAP / ERP (Finanças, Mestre)</option>
-                            <option value="Ticketing">Sistema de Chamados / Suporte</option>
-                            <option value="Monitoring">Monitoração / Observabilidade</option>
-                            <option value="Telemetry">Telemetria / Métricas</option>
-                            <option value="Directory">Diretório / IAM (AD/LDAP)</option>
-                            <option value="Notification">Notificação / E-mail / Push</option>
-                            <option value="Repository">Repositório / CI/CD</option>
-                            <option value="Other">Outro</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="newIntTarget">Sistema Alvo / Descrição</label>
-                        <textarea id="newIntTarget" class="tc-textarea" asp-for="NewIntegration.TargetSystemDescription" rows="2" placeholder="Ex.: ERP SAP — dados mestre e financeiro"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="newIntDept">Departamento Responsável</label>
-                        <select id="newIntDept" class="tc-select" asp-for="NewIntegration.OwnerDepartmentId">
-                            <option value="">-- Não atribuído --</option>
-                            @foreach (var dept in Model.DepartmentsList)
-                            {
-                                <option value="@dept.Id">@dept.Name</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="newIntNotes">Notas de Contrato</label>
-                        <textarea id="newIntNotes" class="tc-textarea" asp-for="NewIntegration.ContractNotes" rows="2" placeholder="Ex.: Contrato / Acordo de nível de serviço, isolamento, responsável pelo conector..."></textarea>
-                    </div>
+                    <span class="tc-caption text-muted d-block mt-2">Tipo: catálogo administrável (novos tipos entram pela Fase 01). Sistema: opcional — integrações podem ser globais (sem sistema).</span>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>

@@ -583,12 +583,22 @@ public class InvestigationCopilotService : IInvestigationCopilotService
         {
             context.ProductName,
             context.ProductDescription,
+            SystemType = context.TechnicalProfile?.SystemType,
             BusinessPurpose = context.TechnicalProfile?.BusinessPurpose,
             ArchitectureSummary = context.TechnicalProfile?.ArchitectureSummary,
             context.Technologies,
             Components = context.Components.Select(c => c.Name),
             Dependencies = context.Dependencies.Select(d => $"{d.SourceComponentName} -> {d.TargetComponentName} ({d.DependencyType})"),
-            Integrations = context.Integrations.Select(i => i.Name),
+            Integrations = context.Integrations.Select(i => new
+            {
+                i.Code,
+                i.Name,
+                Type = i.IntegrationType,
+                i.Status,
+                i.Responsibility,
+                i.HostingLocation,
+                i.Direction
+            }),
             HasTechnicalProfile = context.TechnicalProfile != null,
             Note = context.TechnicalProfile == null
                 ? "Nenhum contexto técnico cadastrado para este produto — não invente arquitetura."

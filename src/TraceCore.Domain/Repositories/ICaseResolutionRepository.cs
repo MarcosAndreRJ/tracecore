@@ -20,4 +20,9 @@ public interface ICaseResolutionRepository
     Task<RootCause?> GetRootCauseByIdAsync(long id, CancellationToken ct = default);
     Task<RootCause?> GetRootCauseByCodeAsync(string code, CancellationToken ct = default);
     Task<IReadOnlyList<RootCause>> GetAllRootCausesAsync(CancellationToken ct = default);
+    Task UpdateRootCauseAsync(RootCause rootCause, CancellationToken ct = default);
+    Task<bool> DeleteRootCauseAsync(long id, CancellationToken ct = default);
+    Task<int> CountResolutionsUsingRootCauseAsync(long rootCauseId, CancellationToken ct = default);
+
+    Task SetResolutionHypothesesAsync(long resolutionId, IEnumerable<long> hypothesisIds, CancellationToken ct = default);
 }

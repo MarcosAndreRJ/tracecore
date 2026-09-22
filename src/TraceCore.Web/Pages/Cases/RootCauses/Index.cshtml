@@ -1,0 +1,241 @@
+@page
+@model TraceCore.Web.Pages.Cases.RootCauses.IndexModel
+@{
+    ViewData["Title"] = "Catálogo de Causas Raízes — TraceCore";
+}
+
+<div class="tc-container-fluid py-3">
+    <!-- BREADCRUMB -->
+    <nav class="tc-breadcrumb mb-3" aria-label="Navegação">
+        <a asp-page="/Index" class="tc-breadcrumb-item">
+            <i class="bi bi-house-door me-1"></i>Início
+        </a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <a asp-page="/Cases/Index" class="tc-breadcrumb-item">Casos</a>
+        <span class="tc-breadcrumb-separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="tc-breadcrumb-item active" aria-current="page">Catálogo de Causas Raízes</span>
+    </nav>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="tc-alert tc-alert-success mb-3" role="alert">
+            <i class="bi bi-check-circle tc-alert-icon" aria-hidden="true"></i>
+            <div class="tc-alert-content">@Model.StatusMessage</div>
+            <button type="button" class="tc-alert-close" data-bs-dismiss="alert" aria-label="Fechar">&times;</button>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="tc-alert tc-alert-danger mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle tc-alert-icon" aria-hidden="true"></i>
+            <div class="tc-alert-content">@Model.ErrorMessage</div>
+            <button type="button" class="tc-alert-close" data-bs-dismiss="alert" aria-label="Fechar">&times;</button>
+        </div>
+    }
+
+    <!-- CABEÇALHO -->
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h1 class="tc-title-page mb-0">Catálogo de Causas Raízes Corporativas</h1>
+                <span class="tc-badge tc-badge-primary">BR-028</span>
+            </div>
+            <p class="tc-subtitle text-muted mb-0">
+                Taxonomia reutilizável entre casos, usada no Encerramento Estruturado para classificar a causa raiz confirmada.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalRootCauseForm"
+                    onclick="setupRootCauseForm(null)">
+                <i class="bi bi-plus-circle me-1"></i>
+                <span>Nova Causa Raiz</span>
+            </button>
+            <a asp-page="/Cases/Index" class="tc-btn tc-btn-secondary tc-btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>
+                <span>Voltar para Casos</span>
+            </a>
+        </div>
+    </div>
+
+    @if (Model.RootCauses.Count == 0)
+    {
+        <div class="tc-empty-state p-5">
+            <div class="tc-empty-icon"><i class="bi bi-diagram-2"></i></div>
+            <div class="tc-empty-title">Nenhuma causa raiz cadastrada</div>
+            <p class="tc-empty-description">Cadastre a primeira causa raiz para começar a padronizar o encerramento estruturado de casos.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var rc in Model.RootCauses)
+            {
+                var usage = Model.UsageCounts.TryGetValue(rc.Id, out var c) ? c : 0;
+                var confirmMsg = usage > 0
+                    ? $"Excluir '{rc.Name}'? {usage} resolução(ões) de caso já usam esta causa raiz e ficarão sem esse vínculo (o restante do registro é mantido)."
+                    : $"Excluir '{rc.Name}' do catálogo? Esta ação não pode ser desfeita.";
+                <div class="col-md-6 col-lg-4">
+                    <div class="tc-card p-3 h-100 d-flex flex-column">
+                        <div class="d-flex align-items-start justify-content-between mb-1">
+                            <strong class="text-dark">@rc.Name</strong>
+                            @if (!string.IsNullOrEmpty(rc.Code))
+                            {
+                                <span class="tc-code-inline small text-muted">@rc.Code</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrEmpty(rc.Category))
+                        {
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle align-self-start mb-2">@rc.Category</span>
+                        }
+                        <p class="tc-caption text-muted flex-grow-1">
+                            @(string.IsNullOrWhiteSpace(rc.Description) ? "Sem descrição cadastrada." : rc.Description)
+                        </p>
+                        <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2">
+                            <span class="tc-caption text-muted" title="Quantidade de resoluções de caso que usam esta causa raiz">
+                                <i class="bi bi-link-45deg"></i> @usage caso(s)
+                            </span>
+                            <div class="d-flex align-items-center gap-1">
+                                <button type="button" class="tc-btn tc-btn-outline tc-btn-sm py-0 px-2 edit-root-cause-btn" title="Editar"
+                                        data-bs-toggle="modal" data-bs-target="#modalRootCauseForm"
+                                        data-id="@rc.Id" data-name="@rc.Name" data-code="@rc.Code"
+                                        data-category="@rc.Category" data-description="@rc.Description">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="tc-btn tc-btn-outline tc-btn-sm text-danger py-0 px-2" title="Excluir"
+                                        data-bs-toggle="modal" data-bs-target="#modalConfirmDeleteRootCause"
+                                        data-delete-id="@rc.Id"
+                                        data-confirm-message="@confirmMsg">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- MODAL: NOVA / EDITAR CAUSA RAIZ (formulário reutilizado) -->
+<div class="modal fade" id="modalRootCauseForm" tabindex="-1" aria-labelledby="modalRootCauseFormLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content tc-modal-content">
+            <form method="post" id="rootCauseForm">
+                <input type="hidden" asp-for="EditIdInput" id="EditIdInput" />
+                <div class="modal-header tc-modal-header">
+                    <h5 class="modal-title tc-modal-title" id="modalRootCauseFormLabel">
+                        <i class="bi bi-diagram-2 me-2 text-primary"></i>
+                        <span id="rootCauseFormTitle">Nova Causa Raiz</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body tc-modal-body">
+                    <div class="tc-form-group mb-3">
+                        <label asp-for="NameInput" class="tc-form-label required">Nome da Causa Raiz</label>
+                        <input asp-for="NameInput" class="tc-input" placeholder="Ex.: Esgotamento de Conexões em Pool" required />
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="CodeInput" class="tc-form-label">Código (Opcional)</label>
+                            <input asp-for="CodeInput" class="tc-input text-uppercase font-monospace" placeholder="Ex.: RC-POOL-STARV" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="CategoryInput" class="tc-form-label">Categoria (Opcional)</label>
+                            <input asp-for="CategoryInput" class="tc-input" placeholder="Ex.: Software, Infraestrutura" />
+                        </div>
+                    </div>
+                    <div class="tc-form-group">
+                        <label asp-for="DescriptionInput" class="tc-form-label">Descrição</label>
+                        <textarea asp-for="DescriptionInput" class="tc-textarea" rows="3" placeholder="Descreva a causa raiz de forma reutilizável entre casos semelhantes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer tc-modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary" id="rootCauseFormSubmitBtn">
+                        <i class="bi bi-check2-circle me-1"></i> Salvar Causa Raiz
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CONFIRMAÇÃO DE EXCLUSÃO -->
+<div class="modal fade" id="modalConfirmDeleteRootCause" tabindex="-1" aria-labelledby="modalConfirmDeleteRootCauseLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content tc-modal-content">
+            <div class="modal-header tc-modal-header">
+                <h5 class="modal-title tc-modal-title text-danger" id="modalConfirmDeleteRootCauseLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Exclusão
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body tc-modal-body">
+                <p id="confirmDeleteRootCauseMessage" class="mb-0"></p>
+            </div>
+            <div class="modal-footer tc-modal-footer">
+                <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="post" asp-page-handler="Delete" id="confirmDeleteRootCauseForm">
+                    <input type="hidden" name="id" id="confirmDeleteRootCauseId" />
+                    <button type="submit" class="tc-btn tc-btn-primary" style="background-color: var(--tc-danger); border-color: var(--tc-danger);">
+                        <i class="bi bi-trash me-1"></i> Excluir Definitivamente
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function setupRootCauseForm(rootCause) {
+            var form = document.getElementById('rootCauseForm');
+            var title = document.getElementById('rootCauseFormTitle');
+            var submitBtn = document.getElementById('rootCauseFormSubmitBtn');
+
+            if (rootCause) {
+                form.action = '?handler=Update';
+                title.textContent = 'Editar Causa Raiz';
+                submitBtn.textContent = 'Salvar Alterações';
+                document.getElementById('EditIdInput').value = rootCause.id;
+                document.getElementById('NameInput').value = rootCause.name || '';
+                document.getElementById('CodeInput').value = rootCause.code || '';
+                document.getElementById('CategoryInput').value = rootCause.category || '';
+                document.getElementById('DescriptionInput').value = rootCause.description || '';
+            } else {
+                form.action = '?handler=Create';
+                title.textContent = 'Nova Causa Raiz';
+                submitBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Salvar Causa Raiz';
+                document.getElementById('EditIdInput').value = '0';
+                document.getElementById('NameInput').value = '';
+                document.getElementById('CodeInput').value = '';
+                document.getElementById('CategoryInput').value = '';
+                document.getElementById('DescriptionInput').value = '';
+            }
+        }
+
+        (function () {
+            var modalEl = document.getElementById('modalConfirmDeleteRootCause');
+            if (modalEl) {
+                modalEl.addEventListener('show.bs.modal', function (ev) {
+                    var trigger = ev.relatedTarget;
+                    if (!trigger) return;
+                    document.getElementById('confirmDeleteRootCauseMessage').textContent = trigger.dataset.confirmMessage || 'Tem certeza?';
+                    document.getElementById('confirmDeleteRootCauseId').value = trigger.dataset.deleteId;
+                });
+            }
+
+            document.querySelectorAll('.edit-root-cause-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    setupRootCauseForm({
+                        id: btn.dataset.id,
+                        name: btn.dataset.name,
+                        code: btn.dataset.code,
+                        category: btn.dataset.category,
+                        description: btn.dataset.description
+                    });
+                });
+            });
+        })();
+    </script>
+}

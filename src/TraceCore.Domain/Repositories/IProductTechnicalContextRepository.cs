@@ -13,6 +13,7 @@ namespace TraceCore.Domain.Repositories;
 public interface IProductTechnicalContextRepository
 {
     Task<ProductTechnicalProfile?> GetProfileByProductIdAsync(long productId, CancellationToken ct = default);
+    Task<IReadOnlyList<ProductTechnicalProfile>> GetProfilesByProductIdsAsync(IReadOnlyList<long> productIds, CancellationToken ct = default);
     Task UpsertProfileAsync(ProductTechnicalProfile profile, CancellationToken ct = default);
 
     Task<IReadOnlyList<string>> GetTechnologyNamesByProductIdAsync(long productId, CancellationToken ct = default);

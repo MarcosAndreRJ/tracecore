@@ -29,12 +29,17 @@ public class IntegrationHealthCheckService : IIntegrationHealthCheckService
         _integrationRepository = integrationRepository;
     }
 
-    public async Task<IntegrationRun> ExecuteHealthCheckAsync(long integrationId, CancellationToken ct = default)
+    public async Task<IntegrationRun> ExecuteHealthCheckAsync(long integrationId, string? runContext = null, long? caseId = null, CancellationToken ct = default)
     {
         var integration = await _integrationRepository.GetIntegrationByIdAsync(integrationId, ct)
             ?? throw new KeyNotFoundException($"Integração com ID {integrationId} não encontrada.");
 
         var startedAt = DateTime.UtcNow;
+        var normalizedContext = string.IsNullOrWhiteSpace(runContext) ? "AutomatedHealthCheck" : runContext.Trim();
+
+        // Valida contexto contra os valores controlados do domínio (Fase 05)
+        if (!IntegrationRun.ValidRunContexts.Contains(normalizedContext, StringComparer.Ordinal))
+            throw new ArgumentException($"Contexto de execução inválido: {runContext}.", nameof(runContext));
 
         if (string.IsNullOrWhiteSpace(integration.HealthCheckUrl))
         {
@@ -46,7 +51,11 @@ public class IntegrationHealthCheckService : IIntegrationHealthCheckService
                 errorMessage: "URL de health-check não configurada para esta integração.",
                 recordedBy: null,
                 finishedAt: DateTime.UtcNow,
-                triggeredBy: "Automated");
+                triggeredBy: "Automated")
+            {
+                RunContext = normalizedContext,
+                CaseId = caseId
+            };
 
             await _integrationRepository.AddRunAsync(failedRun, ct);
             return failedRun;
@@ -149,7 +158,11 @@ public class IntegrationHealthCheckService : IIntegrationHealthCheckService
             errorMessage: errorMessage,
             recordedBy: null,
             finishedAt: DateTime.UtcNow,
-            triggeredBy: "Automated");
+            triggeredBy: "Automated")
+        {
+            RunContext = normalizedContext,
+            CaseId = caseId
+        };
 
         await _integrationRepository.AddRunAsync(run, ct);
         return run;

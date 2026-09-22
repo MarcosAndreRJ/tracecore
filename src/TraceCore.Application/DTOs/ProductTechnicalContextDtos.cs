@@ -22,7 +22,8 @@ public record ProductTechnicalProfileDto(
     string? InvestigationNotes,
     string ExternalResearchPolicy,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    string? SystemType = null
 );
 
 public record UpsertProductTechnicalProfileCommand(
@@ -41,7 +42,8 @@ public record UpsertProductTechnicalProfileCommand(
     string? SupportNotes,
     string? KnownConstraints,
     string? InvestigationNotes,
-    string ExternalResearchPolicy
+    string ExternalResearchPolicy,
+    string? SystemType = null
 );
 
 public record ProductTechnicalSourceDto(
@@ -110,7 +112,10 @@ public record IntegrationSummaryDto(
     string Code,
     string Name,
     string IntegrationType,
-    string Status
+    string Status,
+    string? Responsibility = null,
+    string? HostingLocation = null,
+    string? Direction = null
 );
 
 /// <summary>

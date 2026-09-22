@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace TraceCore.Domain.Entities;
 
@@ -39,6 +40,10 @@ public class CaseResolution
 
     public long ResolvedBy { get; set; }
     public DateTime ResolvedAt { get; set; } = DateTime.UtcNow;
+
+    // Hipóteses do caso apontadas como causa raiz real investigada (pode ser mais de uma,
+    // ex.: causa composta) — distinto de RootCauseId, que é a taxonomia corporativa genérica.
+    public List<long> RootCauseHypothesisIds { get; set; } = new();
 
     public CaseResolution() { }
 

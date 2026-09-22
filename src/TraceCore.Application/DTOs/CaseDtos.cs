@@ -6,6 +6,7 @@ namespace TraceCore.Application.DTOs;
 
 public record OpenCaseCommand(
     string OriginalReport,
+    string? NormalizedSummary = null,
     string? Severity = "Medium",
     string? ImpactLevel = null,
     long? ClientId = null,
@@ -22,7 +23,8 @@ public record OpenCaseCommand(
     DateTime? OpenedAt = null,
     List<string>? Symptoms = null,
     List<CaseEvidenceInputDto>? Evidences = null,
-    List<AttachmentInputDto>? Attachments = null
+    List<AttachmentInputDto>? Attachments = null,
+    List<string>? Tags = null
 );
 
 public record CaseEvidenceInputDto(
@@ -76,7 +78,8 @@ public record CaseDto(
     IReadOnlyList<CaseEvidenceDto> Evidences,
     IReadOnlyList<AttachmentDto> Attachments,
     CaseResolutionDto? Resolution = null,
-    IReadOnlyList<CaseIterationDto>? Iterations = null
+    IReadOnlyList<CaseIterationDto>? Iterations = null,
+    IReadOnlyList<string>? Tags = null
 );
 
 public record CaseIterationDto(
@@ -121,7 +124,8 @@ public record CaseEvidenceDto(
     long CaseIterationId = 0,
     long? DiagnosticStepId = null,
     string? CreatedByName = null,
-    IReadOnlyList<CaseHypothesisEvidenceDto>? HypothesisRelations = null
+    IReadOnlyList<CaseHypothesisEvidenceDto>? HypothesisRelations = null,
+    long? IntegrationRunId = null
 );
 
 public record CaseHypothesisEvidenceDto(

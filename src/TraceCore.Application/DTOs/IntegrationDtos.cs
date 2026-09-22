@@ -21,7 +21,10 @@ public record IntegrationDto(
     long? CreatedBy,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
-    IReadOnlyList<IntegrationRunDto> Runs
+    IReadOnlyList<IntegrationRunDto> Runs,
+    string? Responsibility = null,
+    string? HostingLocation = null,
+    string? Direction = null
 );
 
 public record IntegrationRunDto(
@@ -34,7 +37,9 @@ public record IntegrationRunDto(
     string? ErrorMessage,
     long? RecordedBy,
     DateTime RecordedAt,
-    string TriggeredBy = "Manual"
+    string TriggeredBy = "Manual",
+    string? RunContext = null,
+    long? CaseId = null
 );
 
 public record CreateIntegrationCommand(
@@ -49,7 +54,24 @@ public record CreateIntegrationCommand(
     string HealthCheckMethod = "Http",
     int HealthCheckTimeoutSeconds = 5,
     int? HealthCheckExpectedStatusCode = 200,
-    long? ProductId = null
+    long? ProductId = null,
+    string? Responsibility = null,
+    string? HostingLocation = null,
+    string? Direction = null
+);
+
+public record UpdateIntegrationCommand(
+    long Id,
+    string Code,
+    string Name,
+    string IntegrationType,
+    long? ProductId,
+    string? TargetSystemDescription,
+    long? OwnerDepartmentId,
+    string? ContractNotes,
+    string? Responsibility,
+    string? HostingLocation,
+    string? Direction
 );
 
 public record RegisterIntegrationRunCommand(
@@ -67,5 +89,6 @@ public record ConfigureIntegrationHealthCheckCommand(
     string? HealthCheckUrl,
     string HealthCheckMethod,
     int HealthCheckTimeoutSeconds,
-    int? HealthCheckExpectedStatusCode
+    int? HealthCheckExpectedStatusCode,
+    long? UpdatedBy = null
 );

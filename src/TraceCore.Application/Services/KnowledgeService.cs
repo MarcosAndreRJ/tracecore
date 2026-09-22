@@ -59,6 +59,7 @@ public class KnowledgeService : IKnowledgeService
             ownerDepartmentId: command.OwnerDepartmentId
         );
 
+        item.SourceCaseIterationId = command.SourceCaseIterationId;
         var itemId = await _knowledgeRepository.CreateItemAsync(item, ct);
 
         // Criar a Versão 1 inicial (em Draft)
@@ -149,6 +150,23 @@ public class KnowledgeService : IKnowledgeService
 
         var resolution = await _caseResolutionRepository.GetByCaseIdAsync(command.CaseId, ct);
 
+        // BR-046b: só permite uma nova solução para o mesmo caso se a(s) solução(ões) ativa(s)
+        // já existente(s) tiver(em) sido cancelada(s)/arquivada(s), ou se o caso foi reaberto e
+        // resolvido novamente em uma iteração (Case.Iterations) posterior à que gerou a solução ativa.
+        var existingItems = await _knowledgeRepository.GetByProvenanceCaseIdAsync(command.CaseId, ct);
+        var activeItems = existingItems.Where(k => k.Status != "Archived" && k.Status != "Deprecated").ToList();
+        if (activeItems.Count > 0)
+        {
+            var lastUsedIterationId = activeItems.Max(k => k.SourceCaseIterationId ?? 0);
+            var currentIterationId = resolution?.CaseIterationId ?? 0;
+            if (currentIterationId <= lastUsedIterationId)
+            {
+                throw new BusinessRuleValidationException(
+                    "BR-046b",
+                    "Este caso já possui uma solução ativa na Base de Conhecimento. Só é possível gerar uma nova solução se a anterior for arquivada/cancelada (na tela do artigo), ou se o caso for reaberto e resolvido novamente com novidades.");
+            }
+        }
+
         // Prepara título objetivo a partir do resumo normalizado ou caso
         var title = !string.IsNullOrWhiteSpace(@case.NormalizedSummary)
             ? $"Solução: {@case.NormalizedSummary}"
@@ -195,6 +213,7 @@ public class KnowledgeService : IKnowledgeService
             ProvenanceCaseId: @case.Id,
             ProvenanceReference: $"CAS-{@case.CaseNumber}",
             OwnerDepartmentId: resolution?.ResponsibleDepartmentId ?? @case.CurrentDepartmentId,
+            SourceCaseIterationId: resolution?.CaseIterationId,
             ContentMarkdown: contentMarkdown,
             ProblemDescription: problemDesc,
             RootCauseSummary: rootCauseSummary,

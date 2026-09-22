@@ -118,7 +118,16 @@
                             <h2 class="tc-title-page fs-4 mt-1 mb-1">@flow.Name</h2>
                             <p class="tc-body text-muted mb-0">@(flow.Description ?? "Sem descrição cadastrada.")</p>
                         </div>
-                        <span class="badge bg-success fs-6">@flow.Status</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success fs-6">@flow.Status</span>
+                            <button type="button" class="tc-btn tc-btn-outline tc-btn-sm text-danger"
+                                    data-bs-toggle="modal" data-bs-target="#modalConfirmDelete"
+                                    data-delete-url="@Url.Page("./Index", "DeleteFlow", new { flowId = flow.Id })"
+                                    data-confirm-message="Excluir o fluxo '@flow.Code — @flow.Name'? Todas as hipóteses, verificações e opções/impactos vinculados a ele também serão removidos permanentemente.">
+                                <i class="bi bi-trash"></i>
+                                <span>Excluir Fluxo</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="border-top pt-2 mt-2">
                         <span class="tc-caption text-muted"><strong>Palavras-chave de entrada (Matching):</strong> @flow.EntryKeywords</span>
@@ -149,12 +158,20 @@
                                 <div class="tc-card p-3 mb-0 border-start border-3 border-warning">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <strong class="text-dark">@hyp.Title</strong>
-                                        @if (!string.IsNullOrEmpty(hyp.AssociatedComponentName))
-                                        {
-                                            <span class="badge bg-secondary-subtle text-secondary">
-                                                <i class="bi bi-cpu me-1"></i>@hyp.AssociatedComponentName
-                                            </span>
-                                        }
+                                        <div class="d-flex align-items-center gap-2">
+                                            @if (!string.IsNullOrEmpty(hyp.AssociatedComponentName))
+                                            {
+                                                <span class="badge bg-secondary-subtle text-secondary">
+                                                    <i class="bi bi-cpu me-1"></i>@hyp.AssociatedComponentName
+                                                </span>
+                                            }
+                                            <button type="button" class="tc-btn tc-btn-outline tc-btn-sm text-danger py-0 px-2" title="Excluir hipótese"
+                                                    data-bs-toggle="modal" data-bs-target="#modalConfirmDelete"
+                                                    data-delete-url="@Url.Page("./Index", "DeleteHypothesis", new { flowId = flow.Id, hypothesisId = hyp.Id })"
+                                                    data-confirm-message="Excluir a hipótese candidata '@hyp.Title'? As opções de resposta que a impactavam perdem esse vínculo, mas continuam existindo.">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     @if (!string.IsNullOrWhiteSpace(hyp.Description))
                                     {
@@ -201,6 +218,12 @@
                                                     onclick="document.getElementById('targetCheckId').value = '@chk.Id'; document.getElementById('targetCheckTitle').innerText = '@chk.Code - @chk.Title';">
                                                 <i class="bi bi-plus me-1"></i>Opção
                                             </button>
+                                            <button type="button" class="tc-btn tc-btn-outline tc-btn-sm text-danger py-0 px-2" title="Excluir verificação"
+                                                    data-bs-toggle="modal" data-bs-target="#modalConfirmDelete"
+                                                    data-delete-url="@Url.Page("./Index", "DeleteCheck", new { flowId = flow.Id, checkId = chk.Id })"
+                                                    data-confirm-message="Excluir a verificação '@chk.Code — @chk.Title'? Todas as opções de resposta e impactos configurados para ela também serão removidos permanentemente.">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
                                         </div>
                                     </div>
 
@@ -220,7 +243,7 @@
                                                 {
                                                     <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
                                                         <span class="text-dark">• @opt.OptionText</span>
-                                                        <div>
+                                                        <div class="d-flex align-items-center gap-1">
                                                             @foreach (var imp in opt.Impacts)
                                                             {
                                                                 var badge = imp.ImpactType == "Favors" ? "badge bg-success-subtle text-success" : "badge bg-danger-subtle text-danger";
@@ -228,6 +251,12 @@
                                                                     @imp.ImpactType: @imp.FlowHypothesisTitle (+@imp.Weight)
                                                                 </span>
                                                             }
+                                                            <button type="button" class="btn btn-link p-0 border-0 text-danger" title="Excluir opção"
+                                                                    data-bs-toggle="modal" data-bs-target="#modalConfirmDelete"
+                                                                    data-delete-url="@Url.Page("./Index", "DeleteOption", new { flowId = flow.Id, optionId = opt.Id })"
+                                                                    data-confirm-message="Excluir a opção de resposta '@opt.OptionText'? Os impactos configurados para ela também serão removidos.">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 }
@@ -449,4 +478,47 @@
             </div>
         </div>
     </div>
+
+    <!-- MODAL: CONFIRMAÇÃO DE EXCLUSÃO (reutilizável para Fluxo/Hipótese/Verificação/Opção) -->
+    <div class="modal fade" id="modalConfirmDelete" tabindex="-1" aria-labelledby="modalConfirmDeleteLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <div class="modal-header tc-modal-header">
+                    <h5 class="modal-title tc-modal-title text-danger" id="modalConfirmDeleteLabel">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Exclusão
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body tc-modal-body">
+                    <p id="confirmDeleteMessage" class="mb-0"></p>
+                </div>
+                <div class="modal-footer tc-modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form method="post" id="confirmDeleteForm">
+                        <button type="submit" class="tc-btn tc-btn-primary text-white" style="background-color: var(--tc-danger); border-color: var(--tc-danger);">
+                            <i class="bi bi-trash me-1"></i> Excluir Definitivamente
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var modalEl = document.getElementById('modalConfirmDelete');
+            if (!modalEl) return;
+
+            modalEl.addEventListener('show.bs.modal', function (ev) {
+                var trigger = ev.relatedTarget;
+                if (!trigger) return;
+
+                document.getElementById('confirmDeleteMessage').textContent =
+                    trigger.dataset.confirmMessage || 'Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.';
+                document.getElementById('confirmDeleteForm').action = trigger.dataset.deleteUrl;
+            });
+        })();
+    </script>
 }

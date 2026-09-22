@@ -20,6 +20,9 @@ public interface ICaseRepository
     Task UpdateNormalizedSummaryAsync(long caseId, string? normalizedSummary, long? updatedBy, CancellationToken ct = default);
     Task UpdateCaseResolutionStatusAsync(long caseId, string status, string rootCauseStatus, System.DateTime resolvedAt, long resolvedBy, CancellationToken ct = default);
     Task UpdateComponentRelationAsync(long caseId, long componentId, string relationType, CancellationToken ct = default);
+    Task AddTagAsync(long caseId, string tagName, long? updatedBy, CancellationToken ct = default);
+    Task RemoveTagAsync(long caseId, string tagName, CancellationToken ct = default);
+    Task<long> AddSymptomAsync(CaseSymptom symptom, CancellationToken ct = default);
 
     Task<IReadOnlyList<CaseIteration>> GetIterationsByCaseIdAsync(long caseId, CancellationToken ct = default);
     Task<CaseIteration?> GetCurrentIterationAsync(long caseId, CancellationToken ct = default);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,9 +28,13 @@ public class IndexModel : PageModel
     public IReadOnlyList<DepartmentDto> DepartmentsList { get; private set; } = [];
     public IReadOnlyList<ComponentDependency> DependenciesList { get; private set; } = [];
     public IReadOnlyList<ComponentOwner> OwnersList { get; private set; } = [];
+    public IReadOnlyList<ComponentType> ComponentTypesList { get; private set; } = [];
 
     [BindProperty]
     public CreateComponentInput NewComponent { get; set; } = new();
+
+    [BindProperty]
+    public EditComponentInput EditComponent { get; set; } = new();
 
     [BindProperty]
     public CreateDependencyInput NewDependency { get; set; } = new();
@@ -51,6 +56,18 @@ public class IndexModel : PageModel
         public string? Code { get; set; }
         public string? Description { get; set; }
         public long? OwnerDepartmentId { get; set; }
+    }
+
+    public record EditComponentInput
+    {
+        public long Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string ComponentType { get; set; } = string.Empty;
+        public long? ProductId { get; set; }
+        public string? Code { get; set; }
+        public string? Description { get; set; }
+        public long? OwnerDepartmentId { get; set; }
+        public string Status { get; set; } = "Active";
     }
 
     public record CreateDependencyInput
@@ -76,6 +93,7 @@ public class IndexModel : PageModel
         DepartmentsList = await _departmentService.GetAllDepartmentsAsync();
         DependenciesList = await _catalogService.GetComponentDependenciesAsync();
         OwnersList = await _catalogService.GetComponentOwnersAsync();
+        ComponentTypesList = await _catalogService.GetComponentTypesAsync();
     }
 
     public async Task<IActionResult> OnPostCreateComponentAsync()
@@ -101,6 +119,75 @@ public class IndexModel : PageModel
         catch (Exception ex)
         {
             ErrorMessage = $"Erro ao cadastrar componente: {ex.Message}";
+        }
+
+        return RedirectToPage();
+    }
+
+    // Edição completa do componente — reaproveita ICatalogService.UpdateComponentAsync
+    // (backend já auditado com component.update).
+    public async Task<IActionResult> OnPostUpdateComponentAsync()
+    {
+        if (EditComponent.Id <= 0)
+        {
+            ErrorMessage = "Componente inválido para edição.";
+            return RedirectToPage();
+        }
+
+        try
+        {
+            await _catalogService.UpdateComponentAsync(
+                EditComponent.Id,
+                EditComponent.Name,
+                EditComponent.ComponentType,
+                EditComponent.ProductId,
+                EditComponent.Code,
+                EditComponent.Description,
+                EditComponent.OwnerDepartmentId,
+                string.IsNullOrWhiteSpace(EditComponent.Status) ? "Active" : EditComponent.Status,
+                currentUserId: GetCurrentUserId());
+
+            SuccessMessage = $"Componente '{EditComponent.Name}' atualizado com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao atualizar componente: {ex.Message}";
+        }
+
+        return RedirectToPage();
+    }
+
+    // Inativação (sem exclusão física) — mesma rota auditada (component.update).
+    public async Task<IActionResult> OnPostDeactivateComponentAsync(long componentId)
+    {
+        try
+        {
+            var component = await _catalogService.GetComponentByIdAsync(componentId);
+            if (component == null)
+            {
+                ErrorMessage = "Componente não encontrado.";
+                return RedirectToPage();
+            }
+
+            if (component.Status != "Inactive")
+            {
+                await _catalogService.UpdateComponentAsync(
+                    component.Id,
+                    component.Name,
+                    component.ComponentType,
+                    component.ProductId,
+                    component.Code,
+                    component.Description,
+                    component.OwnerDepartmentId,
+                    status: "Inactive",
+                    currentUserId: GetCurrentUserId());
+            }
+
+            SuccessMessage = $"Componente '{component.Name}' inativado. Dependências e vínculos foram preservados.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao inativar componente: {ex.Message}";
         }
 
         return RedirectToPage();
@@ -198,5 +285,11 @@ public class IndexModel : PageModel
         }
 
         return RedirectToPage();
+    }
+
+    private long? GetCurrentUserId()
+    {
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return long.TryParse(idClaim, out var id) ? id : null;
     }
 }

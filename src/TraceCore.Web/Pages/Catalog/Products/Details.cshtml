@@ -40,6 +40,12 @@
             </button>
         </li>
         <li class="tc-tab-item">
+            <button class="tc-tab-link @(activeTab == "versions" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-versions" type="button" role="tab">
+                <i class="bi bi-tags"></i><span>Versões</span>
+                <span class="tc-tab-badge">@Model.Versions.Count</span>
+            </button>
+        </li>
+        <li class="tc-tab-item">
             <button class="tc-tab-link @(activeTab == "technical" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-technical" type="button" role="tab">
                 <i class="bi bi-diagram-3"></i><span>Contexto Técnico</span>
             </button>
@@ -107,12 +113,104 @@
             </div>
         </div>
 
+        <!-- VERSÕES -->
+        <div class="tab-pane fade @(activeTab == "versions" ? "show active" : "")" id="tab-versions" role="tabpanel">
+            <div class="tc-card">
+                <div class="tc-card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="tc-card-title mb-0">Versões do Sistema</h2>
+                        <span class="tc-caption text-muted">Registre as versões liberadas para rastrear se um problema aparece em uma versão específica ou em várias</span>
+                    </div>
+                    <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#addVersionModal">
+                        <i class="bi bi-plus-lg me-1"></i>Nova Versão
+                    </button>
+                </div>
+                <div class="tc-card-body p-0">
+                    @if (Model.Versions.Count == 0)
+                    {
+                        <div class="p-4 text-center text-muted">
+                            Nenhuma versão registrada para este sistema.
+                            <button type="button" class="tc-btn tc-btn-primary tc-btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#addVersionModal"><i class="bi bi-plus-lg me-1"></i>Nova Versão</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="tc-table">
+                                <thead>
+                                    <tr>
+                                        <th>Versão</th>
+                                        <th>Lançamento</th>
+                                        <th>Fim de Suporte</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var v in Model.Versions)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold text-dark font-monospace">@v.VersionLabel</td>
+                                            <td>@(v.ReleasedAt?.ToString("dd/MM/yyyy") ?? "-")</td>
+                                            <td>@(v.EndOfSupportAt?.ToString("dd/MM/yyyy") ?? "-")</td>
+                                            <td><span class="tc-badge tc-badge-verified">@v.Status</span></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- MODAL: Nova Versão -->
+            <div class="modal fade" id="addVersionModal" tabindex="-1" aria-labelledby="addVersionModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content tc-modal-content">
+                        <form method="post" asp-page-handler="AddVersion" asp-route-id="@Model.Product?.Id">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="addVersionModalLabel">
+                                    <i class="bi bi-tags me-2 text-primary"></i>Nova Versão
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" for="newVersionLabel">Rótulo da Versão <span class="text-danger">*</span></label>
+                                    <input type="text" id="newVersionLabel" class="tc-input" asp-for="NewVersion.VersionLabel" placeholder="Ex.: 3.6.0" required />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" for="newVersionReleasedAt">Data de Lançamento</label>
+                                    <input type="date" id="newVersionReleasedAt" class="tc-input" asp-for="NewVersion.ReleasedAt" />
+                                    <span class="tc-caption text-muted d-block mt-1">Opcional — usada para comparar métricas antes/depois desta versão.</span>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-check-lg me-1"></i>Registrar Versão</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- CONTEXTO TÉCNICO -->
         <div class="tab-pane fade @(activeTab == "technical" ? "show active" : "")" id="tab-technical" role="tabpanel">
             <div class="tc-card mb-4">
                 <div class="tc-card-header"><h2 class="tc-card-title mb-0">Contexto Técnico</h2></div>
                 <div class="tc-card-body">
                     <form method="post" asp-page-handler="SaveProfile" asp-route-id="@Model.Product?.Id">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Tipo do sistema</label>
+                            <select class="tc-select" asp-for="ProfileForm.SystemType">
+                                <option value="">Selecione...</option>
+                                @foreach (var t in Model.SystemTypes)
+                                {
+                                    <option value="@t">@t</option>
+                                }
+                            </select>
+                            <span class="tc-caption text-muted d-block mt-1">Ex.: Desktop, Web, Mobile, API, Serviço, SaaS ou Outro.</span>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Finalidade do sistema</label>
                             <textarea class="tc-textarea" asp-for="ProfileForm.BusinessPurpose" rows="2" placeholder="Para que esta aplicação existe..."></textarea>
@@ -205,28 +303,210 @@
         <div class="tab-pane fade @(activeTab == "components" ? "show active" : "")" id="tab-components" role="tabpanel">
             <div class="tc-card">
                 <div class="tc-card-header d-flex justify-content-between align-items-center">
-                    <h2 class="tc-card-title mb-0">Componentes do Sistema</h2>
-                    <a class="tc-btn tc-btn-secondary tc-btn-sm" asp-page="/Catalog/Components/Index"><i class="bi bi-box-arrow-up-right me-1"></i>Gerenciar Componentes</a>
+                    <div>
+                        <h2 class="tc-card-title mb-0">Componentes do Sistema</h2>
+                        <span class="tc-caption text-muted">@Model.Components.Count componente(s) vinculado(s) a este sistema</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#addComponentModal">
+                            <i class="bi bi-plus-lg me-1"></i>Novo Componente
+                        </button>
+                        <a class="tc-btn tc-btn-secondary tc-btn-sm" asp-page="/Catalog/Components/Index"><i class="bi bi-box-arrow-up-right me-1"></i>Gerenciar</a>
+                    </div>
                 </div>
                 <div class="tc-card-body p-0">
-                    @if ((ctx?.Components.Count ?? 0) == 0)
+                    @if (Model.Components.Count == 0)
                     {
-                        <div class="p-4 text-center text-muted">Nenhum componente cadastrado para este sistema.</div>
+                        <div class="p-4 text-center text-muted">
+                            Nenhum componente vinculado a este sistema.
+                            <button type="button" class="tc-btn tc-btn-primary tc-btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#addComponentModal"><i class="bi bi-plus-lg me-1"></i>Adicionar Componente</button>
+                        </div>
                     }
                     else
                     {
-                        <table class="tc-table">
-                            <thead><tr><th>Nome</th><th>Tipo</th><th>Status</th></tr></thead>
-                            <tbody>
-                                @foreach (var c in ctx!.Components)
-                                {
-                                    <tr><td>@c.Name</td><td>@c.ComponentType</td><td>@c.Status</td></tr>
-                                }
-                            </tbody>
-                        </table>
+                        <div class="table-responsive">
+                            <table class="tc-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Código</th>
+                                        <th>Tipo</th>
+                                        <th>Departamento</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var c in Model.Components)
+                                    {
+                                        var componentDept = Model.DepartmentsList.FirstOrDefault(d => d.Id == c.OwnerDepartmentId);
+                                        <tr>
+                                            <td class="fw-semibold text-dark">@c.Name</td>
+                                            <td class="font-monospace text-muted">@(c.Code ?? "-")</td>
+                                            <td>@c.ComponentType</td>
+                                            <td>@(componentDept?.Name ?? "-")</td>
+                                            <td>
+                                                @if (c.Status == "Active")
+                                                {
+                                                    <span class="tc-badge tc-badge-open">Ativo</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="tc-badge tc-badge-closed">Inativo</span>
+                                                }
+                                            </td>
+                                            <td class="text-end text-nowrap">
+                                                <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#editComponentModal-@c.Id">
+                                                    <i class="bi bi-pencil me-1"></i>Editar
+                                                </button>
+                                                @if (c.Status == "Active")
+                                                {
+                                                    <form method="post" asp-page-handler="DeactivateComponent" asp-route-id="@Model.Product?.Id" class="d-inline"
+                                                          onsubmit="return confirm('Inativar este componente?');">
+                                                        <input type="hidden" name="componentId" value="@c.Id" />
+                                                        <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm"><i class="bi bi-slash-circle me-1"></i>Inativar</button>
+                                                    </form>
+                                                }
+                                                <form method="post" asp-page-handler="UnlinkComponent" asp-route-id="@Model.Product?.Id" class="d-inline"
+                                                      onsubmit="return confirm('Desvincular este componente deste sistema?');">
+                                                    <input type="hidden" name="componentId" value="@c.Id" />
+                                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm"><i class="bi bi-unlink me-1"></i>Desvincular</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     }
                 </div>
             </div>
+
+            <!-- MODAL: Adicionar Componente -->
+            <div class="modal fade" id="addComponentModal" tabindex="-1" aria-labelledby="addComponentModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content tc-modal-content">
+                        <form method="post" asp-page-handler="AddComponent" asp-route-id="@Model.Product?.Id">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="addComponentModalLabel">
+                                    <i class="bi bi-cpu me-2 text-primary"></i>Adicionar Componente
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" for="newCompName">Nome do Componente <span class="text-danger">*</span></label>
+                                    <input type="text" id="newCompName" class="tc-input" asp-for="NewComponent.Name" placeholder="Ex.: API de Cadastro" required />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" for="newCompCode">Código / Sigla</label>
+                                    <input type="text" id="newCompCode" class="tc-input" asp-for="NewComponent.Code" placeholder="Ex.: CMP-API-01" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" for="newCompType">Tipo <span class="text-danger">*</span></label>
+                                    <select id="newCompType" class="tc-select" asp-for="NewComponent.ComponentType" required>
+                                        <option value="">Selecione...</option>
+                                        @foreach (var t in Model.ComponentTypesList.Where(t => t.IsActive))
+                                        {
+                                            <option value="@t.Code">@t.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" for="newCompDept">Departamento Responsável</label>
+                                    <select id="newCompDept" class="tc-select" asp-for="NewComponent.OwnerDepartmentId">
+                                        <option value="">Sem departamento</option>
+                                        @foreach (var d in Model.DepartmentsList)
+                                        {
+                                            <option value="@d.Id">@d.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" for="newCompDesc">Descrição</label>
+                                    <textarea id="newCompDesc" class="tc-textarea" asp-for="NewComponent.Description" rows="2" placeholder="Responsabilidade técnica do componente..."></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-plus-lg me-1"></i>Adicionar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: Editar Componente (um por linha) -->
+            @foreach (var c in Model.Components)
+            {
+                var typeInCatalog = Model.ComponentTypesList.Any(t => t.IsActive && string.Equals(t.Code, c.ComponentType, StringComparison.OrdinalIgnoreCase));
+                var rowDept = Model.DepartmentsList.FirstOrDefault(d => d.Id == c.OwnerDepartmentId);
+                <div class="modal fade" id="editComponentModal-@c.Id" tabindex="-1" aria-labelledby="editComponentModalLabel-@c.Id" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content tc-modal-content">
+                            <form method="post" asp-page-handler="EditComponent" asp-route-id="@Model.Product?.Id">
+                                <input type="hidden" name="componentId" value="@c.Id" />
+                                <input type="hidden" name="EditComponent.Id" value="@c.Id" />
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editComponentModalLabel-@c.Id">
+                                        <i class="bi bi-pencil-square me-2 text-primary"></i>Editar Componente
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold" for="editCompName-@c.Id">Nome do Componente <span class="text-danger">*</span></label>
+                                        <input type="text" id="editCompName-@c.Id" class="tc-input" name="EditComponent.Name" value="@c.Name" required />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold" for="editCompCode-@c.Id">Código / Sigla</label>
+                                        <input type="text" id="editCompCode-@c.Id" class="tc-input" name="EditComponent.Code" value="@c.Code" />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold" for="editCompType-@c.Id">Tipo <span class="text-danger">*</span></label>
+                                        <select id="editCompType-@c.Id" class="tc-select" name="EditComponent.ComponentType" required>
+                                            <option value="">Selecione...</option>
+                                            @foreach (var t in Model.ComponentTypesList.Where(t => t.IsActive))
+                                            {
+                                                <option value="@t.Code" selected="@(string.Equals(c.ComponentType, t.Code, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@t.Name</option>
+                                            }
+                                            @if (!typeInCatalog)
+                                            {
+                                                <option value="@c.ComponentType" selected>@c.ComponentType (legado)</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold" for="editCompDept-@c.Id">Departamento Responsável</label>
+                                        <select id="editCompDept-@c.Id" class="tc-select" name="EditComponent.OwnerDepartmentId">
+                                            <option value="" selected="@(c.OwnerDepartmentId == null ? "selected" : null)">Sem departamento</option>
+                                            @foreach (var d in Model.DepartmentsList)
+                                            {
+                                                <option value="@d.Id" selected="@(d.Id == c.OwnerDepartmentId ? "selected" : null)">@d.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold" for="editCompStatus-@c.Id">Status</label>
+                                        <select id="editCompStatus-@c.Id" class="tc-select" name="EditComponent.Status">
+                                            <option value="Active" selected="@(c.Status == "Active" ? "selected" : null)">Ativo</option>
+                                            <option value="Inactive" selected="@(c.Status == "Inactive" ? "selected" : null)">Inativo</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold" for="editCompDesc-@c.Id">Descrição</label>
+                                        <textarea id="editCompDesc-@c.Id" class="tc-textarea" name="EditComponent.Description" rows="2">@c.Description</textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-save me-1"></i>Salvar Alterações</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
 
         <!-- DEPENDÊNCIAS -->
@@ -256,30 +536,419 @@
 
         <!-- INTEGRAÇÕES -->
         <div class="tab-pane fade @(activeTab == "integrations" ? "show active" : "")" id="tab-integrations" role="tabpanel">
-            <div class="tc-card">
+            <div class="tc-card mb-4">
                 <div class="tc-card-header d-flex justify-content-between align-items-center">
-                    <h2 class="tc-card-title mb-0">Integrações deste Sistema</h2>
-                    <a class="tc-btn tc-btn-secondary tc-btn-sm" asp-page="/Integrations/Index"><i class="bi bi-box-arrow-up-right me-1"></i>Gerenciar Integrações</a>
+                    <div>
+                        <h2 class="tc-card-title mb-0">Integrações deste Sistema</h2>
+                        <span class="tc-caption text-muted">@Model.Integrations.Count integração(ões) vinculada(s) a este sistema</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#addIntegrationModal">
+                            <i class="bi bi-plus-lg me-1"></i>Nova Integração
+                        </button>
+                        @if (Model.CandidateIntegrations.Count > 0)
+                        {
+                            <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#linkExistingIntegrationModal">
+                                <i class="bi bi-link-45deg me-1"></i>Vincular Existente
+                            </button>
+                        }
+                        <a class="tc-btn tc-btn-secondary tc-btn-sm" asp-page="/Integrations/Index"><i class="bi bi-box-arrow-up-right me-1"></i>Gerenciar</a>
+                    </div>
                 </div>
                 <div class="tc-card-body p-0">
-                    @if ((ctx?.Integrations.Count ?? 0) == 0)
+                    @if (Model.Integrations.Count == 0)
                     {
-                        <div class="p-4 text-center text-muted">Nenhuma integração vinculada a este sistema. Vincule uma integração existente informando este produto ao editá-la.</div>
+                        <div class="p-4 text-center text-muted">
+                            Nenhuma integração vinculada a este sistema.
+                            <button type="button" class="tc-btn tc-btn-primary tc-btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#addIntegrationModal"><i class="bi bi-plus-lg me-1"></i>Nova Integração</button>
+                        </div>
                     }
                     else
                     {
-                        <table class="tc-table">
-                            <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Status</th></tr></thead>
-                            <tbody>
-                                @foreach (var i in ctx!.Integrations)
-                                {
-                                    <tr><td class="font-monospace">@i.Code</td><td>@i.Name</td><td>@i.IntegrationType</td><td>@i.Status</td></tr>
-                                }
-                            </tbody>
-                        </table>
+                        <div class="table-responsive">
+                            <table class="tc-table">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Nome</th>
+                                        <th>Tipo</th>
+                                        <th>Característica</th>
+                                        <th>Status</th>
+                                        <th>Histórico</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var i in Model.Integrations)
+                                    {
+                                        <tr>
+                                            <td class="font-monospace text-muted">@i.Code</td>
+                                            <td class="fw-semibold text-dark">@i.Name</td>
+                                            <td>@i.IntegrationType</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(i.Responsibility) || !string.IsNullOrEmpty(i.HostingLocation) || !string.IsNullOrEmpty(i.Direction))
+                                                {
+                                                    @if (!string.IsNullOrEmpty(i.Responsibility))
+                                                    {
+                                                        <span class="tc-badge tc-badge-verified" title="Responsabilidade"><i class="bi bi-person-badge me-1"></i>@i.Responsibility</span>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(i.HostingLocation))
+                                                    {
+                                                        <span class="tc-badge tc-badge-verified" title="Hospedagem"><i class="bi bi-hdd me-1"></i>@i.HostingLocation</span>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(i.Direction))
+                                                    {
+                                                        <span class="tc-badge tc-badge-verified" title="Direção"><i class="bi bi-arrow-left-right me-1"></i>@i.Direction</span>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted tc-caption">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (i.Status == "Healthy")
+                                                {
+                                                    <span class="tc-badge tc-badge-open">Saudável</span>
+                                                }
+                                                else if (i.Status == "Degraded")
+                                                {
+                                                    <span class="tc-badge tc-badge-medium">Degradada</span>
+                                                }
+                                                else if (i.Status == "Critical")
+                                                {
+                                                    <span class="tc-badge tc-badge-critical">Crítica</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="tc-badge tc-badge-closed">@i.Status</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <details>
+                                                    <summary class="tc-caption">Ver histórico</summary>
+                                                    @if (i.Runs.Count == 0)
+                                                    {
+                                                        <span class="text-muted tc-caption">Sem execuções registradas.</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <ul class="list-unstyled mb-0 mt-2">
+                                                            @foreach (var r in i.Runs.Take(5))
+                                                            {
+                                                                <li class="d-flex justify-content-between gap-3">
+                                                                    <span class="tc-caption text-muted">@r.StartedAt.ToString("dd/MM HH:mm") @(r.TriggeredBy)</span>
+                                                                    <span class="tc-caption">
+                                                                        @if (r.Status == "Success")
+                                                                        {
+                                                                            <span class="text-success"><i class="bi bi-check-circle"></i> Sucesso</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span class="text-danger"><i class="bi bi-x-circle"></i> @r.Status</span>
+                                                                        }
+                                                                    </span>
+                                                                </li>
+                                                            }
+                                                        </ul>
+                                                    }
+                                                </details>
+                                            </td>
+                                            <td class="text-end text-nowrap">
+                                                <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#editIntegrationModal-@i.Id">
+                                                    <i class="bi bi-pencil me-1"></i>Editar
+                                                </button>
+                                                <form method="post" asp-page-handler="TestIntegrationHealthCheck" asp-route-id="@Model.Product?.Id" class="d-inline">
+                                                    <input type="hidden" name="integrationId" value="@i.Id" />
+                                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm"><i class="bi bi-activity me-1"></i>Testar</button>
+                                                </form>
+                                                <form method="post" asp-page-handler="UnlinkIntegration" asp-route-id="@Model.Product?.Id" class="d-inline"
+                                                      onsubmit="return confirm('Desvincular esta integração deste sistema? O histórico é preservado.');">
+                                                    <input type="hidden" name="integrationId" value="@i.Id" />
+                                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm"><i class="bi bi-unlink me-1"></i>Desvincular</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     }
                 </div>
             </div>
+
+            <!-- MODAL: Vincular Integração Existente -->
+            <div class="modal fade" id="linkExistingIntegrationModal" tabindex="-1" aria-labelledby="linkExistingIntegrationModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content tc-modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="linkExistingIntegrationModalLabel">
+                                <i class="bi bi-link-45deg me-2 text-primary"></i>Vincular Integração Existente
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <div class="p-3 border-bottom">
+                                <span class="tc-caption text-muted">Vincular uma integração já cadastrada a este sistema preserva todo o histórico de execuções e verificações. Se ela já estiver vinculada a outro sistema, será desvinculada de lá.</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="tc-table mb-0">
+                                    <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Vinculada a</th><th class="text-end">Ação</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var cand in Model.CandidateIntegrations)
+                                        {
+                                            <tr>
+                                                <td class="font-monospace text-muted">@cand.Code</td>
+                                                <td>@cand.Name</td>
+                                                <td>@cand.IntegrationType</td>
+                                                <td>
+                                                    @if (cand.ProductId.HasValue)
+                                                    {
+                                                        <span class="tc-badge tc-badge-medium">Outro sistema (#@cand.ProductId)</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted tc-caption">Sem sistema</span>
+                                                    }
+                                                </td>
+                                                <td class="text-end">
+                                                    <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#confirmLinkModal-@cand.Id">
+                                                        <i class="bi bi-link-45deg me-1"></i>Vincular
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: Confirmar vínculo (um por candidata, evita o confirm() nativo do navegador) -->
+            @foreach (var cand in Model.CandidateIntegrations)
+            {
+                <div class="modal fade" id="confirmLinkModal-@cand.Id" tabindex="-1" aria-labelledby="confirmLinkModalLabel-@cand.Id" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content tc-modal-content">
+                            <form method="post" asp-page-handler="LinkExistingIntegration" asp-route-id="@Model.Product?.Id">
+                                <input type="hidden" name="integrationId" value="@cand.Id" />
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="confirmLinkModalLabel-@cand.Id">
+                                        <i class="bi bi-link-45deg me-2 text-primary"></i>Vincular Integração
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p class="mb-0">
+                                        Vincular <strong>@cand.Name</strong> (<span class="font-monospace">@cand.Code</span>) ao sistema
+                                        <strong>@Model.Product?.Name</strong>?
+                                    </p>
+                                    @if (cand.ProductId.HasValue)
+                                    {
+                                        <div class="tc-alert tc-alert-warning mt-3 mb-0">
+                                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                            Ela será <strong>desvinculada</strong> do sistema #@cand.ProductId. O histórico de execuções e verificações é preservado.
+                                        </div>
+                                    }
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-link-45deg me-1"></i>Confirmar Vínculo</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- MODAL: Nova Integração (ProductId pré-preenchido) -->
+            <div class="modal fade" id="addIntegrationModal" tabindex="-1" aria-labelledby="addIntegrationModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content tc-modal-content">
+                        <form method="post" asp-page-handler="AddIntegration" asp-route-id="@Model.Product?.Id">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="addIntegrationModalLabel">
+                                    <i class="bi bi-arrow-left-right me-2 text-primary"></i>Nova Integração
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="tc-alert tc-alert-warning mb-3">
+                                    <i class="bi bi-link-45deg me-2"></i>Esta integração será criada já vinculada ao sistema '@Model.Product?.Name'.
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold" for="newIntCode">Código <span class="text-danger">*</span></label>
+                                        <input type="text" id="newIntCode" class="tc-input" asp-for="NewIntegration.Code" placeholder="Ex.: INT-ERP-01" required />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold" for="newIntName">Nome <span class="text-danger">*</span></label>
+                                        <input type="text" id="newIntName" class="tc-input" asp-for="NewIntegration.Name" placeholder="Ex.: Sincronização com o ERP" required />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold" for="newIntType">Tipo <span class="text-danger">*</span></label>
+                                        <select id="newIntType" class="tc-select" asp-for="NewIntegration.IntegrationType" required>
+                                            <option value="">Selecione...</option>
+                                            @foreach (var t in Model.IntegrationTypesList.Where(t => t.IsActive))
+                                            {
+                                                <option value="@t.Code">@t.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold" for="newIntResp">Responsabilidade</label>
+                                        <select id="newIntResp" class="tc-select" asp-for="NewIntegration.Responsibility">
+                                            <option value="">Selecione...</option>
+                                            @foreach (var v in Model.ValidResponsibilities)
+                                            {
+                                                <option value="@v">@v</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold" for="newIntHosting">Hospedagem / Local</label>
+                                        <select id="newIntHosting" class="tc-select" asp-for="NewIntegration.HostingLocation">
+                                            <option value="">Selecione...</option>
+                                            @foreach (var v in Model.ValidHostingLocations)
+                                            {
+                                                <option value="@v">@v</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold" for="newIntDirection">Direção</label>
+                                        <select id="newIntDirection" class="tc-select" asp-for="NewIntegration.Direction">
+                                            <option value="">Selecione...</option>
+                                            @foreach (var v in Model.ValidDirections)
+                                            {
+                                                <option value="@v">@v</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold" for="newIntDesc">Sistema Alvo / Descrição</label>
+                                        <textarea id="newIntDesc" class="tc-textarea" asp-for="NewIntegration.Description" rows="2" placeholder="Sistema ou serviço com o qual esta integração conversa..."></textarea>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold" for="newIntNotes">Notas de Contrato / Comerciais</label>
+                                        <textarea id="newIntNotes" class="tc-textarea" asp-for="NewIntegration.ContractNotes" rows="2" placeholder="SLA, janela de manutenção, contato..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-check-lg me-1"></i>Criar e Vincular</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: Editar Integração (um por linha) -->
+            @foreach (var i in Model.Integrations)
+            {
+                var integrationTypeInCatalog = Model.IntegrationTypesList.Any(t => t.IsActive && string.Equals(t.Code, i.IntegrationType, StringComparison.OrdinalIgnoreCase));
+                var rowIntegrationDept = Model.DepartmentsList.FirstOrDefault(d => d.Id == i.OwnerDepartmentId);
+                <div class="modal fade" id="editIntegrationModal-@i.Id" tabindex="-1" aria-labelledby="editIntegrationModalLabel-@i.Id" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content tc-modal-content">
+                            <form method="post" asp-page-handler="EditIntegration" asp-route-id="@Model.Product?.Id">
+                                <input type="hidden" name="integrationId" value="@i.Id" />
+                                <input type="hidden" name="EditIntegration.Id" value="@i.Id" />
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editIntegrationModalLabel-@i.Id">
+                                        <i class="bi bi-pencil-square me-2 text-primary"></i>Editar Integração
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold" for="editIntCode-@i.Id">Código <span class="text-danger">*</span></label>
+                                            <input type="text" id="editIntCode-@i.Id" class="tc-input" name="EditIntegration.Code" value="@i.Code" required />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold" for="editIntName-@i.Id">Nome <span class="text-danger">*</span></label>
+                                            <input type="text" id="editIntName-@i.Id" class="tc-input" name="EditIntegration.Name" value="@i.Name" required />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold" for="editIntType-@i.Id">Tipo <span class="text-danger">*</span></label>
+                                            <select id="editIntType-@i.Id" class="tc-select" name="EditIntegration.IntegrationType" required>
+                                                <option value="">Selecione...</option>
+                                                @foreach (var t in Model.IntegrationTypesList.Where(t => t.IsActive))
+                                                {
+                                                    <option value="@t.Code" selected="@(string.Equals(i.IntegrationType, t.Code, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@t.Name</option>
+                                                }
+                                                @if (!integrationTypeInCatalog)
+                                                {
+                                                    <option value="@i.IntegrationType" selected>@i.IntegrationType (legado)</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold" for="editIntResp-@i.Id">Responsabilidade</label>
+                                            <select id="editIntResp-@i.Id" class="tc-select" name="EditIntegration.Responsibility">
+                                                <option value="" selected="@(string.IsNullOrEmpty(i.Responsibility) ? "selected" : null)">Selecione...</option>
+                                                @foreach (var v in Model.ValidResponsibilities)
+                                                {
+                                                    <option value="@v" selected="@(string.Equals(i.Responsibility, v, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@v</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold" for="editIntHosting-@i.Id">Hospedagem / Local</label>
+                                            <select id="editIntHosting-@i.Id" class="tc-select" name="EditIntegration.HostingLocation">
+                                                <option value="" selected="@(string.IsNullOrEmpty(i.HostingLocation) ? "selected" : null)">Selecione...</option>
+                                                @foreach (var v in Model.ValidHostingLocations)
+                                                {
+                                                    <option value="@v" selected="@(string.Equals(i.HostingLocation, v, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@v</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold" for="editIntDirection-@i.Id">Direção</label>
+                                            <select id="editIntDirection-@i.Id" class="tc-select" name="EditIntegration.Direction">
+                                                <option value="" selected="@(string.IsNullOrEmpty(i.Direction) ? "selected" : null)">Selecione...</option>
+                                                @foreach (var v in Model.ValidDirections)
+                                                {
+                                                    <option value="@v" selected="@(string.Equals(i.Direction, v, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@v</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold" for="editIntDept-@i.Id">Departamento Responsável</label>
+                                            <select id="editIntDept-@i.Id" class="tc-select" name="EditIntegration.OwnerDepartmentId">
+                                                <option value="" selected="@(i.OwnerDepartmentId == null ? "selected" : null)">Sem departamento</option>
+                                                @foreach (var d in Model.DepartmentsList)
+                                                {
+                                                    <option value="@d.Id" selected="@(d.Id == i.OwnerDepartmentId ? "selected" : null)">@d.Name</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold" for="editIntDesc-@i.Id">Sistema Alvo / Descrição</label>
+                                            <textarea id="editIntDesc-@i.Id" class="tc-textarea" name="EditIntegration.Description" rows="2">@i.TargetSystemDescription</textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold" for="editIntNotes-@i.Id">Notas de Contrato / Comerciais</label>
+                                            <textarea id="editIntNotes-@i.Id" class="tc-textarea" name="EditIntegration.ContractNotes" rows="2">@i.ContractNotes</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="tc-btn tc-btn-primary"><i class="bi bi-save me-1"></i>Salvar Alterações</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
 
         <!-- FONTES -->

@@ -63,6 +63,11 @@ public class Case
     public List<CaseEvidence> Evidences { get; set; } = new();
     public List<CaseIteration> Iterations { get; set; } = new();
 
+    // Tags manuais livres (taxonomia compartilhada com a Base de Conhecimento via
+    // tabela 'tags'), usadas como sinal adicional — de peso menor que os sinais
+    // técnicos — no motor de casos semelhantes (ver CaseRelationService).
+    public List<string> Tags { get; set; } = new();
+
     // Construtor sem parâmetros para Dapper/deserialização
     public Case() { }
 
@@ -213,6 +218,25 @@ public class Case
         UpdatedAt = resolvedAt;
         UpdatedBy = resolvedBy;
         RowVersion++;
+    }
+
+    public void AddTag(string tagName, long? updatedBy = null)
+    {
+        var normalized = (tagName ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized)) return;
+        if (!Tags.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+        {
+            Tags.Add(normalized);
+            UpdatedAt = DateTime.UtcNow;
+            UpdatedBy = updatedBy;
+            RowVersion++;
+        }
+    }
+
+    public void RemoveTag(string tagName)
+    {
+        var normalized = (tagName ?? string.Empty).Trim().ToLowerInvariant();
+        Tags.RemoveAll(t => string.Equals(t, normalized, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

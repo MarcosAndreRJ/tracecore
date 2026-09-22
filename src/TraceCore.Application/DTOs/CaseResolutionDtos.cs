@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace TraceCore.Application.DTOs;
 
@@ -16,7 +17,12 @@ public record ResolveCaseCommand(
     string RecurrenceRisk = "Low",
     string? RecurrenceNotes = null,
     string? PreventiveActions = null,
-    int? EffortMinutes = null
+    int? EffortMinutes = null,
+    // Hipóteses do próprio caso apontadas como causa raiz real investigada (0..N).
+    List<long>? RootCauseHypothesisIds = null,
+    // Casos semelhantes ainda em aberto que o analista confirma serem o mesmo problema
+    // (cria vínculo manual "CommonCause" — não fecha os casos automaticamente).
+    List<long>? LinkedSimilarCaseIds = null
 );
 
 public record CaseResolutionDto(
@@ -45,7 +51,13 @@ public record CaseResolutionDto(
     int TotalDiagnosticDurationSeconds,
     int FailedAttemptsCount,
     int SuccessfulAttemptsCount,
-    int TotalHypothesesTestedCount
+    int TotalHypothesesTestedCount,
+    IReadOnlyList<CaseResolutionHypothesisDto>? RootCauseHypotheses = null
+);
+
+public record CaseResolutionHypothesisDto(
+    long Id,
+    string Title
 );
 
 public record RootCauseDto(

@@ -25,6 +25,11 @@ public class DiagnosticStep
     public DateTime PerformedAt { get; set; }
     public string? MetadataJson { get; set; }
 
+    // Fase 05 — Execução de integração que gerou/validou este passo (teste real),
+    // substituindo a dependência de um texto solto em InputEvidenceSummary por uma
+    // associação estrutural real com a tabela integration_runs.
+    public long? IntegrationRunId { get; set; }
+
     // Construtor para deserialização e mapeamento Dapper
     public DiagnosticStep() { }
 

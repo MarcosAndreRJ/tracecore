@@ -24,6 +24,11 @@ public class KnowledgeItem
     public string ProvenanceType { get; set; } = "Case"; // Case, Documentation, Initiative, Ai
     public long? ProvenanceCaseId { get; set; }
     public string? ProvenanceReference { get; set; }
+
+    // Qual iteração do caso (Case.Iterations) gerou esta solução — usado para permitir uma
+    // nova solução do mesmo caso apenas quando ele foi reaberto e resolvido novamente
+    // (nova iteração), distinguindo isso de uma tentativa de duplicar a solução já ativa.
+    public long? SourceCaseIterationId { get; set; }
     
     // Ciclo de Vida e Revisão (BR-041, BR-042, BR-049)
     public DateTime? ReviewDueAt { get; set; }

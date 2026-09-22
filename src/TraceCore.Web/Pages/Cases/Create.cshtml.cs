@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -20,15 +21,21 @@ public class CreateModel : PageModel
     private readonly ICaseService _caseService;
     private readonly IDepartmentService _departmentService;
     private readonly IUserService _userService;
+    private readonly ICatalogService _catalogService;
+    private readonly ICaseRelationService _caseRelationService;
 
     public CreateModel(
         ICaseService caseService,
         IDepartmentService departmentService,
-        IUserService userService)
+        IUserService userService,
+        ICatalogService catalogService,
+        ICaseRelationService caseRelationService)
     {
         _caseService = caseService;
         _departmentService = departmentService;
         _userService = userService;
+        _catalogService = catalogService;
+        _caseRelationService = caseRelationService;
     }
 
     [BindProperty]
@@ -41,6 +48,10 @@ public class CreateModel : PageModel
     public IReadOnlyList<DepartmentDto> Departments { get; set; } = new List<DepartmentDto>();
     public IReadOnlyList<UserDto> UsersList { get; set; } = new List<UserDto>();
 
+    // Mapa Sistema -> Versões (id/rótulo), embutido como JSON para alimentar o select
+    // dependente de Versão via JS, sem round-trip ao servidor a cada troca de Sistema.
+    public string ProductVersionsJson { get; private set; } = "{}";
+
     [TempData]
     public string? ErrorMessage { get; set; }
 
@@ -49,6 +60,11 @@ public class CreateModel : PageModel
         [Required(ErrorMessage = "O relato original da ocorrência é obrigatório.")]
         [Display(Name = "Relato Original / Descrição")]
         public string OriginalReport { get; set; } = string.Empty;
+
+        // BR-021: título/resumo opcional, editável depois nos Detalhes do caso.
+        // Quando vazio, a UI usa o relato original truncado como título (comportamento já existente).
+        [Display(Name = "Título Resumido")]
+        public string? TitleSummary { get; set; }
 
         [Display(Name = "Prioridade / Severidade")]
         public string Severity { get; set; } = "Medium";
@@ -78,19 +94,53 @@ public class CreateModel : PageModel
         [Display(Name = "Mensagem de Erro Técnica")]
         public string? ErrorErrorMessage { get; set; }
 
-        [Display(Name = "Sintoma Observado")]
-        public string? SymptomText { get; set; }
+        // 1→N: cada sintoma observado é uma linha própria (o backend já suportava lista;
+        // só a UI achatava para um único campo).
+        [Display(Name = "Sintomas Observados")]
+        public List<string> Symptoms { get; set; } = new();
 
-        [Display(Name = "Evidência / Observação Inicial")]
-        public string? EvidenceDescription { get; set; }
+        // 1→N: idem para evidências textuais iniciais.
+        [Display(Name = "Evidências / Observações Iniciais")]
+        public List<string> Evidences { get; set; } = new();
 
-        [Display(Name = "Anexo (Log, Screenshot ou Arquivo de Apoio)")]
-        public IFormFile? AttachmentFile { get; set; }
+        // Tags manuais opcionais, já na abertura — peso menor no motor de casos
+        // semelhantes (ver CaseRelationService), mas ajudam a "amarrar" candidatos.
+        [Display(Name = "Tags")]
+        public List<string> Tags { get; set; } = new();
+
+        [Display(Name = "Anexos (Log, Screenshot ou Arquivo de Apoio)")]
+        public List<IFormFile> AttachmentFiles { get; set; } = new();
     }
 
     public async Task OnGetAsync()
     {
         await LoadDropdownsAsync();
+    }
+
+    // Pré-visualização de casos semelhantes durante o preenchimento (BR-048 / motor
+    // determinístico já usado em Detalhes do Caso — ver ICaseRelationService). Chamado via
+    // fetch() com debounce conforme o formulário é preenchido; nada aqui é persistido.
+    public async Task<PartialViewResult> OnGetPreviewSimilarCasesAsync(
+        string? reportText,
+        long? clientId,
+        long? productId,
+        long? productVersionId,
+        string? errorCode,
+        List<long>? componentIds,
+        List<string>? symptoms)
+    {
+        var input = new CaseSimilarityDraftInput(
+            ReportText: reportText,
+            ClientId: clientId,
+            ProductId: productId,
+            ProductVersionId: productVersionId,
+            ErrorCode: errorCode,
+            ComponentIds: componentIds,
+            Symptoms: symptoms
+        );
+
+        var results = await _caseRelationService.PreviewSimilarCasesAsync(input);
+        return Partial("~/Pages/Shared/Partials/_SimilarCasePreviewList.cshtml", results);
     }
 
     public async Task<IActionResult> OnPostAsync()
@@ -111,31 +161,30 @@ public class CreateModel : PageModel
             }
 
             var attachmentsList = new List<AttachmentInputDto>();
-            if (Input.AttachmentFile != null && Input.AttachmentFile.Length > 0)
+            foreach (var file in Input.AttachmentFiles)
             {
-                var fileStream = Input.AttachmentFile.OpenReadStream();
+                if (file == null || file.Length == 0) continue;
                 attachmentsList.Add(new AttachmentInputDto(
-                    FileName: Input.AttachmentFile.FileName,
-                    MimeType: Input.AttachmentFile.ContentType,
-                    ContentStream: fileStream,
+                    FileName: file.FileName,
+                    MimeType: file.ContentType,
+                    ContentStream: file.OpenReadStream(),
                     Confidentiality: "Internal"
                 ));
             }
 
-            var symptomsList = new List<string>();
-            if (!string.IsNullOrWhiteSpace(Input.SymptomText))
-            {
-                symptomsList.Add(Input.SymptomText.Trim());
-            }
+            var symptomsList = Input.Symptoms
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .ToList();
 
-            var evidencesList = new List<CaseEvidenceInputDto>();
-            if (!string.IsNullOrWhiteSpace(Input.EvidenceDescription))
-            {
-                evidencesList.Add(new CaseEvidenceInputDto("Other", Input.EvidenceDescription.Trim()));
-            }
+            var evidencesList = Input.Evidences
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Select(e => new CaseEvidenceInputDto("Other", e.Trim()))
+                .ToList();
 
             var command = new OpenCaseCommand(
                 OriginalReport: Input.OriginalReport,
+                NormalizedSummary: Input.TitleSummary,
                 Severity: Input.Severity,
                 ImpactLevel: Input.ImpactLevel,
                 ClientId: Input.ClientId,
@@ -147,11 +196,15 @@ public class CreateModel : PageModel
                 ErrorMessage: Input.ErrorErrorMessage,
                 Symptoms: symptomsList,
                 Evidences: evidencesList,
-                Attachments: attachmentsList
+                Attachments: attachmentsList,
+                Tags: Input.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).ToList()
             );
 
             var createdCase = await _caseService.OpenCaseAsync(command, currentUserId);
 
+            // A similaridade "oficial" (persistida) é computada automaticamente na
+            // primeira visita aos Detalhes do caso recém-criado (GetCaseRelationsOverviewAsync
+            // já revalida casos Open/Reopened/Investigating) — não precisa ser repetida aqui.
             return RedirectToPage("/Cases/Details", new { id = createdCase.Id });
         }
         catch (Exception ex)
@@ -170,5 +223,19 @@ public class CreateModel : PageModel
         AvailableComponents = await _caseService.GetComponentsAsync();
         Departments = await _departmentService.GetAllDepartmentsAsync();
         UsersList = await _userService.GetAllUsersAsync();
+
+        var versionsByProduct = new Dictionary<string, List<VersionOption>>();
+        foreach (var p in Products)
+        {
+            var versions = await _catalogService.GetVersionsByProductIdAsync(p.Id);
+            versionsByProduct[p.Id.ToString()] = versions
+                .OrderByDescending(v => v.ReleasedAt ?? DateTime.MinValue)
+                .Select(v => new VersionOption(v.Id, v.VersionLabel))
+                .ToList();
+        }
+
+        ProductVersionsJson = JsonSerializer.Serialize(versionsByProduct);
     }
+
+    private record VersionOption(long Id, string Label);
 }

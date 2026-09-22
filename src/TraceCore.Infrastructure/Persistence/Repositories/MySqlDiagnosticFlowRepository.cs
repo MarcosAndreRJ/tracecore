@@ -353,4 +353,12 @@ public class MySqlDiagnosticFlowRepository : IDiagnosticFlowRepository
         impact.Id = id;
         return id;
     }
+
+    public async Task<bool> DeleteCheckOptionAsync(long id, CancellationToken ct = default)
+    {
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        const string sql = "DELETE FROM diagnostic_check_options WHERE id = @Id;";
+        int affected = await conn.ExecuteAsync(sql, new { Id = id });
+        return affected > 0;
+    }
 }

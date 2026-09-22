@@ -29,6 +29,7 @@ public record CreateKnowledgeDraftCommand(
     long? ProvenanceCaseId = null,
     string? ProvenanceReference = null,
     long? OwnerDepartmentId = null,
+    long? SourceCaseIterationId = null,
     string ContentMarkdown = "",
     string? ProblemDescription = null,
     string? RootCauseSummary = null,

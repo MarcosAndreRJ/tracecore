@@ -52,3 +52,16 @@ public record CreateCaseRelationCommand(
     ulong? TargetCaseNumber = null,
     string RelationType = "Similar"
 );
+
+// Fase "Abertura de Caso em Etapas": sinais de um caso ainda não salvo, usados para
+// pré-visualizar casos semelhantes durante o preenchimento do formulário (antes de
+// existir um CaseId para computar a similaridade "oficial").
+public record CaseSimilarityDraftInput(
+    string? ReportText,
+    long? ClientId,
+    long? ProductId,
+    long? ProductVersionId,
+    string? ErrorCode,
+    List<long>? ComponentIds = null,
+    List<string>? Symptoms = null
+);

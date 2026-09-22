@@ -88,6 +88,12 @@ public class CaseService : ICaseService
             openedAt: command.OpenedAt ?? DateTime.UtcNow
         );
 
+        // BR-021: Título/resumo opcional informado já na abertura
+        if (!string.IsNullOrWhiteSpace(command.NormalizedSummary))
+        {
+            @case.UpdateNormalizedSummary(command.NormalizedSummary, currentUserId);
+        }
+
         // Sintomas textuais iniciais
         if (command.Symptoms != null)
         {
@@ -118,6 +124,17 @@ public class CaseService : ICaseService
         // Persiste o caso
         var caseId = await _caseRepository.AddAsync(@case, ct);
         @case.Id = caseId;
+
+        // Tags manuais opcionais já na abertura (peso menor no motor de casos semelhantes,
+        // ver CaseRelationService) — exigem o Id do caso já persistido (tabela case_tags).
+        if (command.Tags != null)
+        {
+            foreach (var tag in command.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                await _caseRepository.AddTagAsync(caseId, tag, currentUserId, ct);
+                @case.Tags.Add(tag.Trim().ToLowerInvariant());
+            }
+        }
 
         // Processamento de anexos físicos e metadados (ADR-P004 / 12_SEGURANCA §8)
         if (command.Attachments != null && command.Attachments.Count > 0)
@@ -178,6 +195,46 @@ public class CaseService : ICaseService
             list.Add(await MapToDtoAsync(c, ct));
         }
         return list;
+    }
+
+    public async Task AddSymptomAsync(long caseId, string symptomText, long? currentUserId = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(symptomText))
+            throw new ArgumentException("O texto do sintoma é obrigatório.", nameof(symptomText));
+
+        var symptom = new CaseSymptom(caseId, symptomText);
+        await _caseRepository.AddSymptomAsync(symptom, ct);
+
+        await _auditService.RecordAsync(
+            action: "CaseSymptomAdded",
+            entityType: "Case",
+            entityId: caseId.ToString(),
+            actorUserId: currentUserId,
+            metadata: new { SymptomText = symptom.SymptomText },
+            ct: ct
+        );
+    }
+
+    public async Task AddTagAsync(long caseId, string tagName, long? currentUserId = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(tagName))
+            throw new ArgumentException("Nome da tag é obrigatório.", nameof(tagName));
+
+        await _caseRepository.AddTagAsync(caseId, tagName, currentUserId, ct);
+
+        await _auditService.RecordAsync(
+            action: "CaseTagAdded",
+            entityType: "Case",
+            entityId: caseId.ToString(),
+            actorUserId: currentUserId,
+            metadata: new { Tag = tagName.Trim().ToLowerInvariant() },
+            ct: ct
+        );
+    }
+
+    public async Task RemoveTagAsync(long caseId, string tagName, CancellationToken ct = default)
+    {
+        await _caseRepository.RemoveTagAsync(caseId, tagName, ct);
     }
 
     public async Task UpdateNormalizedSummaryAsync(long caseId, string? normalizedSummary, long? currentUserId = null, CancellationToken ct = default)
@@ -451,7 +508,8 @@ public class CaseService : ICaseService
             Evidences: evidencesDto,
             Attachments: attachmentsDto,
             Resolution: null,
-            Iterations: iterationsDto
+            Iterations: iterationsDto,
+            Tags: c.Tags
         );
     }
 }

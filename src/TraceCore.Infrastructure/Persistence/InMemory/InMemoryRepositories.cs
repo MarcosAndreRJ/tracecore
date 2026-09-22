@@ -28,7 +28,9 @@ public class InMemoryDataStore
     public ConcurrentDictionary<long, ComponentEntity> Components { get; } = new();
     public ConcurrentDictionary<long, ComponentDependency> ComponentDependencies { get; } = new();
     public ConcurrentDictionary<long, ComponentOwner> ComponentOwners { get; } = new();
+    public ConcurrentDictionary<long, ComponentType> ComponentTypes { get; } = new();
     public ConcurrentDictionary<long, Integration> Integrations { get; } = new();
+    public ConcurrentDictionary<long, IntegrationType> IntegrationTypes { get; } = new();
     public ConcurrentDictionary<long, IntegrationRun> IntegrationRuns { get; } = new();
     public ConcurrentDictionary<long, Case> Cases { get; } = new();
     public ConcurrentDictionary<long, CaseIteration> CaseIterations { get; } = new();
@@ -126,6 +128,8 @@ public class InMemoryDataStore
     public long NextCaseHypothesisEvidenceId() => Interlocked.Increment(ref _caseHypothesisEvidenceIdSeq);
     public long NextIntegrationId() => Interlocked.Increment(ref _integrationIdSeq);
     public long NextIntegrationRunId() => Interlocked.Increment(ref _integrationRunIdSeq);
+    public long NextComponentTypeId() => Interlocked.Increment(ref _componentTypeIdSeq);
+    public long NextIntegrationTypeId() => Interlocked.Increment(ref _integrationTypeIdSeq);
     public long NextLlmProviderConfigId() => Interlocked.Increment(ref _llmProviderConfigIdSeq);
     public long NextLlmProviderId() => Interlocked.Increment(ref _llmProviderIdSeq);
     public long NextLlmModelConfigId() => Interlocked.Increment(ref _llmModelConfigIdSeq);
@@ -184,6 +188,8 @@ public class InMemoryDataStore
     private long _diagnosticCheckImpactIdSeq = 0;
     private long _integrationIdSeq = 0;
     private long _integrationRunIdSeq = 0;
+    private long _componentTypeIdSeq = 0;
+    private long _integrationTypeIdSeq = 0;
     private long _llmProviderConfigIdSeq = 0;
     private long _llmProviderIdSeq = 0;
     private long _llmModelConfigIdSeq = 0;
@@ -214,7 +220,9 @@ public class InMemoryDataStore
         Components.Clear();
         ComponentDependencies.Clear();
         ComponentOwners.Clear();
+        ComponentTypes.Clear();
         Integrations.Clear();
+        IntegrationTypes.Clear();
         IntegrationRuns.Clear();
         Cases.Clear();
         CaseIterations.Clear();
@@ -299,6 +307,8 @@ public class InMemoryDataStore
         _componentOwnerIdSeq = 0;
         _integrationIdSeq = 0;
         _integrationRunIdSeq = 0;
+        _componentTypeIdSeq = 0;
+        _integrationTypeIdSeq = 0;
         _llmProviderConfigIdSeq = 0;
         _llmProviderIdSeq = 0;
         _llmModelConfigIdSeq = 0;
@@ -509,7 +519,10 @@ public class InMemoryDataStore
             intgDept?.Id,
             "Registro de catálogo (M10): conector ainda não construído. Isolamento e contrato próprio por definir após ADR-P010. Nenhuma conexão ativa.",
             createdBy: null,
-            status: "Configured")
+            status: "Configured",
+            responsibility: "Cliente",
+            hostingLocation: "Cloud-SaaS",
+            direction: "Bidirecional")
         { Id = NextIntegrationId() };
         sap.OwnerDepartmentName = intgDept?.Name;
         Integrations[sap.Id] = sap;
@@ -522,10 +535,65 @@ public class InMemoryDataStore
             supportDept?.Id,
             "Registro de catálogo (M10): fonte e sincronização ainda sem decisão (ADR-P005 em aberto). Conector não construído. Nenhuma conexão ativa.",
             createdBy: null,
-            status: "Configured")
+            status: "Configured",
+            responsibility: "Cliente",
+            hostingLocation: "Cliente",
+            direction: "Entrada")
         { Id = NextIntegrationId() };
         ticket.OwnerDepartmentName = supportDept?.Name;
         Integrations[ticket.Id] = ticket;
+
+        // 9.1. Catálogo de tipos de componente/integração (Fase 01 — Ajuste Ecossistema).
+        // Espelha o seed idempotente da migration M20260921_24 (paridade InMemory/MySQL).
+        var componentTypeSeeds = new[]
+        {
+            ("Service", "Serviço"),
+            ("Frontend", "Frontend / Interface"),
+            ("Database", "Banco de Dados"),
+            ("Worker", "Worker / Processamento"),
+            ("Gateway", "Gateway"),
+            ("Integration", "Integração / Conector"),
+            ("Module", "Módulo"),
+            ("DesktopModule", "Módulo Desktop"),
+            ("Api", "API"),
+            ("WindowsService", "Serviço Windows"),
+            ("MobileApp", "Aplicativo Mobile"),
+            ("IntegrationAdapter", "Adaptador de Integração"),
+            ("Infrastructure", "Infraestrutura"),
+            ("Other", "Outro"),
+        };
+        foreach (var (code, name) in componentTypeSeeds)
+        {
+            var ct = new ComponentType(code, name) { Id = NextComponentTypeId() };
+            ComponentTypes[ct.Id] = ct;
+        }
+
+        var integrationTypeSeeds = new[]
+        {
+            ("Sap", "SAP / ERP"),
+            ("Ticketing", "Sistema de Chamados"),
+            ("Monitoring", "Monitoração"),
+            ("Telemetry", "Telemetria"),
+            ("Directory", "Diretório / IAM"),
+            ("Notification", "Notificação"),
+            ("Repository", "Repositório / CI-CD"),
+            ("Other", "Outro"),
+            ("RestApi", "REST API"),
+            ("Soap", "SOAP"),
+            ("Webhook", "Webhook"),
+            ("Sftp", "SFTP"),
+            ("File", "Arquivo"),
+            ("Database", "Banco de Dados"),
+            ("MessageQueue", "Fila / Mensageria"),
+            ("SapRfc", "SAP RFC"),
+            ("SapIdoc", "SAP IDoc"),
+            ("Edi", "EDI"),
+        };
+        foreach (var (code, name) in integrationTypeSeeds)
+        {
+            var it = new IntegrationType(code, name) { Id = NextIntegrationTypeId() };
+            IntegrationTypes[it.Id] = it;
+        }
 
         // Seed LlmProviders (nova arquitetura Fase 17)
         var anthropicProvider = new LlmProvider(
@@ -1339,6 +1407,34 @@ public class InMemoryCatalogRepository : ICatalogRepository
         var removed = _store.ComponentOwners.TryRemove(id, out _);
         return Task.FromResult(removed);
     }
+
+    public Task<IReadOnlyList<ComponentType>> GetComponentTypesAsync(bool includeInactive = false, CancellationToken ct = default)
+    {
+        IReadOnlyList<ComponentType> list = _store.ComponentTypes.Values
+            .Where(t => includeInactive || t.IsActive)
+            .OrderBy(t => t.Name)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<ComponentType?> GetComponentTypeByIdAsync(long id, CancellationToken ct = default)
+    {
+        _store.ComponentTypes.TryGetValue(id, out var type);
+        return Task.FromResult(type);
+    }
+
+    public Task<long> AddComponentTypeAsync(ComponentType type, CancellationToken ct = default)
+    {
+        type.Id = _store.NextComponentTypeId();
+        _store.ComponentTypes[type.Id] = type;
+        return Task.FromResult(type.Id);
+    }
+
+    public Task UpdateComponentTypeAsync(ComponentType type, CancellationToken ct = default)
+    {
+        _store.ComponentTypes[type.Id] = type;
+        return Task.CompletedTask;
+    }
 }
 
 public class InMemoryIntegrationRepository : IIntegrationRepository
@@ -1419,6 +1515,34 @@ public class InMemoryIntegrationRepository : IIntegrationRepository
         _store.IntegrationRuns[run.Id] = run;
         return Task.FromResult(run.Id);
     }
+
+    public Task<IReadOnlyList<IntegrationType>> GetIntegrationTypesAsync(bool includeInactive = false, CancellationToken ct = default)
+    {
+        IReadOnlyList<IntegrationType> list = _store.IntegrationTypes.Values
+            .Where(t => includeInactive || t.IsActive)
+            .OrderBy(t => t.Name)
+            .ToList();
+        return Task.FromResult(list);
+    }
+
+    public Task<IntegrationType?> GetIntegrationTypeByIdAsync(long id, CancellationToken ct = default)
+    {
+        _store.IntegrationTypes.TryGetValue(id, out var type);
+        return Task.FromResult(type);
+    }
+
+    public Task<long> AddIntegrationTypeAsync(IntegrationType type, CancellationToken ct = default)
+    {
+        type.Id = _store.NextIntegrationTypeId();
+        _store.IntegrationTypes[type.Id] = type;
+        return Task.FromResult(type.Id);
+    }
+
+    public Task UpdateIntegrationTypeAsync(IntegrationType type, CancellationToken ct = default)
+    {
+        _store.IntegrationTypes[type.Id] = type;
+        return Task.CompletedTask;
+    }
 }
 
 public class InMemoryProductTechnicalContextRepository : IProductTechnicalContextRepository
@@ -1434,6 +1558,15 @@ public class InMemoryProductTechnicalContextRepository : IProductTechnicalContex
     {
         var profile = _store.ProductTechnicalProfiles.Values.FirstOrDefault(p => p.ProductId == productId);
         return Task.FromResult(profile);
+    }
+
+    public Task<IReadOnlyList<ProductTechnicalProfile>> GetProfilesByProductIdsAsync(IReadOnlyList<long> productIds, CancellationToken ct = default)
+    {
+        var ids = productIds.ToHashSet();
+        IReadOnlyList<ProductTechnicalProfile> list = _store.ProductTechnicalProfiles.Values
+            .Where(p => ids.Contains(p.ProductId))
+            .ToList();
+        return Task.FromResult(list);
     }
 
     public Task UpsertProfileAsync(ProductTechnicalProfile profile, CancellationToken ct = default)
@@ -1690,6 +1823,34 @@ public class InMemoryCaseRepository : ICaseRepository
         if (_store.Cases.TryGetValue(caseId, out var @case))
         {
             @case.MarkComponentAsRootCause(componentId);
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task<long> AddSymptomAsync(CaseSymptom symptom, CancellationToken ct = default)
+    {
+        if (_store.Cases.TryGetValue(symptom.CaseId, out var @case))
+        {
+            symptom.Id = @case.Symptoms.Count + 1;
+            @case.Symptoms.Add(symptom);
+        }
+        return Task.FromResult(symptom.Id);
+    }
+
+    public Task AddTagAsync(long caseId, string tagName, long? updatedBy, CancellationToken ct = default)
+    {
+        if (_store.Cases.TryGetValue(caseId, out var @case))
+        {
+            @case.AddTag(tagName, updatedBy);
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveTagAsync(long caseId, string tagName, CancellationToken ct = default)
+    {
+        if (_store.Cases.TryGetValue(caseId, out var @case))
+        {
+            @case.RemoveTag(tagName);
         }
         return Task.CompletedTask;
     }
@@ -2033,6 +2194,38 @@ public class InMemoryCaseResolutionRepository : ICaseResolutionRepository
             .ToList();
         return Task.FromResult(list);
     }
+
+    public Task SetResolutionHypothesesAsync(long resolutionId, IEnumerable<long> hypothesisIds, CancellationToken ct = default)
+    {
+        if (_store.CaseResolutions.TryGetValue(resolutionId, out var resolution))
+        {
+            resolution.RootCauseHypothesisIds = hypothesisIds.Distinct().ToList();
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateRootCauseAsync(RootCause rootCause, CancellationToken ct = default)
+    {
+        if (_store.RootCauses.TryGetValue(rootCause.Id, out var existing))
+        {
+            existing.Code = rootCause.Code;
+            existing.Name = rootCause.Name;
+            existing.Category = rootCause.Category;
+            existing.Description = rootCause.Description;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> DeleteRootCauseAsync(long id, CancellationToken ct = default)
+    {
+        return Task.FromResult(_store.RootCauses.TryRemove(id, out _));
+    }
+
+    public Task<int> CountResolutionsUsingRootCauseAsync(long rootCauseId, CancellationToken ct = default)
+    {
+        int count = _store.CaseResolutions.Values.Count(r => r.RootCauseId == rootCauseId);
+        return Task.FromResult(count);
+    }
 }
 
 public class InMemoryKnowledgeRepository : IKnowledgeRepository
@@ -2054,6 +2247,15 @@ public class InMemoryKnowledgeRepository : IKnowledgeRepository
     {
         var item = _store.KnowledgeItems.Values.FirstOrDefault(k => string.Equals(k.KnowledgeCode, code, StringComparison.OrdinalIgnoreCase));
         return Task.FromResult(item);
+    }
+
+    public Task<IReadOnlyList<KnowledgeItem>> GetByProvenanceCaseIdAsync(long caseId, CancellationToken ct = default)
+    {
+        IReadOnlyList<KnowledgeItem> list = _store.KnowledgeItems.Values
+            .Where(k => k.ProvenanceCaseId == caseId)
+            .OrderByDescending(k => k.CreatedAt)
+            .ToList();
+        return Task.FromResult(list);
     }
 
     public Task<long> CreateItemAsync(KnowledgeItem item, CancellationToken ct = default)
@@ -2715,6 +2917,22 @@ public class InMemoryCaseRelationRepository : ICaseRelationRepository
         }
     }
 
+    public Task<CaseRelation?> GetByIdAsync(long relationId, CancellationToken ct = default)
+    {
+        _store.CaseRelations.TryGetValue(relationId, out var rel);
+        return Task.FromResult(rel);
+    }
+
+    public Task<bool> DeleteManualRelationAsync(long relationId, CancellationToken ct = default)
+    {
+        if (_store.CaseRelations.TryGetValue(relationId, out var rel) &&
+            !string.Equals(rel.RelationType, "Similar", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(_store.CaseRelations.TryRemove(relationId, out _));
+        }
+        return Task.FromResult(false);
+    }
+
     public Task<IReadOnlyList<Case>> GetPotentialSimilarCandidatesAsync(long excludeCaseId, long? clientId, long? productId, string? errorCode, int limit = 50, CancellationToken ct = default)
     {
         bool hasFilters = clientId.HasValue || productId.HasValue || !string.IsNullOrWhiteSpace(errorCode);
@@ -3008,6 +3226,12 @@ public class InMemoryDiagnosticFlowRepository : IDiagnosticFlowRepository
         impact.Id = _store.NextDiagnosticCheckImpactId();
         _store.DiagnosticCheckImpacts[impact.Id] = impact;
         return Task.FromResult(impact.Id);
+    }
+
+    public Task<bool> DeleteCheckOptionAsync(long id, CancellationToken ct = default)
+    {
+        bool removed = _store.DiagnosticCheckOptions.TryRemove(id, out _);
+        return Task.FromResult(removed);
     }
 }
 

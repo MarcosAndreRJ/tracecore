@@ -28,7 +28,8 @@ public record RegisterDiagnosticStepCommand(
     string Outcome,
     string? StepType = "Verification",
     string? RiskLevel = "Low",
-    int? DurationSeconds = null
+    int? DurationSeconds = null,
+    long? IntegrationRunId = null
 );
 
 public record RegisterDiagnosticStepRequest(
@@ -85,6 +86,7 @@ public record EvidenceSuggestionDto(
     string SuggestedJustification
 );
 
+// Fase 05 — integração testada, com o passo gravado como AutomatedCheck (campo no FIM p/ compat posicional)
 public record DiagnosticStepDto(
     long Id,
     long DiagnosticSessionId,
@@ -104,7 +106,8 @@ public record DiagnosticStepDto(
     string? PerformedByName,
     DateTime PerformedAt,
     string? MetadataJson,
-    EvidenceSuggestionDto? SuggestedEvidence = null
+    EvidenceSuggestionDto? SuggestedEvidence = null,
+    long? IntegrationRunId = null
 );
 
 public record RecordEvidenceCommand(
@@ -114,7 +117,8 @@ public record RecordEvidenceCommand(
     long? AttachmentId = null,
     long? DiagnosticStepId = null,
     long? CaseIterationId = null,
-    List<HypothesisEvidenceRelationInputDto>? HypothesisRelations = null
+    List<HypothesisEvidenceRelationInputDto>? HypothesisRelations = null,
+    long? IntegrationRunId = null
 );
 
 public record HypothesisEvidenceRelationInputDto(

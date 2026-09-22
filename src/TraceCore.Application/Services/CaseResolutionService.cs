@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using TraceCore.Application.DTOs;
 using TraceCore.Application.Exceptions;
 using TraceCore.Domain.Entities;
+using TraceCore.Domain.Enums;
 using TraceCore.Domain.Repositories;
 
 namespace TraceCore.Application.Services;
@@ -18,6 +19,11 @@ namespace TraceCore.Application.Services;
 
 public class CaseResolutionService : ICaseResolutionService
 {
+    private static readonly HashSet<string> ValidResolutionTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Definitive", "Workaround", "NeedsFollowUp", "Inconclusive", "NotAnIssue", "ClientEnvironment"
+    };
+
     private readonly ICaseResolutionRepository _caseResolutionRepository;
     private readonly ICaseRepository _caseRepository;
     private readonly IDiagnosticRepository _diagnosticRepository;
@@ -25,6 +31,7 @@ public class CaseResolutionService : ICaseResolutionService
     private readonly IDepartmentRepository _departmentRepository;
     private readonly IUserRepository _userRepository;
     private readonly IAuditEventRepository _auditEventRepository;
+    private readonly ICaseRelationRepository _caseRelationRepository;
 
     public CaseResolutionService(
         ICaseResolutionRepository caseResolutionRepository,
@@ -33,7 +40,8 @@ public class CaseResolutionService : ICaseResolutionService
         ICatalogRepository catalogRepository,
         IDepartmentRepository departmentRepository,
         IUserRepository userRepository,
-        IAuditEventRepository auditEventRepository)
+        IAuditEventRepository auditEventRepository,
+        ICaseRelationRepository caseRelationRepository)
     {
         _caseResolutionRepository = caseResolutionRepository;
         _caseRepository = caseRepository;
@@ -42,6 +50,7 @@ public class CaseResolutionService : ICaseResolutionService
         _departmentRepository = departmentRepository;
         _userRepository = userRepository;
         _auditEventRepository = auditEventRepository;
+        _caseRelationRepository = caseRelationRepository;
     }
 
     public async Task<CaseResolutionDto> ResolveCaseAsync(
@@ -91,8 +100,8 @@ public class CaseResolutionService : ICaseResolutionService
         }
 
         // Requisitos estruturados do produto (Bloco 5.1 / Encerramento Estruturado)
-        var resolutionType = string.Equals(command.ResolutionType, "Workaround", StringComparison.OrdinalIgnoreCase)
-            ? "Workaround"
+        var resolutionType = ValidResolutionTypes.Contains(command.ResolutionType ?? string.Empty)
+            ? command.ResolutionType!.Trim()
             : "Definitive";
 
         var recurrenceRisk = command.RecurrenceRisk?.Trim() switch
@@ -180,6 +189,69 @@ public class CaseResolutionService : ICaseResolutionService
             );
         }
 
+        // Hipótese(s) do próprio caso apontadas como causa raiz real investigada (pode ser mais
+        // de uma — causa composta). Distinto de RootCauseId (taxonomia corporativa genérica).
+        var hypothesisIds = (command.RootCauseHypothesisIds ?? new List<long>())
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList();
+
+        if (hypothesisIds.Count > 0)
+        {
+            var validHypothesisIds = new List<long>();
+            foreach (var hypId in hypothesisIds)
+            {
+                var hyp = await _diagnosticRepository.GetHypothesisByIdAsync(hypId, ct);
+                // Hipótese precisa pertencer a este caso — defesa contra ids de outro caso
+                // (ex.: reaproveitados por engano numa aplicação em lote a casos vinculados).
+                if (hyp == null || hyp.CaseId != command.CaseId) continue;
+
+                validHypothesisIds.Add(hypId);
+                if (hyp.Status != HypothesisStatus.Supported.ToString())
+                {
+                    hyp.Evaluate(HypothesisStatus.Supported, $"Confirmada como causa raiz no encerramento estruturado do caso #{command.CaseId} (BR-027/BR-028).", resolvedAt);
+                    await _diagnosticRepository.UpdateHypothesisAsync(hyp, ct);
+                }
+            }
+
+            if (validHypothesisIds.Count > 0)
+            {
+                await _caseResolutionRepository.SetResolutionHypothesesAsync(resolutionId, validHypothesisIds, ct);
+            }
+        }
+
+        // Vínculo manual "Causa Comum" com casos semelhantes ainda em aberto que o analista
+        // confirmou serem o mesmo problema — não fecha esses casos automaticamente (ver
+        // ApplyResolutionToLinkedCasesAsync para a ação explícita de aplicar a mesma resolução).
+        var linkedCaseIds = (command.LinkedSimilarCaseIds ?? new List<long>())
+            .Where(id => id > 0 && id != command.CaseId)
+            .Distinct()
+            .ToList();
+
+        if (linkedCaseIds.Count > 0)
+        {
+            var existingRelations = await _caseRelationRepository.GetRelationsByCaseIdAsync(command.CaseId, ct);
+            foreach (var targetId in linkedCaseIds)
+            {
+                bool alreadyLinked = existingRelations.Any(r =>
+                    (r.SourceCaseId == command.CaseId && r.TargetCaseId == targetId ||
+                     r.SourceCaseId == targetId && r.TargetCaseId == command.CaseId) &&
+                    string.Equals(r.RelationType, "CommonCause", StringComparison.OrdinalIgnoreCase));
+
+                if (!alreadyLinked)
+                {
+                    var relation = new CaseRelation(
+                        sourceCaseId: command.CaseId,
+                        targetCaseId: targetId,
+                        relationType: CaseRelationType.CommonCause,
+                        matchedFactors: new[] { "Confirmado manualmente no encerramento do caso" },
+                        createdBy: currentUserId
+                    );
+                    await _caseRelationRepository.AddManualRelationAsync(relation, ct);
+                }
+            }
+        }
+
         // Trilha de Auditoria (BR-004 / BR-100)
         var auditDetails = JsonSerializer.Serialize(new
         {
@@ -217,6 +289,121 @@ public class CaseResolutionService : ICaseResolutionService
     {
         var list = await _caseResolutionRepository.GetAllRootCausesAsync(ct);
         return list.Select(rc => new RootCauseDto(rc.Id, rc.Code, rc.Name, rc.Category, rc.Description)).ToList();
+    }
+
+    public async Task<long> CreateRootCauseAsync(string name, string? code, string? category, string? description, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new BusinessRuleValidationException("BR-028", "O nome da causa raiz é obrigatório.");
+
+        var rootCause = new RootCause(name, code, category, description);
+        return await _caseResolutionRepository.AddRootCauseAsync(rootCause, ct);
+    }
+
+    public async Task UpdateRootCauseAsync(long id, string name, string? code, string? category, string? description, CancellationToken ct = default)
+    {
+        var existing = await _caseResolutionRepository.GetRootCauseByIdAsync(id, ct);
+        if (existing == null)
+            throw new EntityNotFoundException("Causa Raiz", id);
+
+        if (string.IsNullOrWhiteSpace(name))
+            throw new BusinessRuleValidationException("BR-028", "O nome da causa raiz é obrigatório.");
+
+        existing.Name = name.Trim();
+        existing.Code = string.IsNullOrWhiteSpace(code) ? null : code.Trim();
+        existing.Category = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+        existing.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+        await _caseResolutionRepository.UpdateRootCauseAsync(existing, ct);
+    }
+
+    public async Task<int> DeleteRootCauseAsync(long id, CancellationToken ct = default)
+    {
+        var usageCount = await _caseResolutionRepository.CountResolutionsUsingRootCauseAsync(id, ct);
+        var deleted = await _caseResolutionRepository.DeleteRootCauseAsync(id, ct);
+        if (!deleted)
+            throw new EntityNotFoundException("Causa Raiz", id);
+
+        // FK root_cause_id é ON DELETE SET NULL — resoluções que a usavam ficam sem causa
+        // raiz corporativa vinculada, mas mantêm o restante do registro intacto.
+        return usageCount;
+    }
+
+    public Task<int> CountResolutionsUsingRootCauseAsync(long id, CancellationToken ct = default)
+    {
+        return _caseResolutionRepository.CountResolutionsUsingRootCauseAsync(id, ct);
+    }
+
+    public async Task<IReadOnlyList<long>> ApplyResolutionToLinkedCasesAsync(long sourceCaseId, long currentUserId, CancellationToken ct = default)
+    {
+        var sourceResolution = await _caseResolutionRepository.GetByCaseIdAsync(sourceCaseId, ct);
+        if (sourceResolution == null)
+        {
+            throw new BusinessRuleValidationException("BR-030", "O caso de origem ainda não possui uma resolução registrada.");
+        }
+
+        var relations = await _caseRelationRepository.GetRelationsByCaseIdAsync(sourceCaseId, ct);
+        var commonCauseTargetIds = relations
+            .Where(r => string.Equals(r.RelationType, "CommonCause", StringComparison.OrdinalIgnoreCase))
+            .Select(r => r.SourceCaseId == sourceCaseId ? r.TargetCaseId : r.SourceCaseId)
+            .Distinct()
+            .ToList();
+
+        var closedCaseIds = new List<long>();
+
+        foreach (var targetId in commonCauseTargetIds)
+        {
+            var applied = await TryApplyResolutionToCaseAsync(sourceResolution, targetId, currentUserId, ct);
+            if (applied) closedCaseIds.Add(targetId);
+        }
+
+        return closedCaseIds;
+    }
+
+    // Vínculo manual imediato (ver OnPostAddRelationAsync em Cases/Details): quando o
+    // analista relaciona o caso atual a um caso já Resolvido e opta explicitamente por
+    // encerrar o caso atual também, aplica a MESMA resolução do caso já fechado.
+    public async Task<bool> ApplyResolutionFromRelatedCaseAsync(long caseId, long relatedResolvedCaseId, long currentUserId, CancellationToken ct = default)
+    {
+        var relatedResolution = await _caseResolutionRepository.GetByCaseIdAsync(relatedResolvedCaseId, ct);
+        if (relatedResolution == null)
+            throw new BusinessRuleValidationException("BR-030", "O caso relacionado ainda não possui uma resolução registrada.");
+
+        return await TryApplyResolutionToCaseAsync(relatedResolution, caseId, currentUserId, ct);
+    }
+
+    private async Task<bool> TryApplyResolutionToCaseAsync(CaseResolution sourceResolution, long targetCaseId, long currentUserId, CancellationToken ct)
+    {
+        var targetCase = await _caseRepository.GetByIdAsync(targetCaseId, ct);
+        if (targetCase == null) return false;
+
+        bool isOpen = targetCase.Status == "Open" || targetCase.Status == "Reopened" || targetCase.Status == "Investigating";
+        if (!isOpen) return false;
+
+        try
+        {
+            await ResolveCaseAsync(new ResolveCaseCommand(
+                CaseId: targetCaseId,
+                ResolutionSummary: sourceResolution.ResolutionSummary,
+                ValidationSummary: sourceResolution.ValidationSummary,
+                RootCauseId: sourceResolution.RootCauseId,
+                RootCauseConfirmed: sourceResolution.RootCauseConfirmed,
+                ResponsibleDepartmentId: sourceResolution.ResponsibleDepartmentId,
+                ResolutionType: sourceResolution.ResolutionType,
+                RecurrenceRisk: sourceResolution.RecurrenceRisk,
+                RecurrenceNotes: sourceResolution.RecurrenceNotes,
+                PreventiveActions: sourceResolution.PreventiveActions
+                // RootCauseHypothesisIds propositalmente omitido: hipóteses são específicas
+                // de cada caso, os ids do caso de origem não fazem sentido no caso alvo.
+            ), currentUserId, ct);
+
+            return true;
+        }
+        catch (BusinessRuleValidationException)
+        {
+            // Caso já resolvido/reaberto entre a checagem e a aplicação — não interrompe o fluxo chamador.
+            return false;
+        }
     }
 
     private async Task<CaseResolutionDto> MapToDtoAsync(CaseResolution resolution, Case @case, CancellationToken ct)
@@ -268,6 +455,14 @@ public class CaseResolutionService : ICaseResolutionService
         double elapsedMinutes = (resolution.ResolvedAt - @case.OpenedAt).TotalMinutes;
         if (elapsedMinutes < 0) elapsedMinutes = 0;
 
+        var rootCauseHypotheses = new List<CaseResolutionHypothesisDto>();
+        foreach (var hypId in resolution.RootCauseHypothesisIds)
+        {
+            var h = hypotheses.FirstOrDefault(x => x.Id == hypId)
+                ?? await _diagnosticRepository.GetHypothesisByIdAsync(hypId, ct);
+            if (h != null) rootCauseHypotheses.Add(new CaseResolutionHypothesisDto(h.Id, h.Title));
+        }
+
         return new CaseResolutionDto(
             Id: resolution.Id,
             CaseId: resolution.CaseId,
@@ -294,7 +489,8 @@ public class CaseResolutionService : ICaseResolutionService
             TotalDiagnosticDurationSeconds: totalDiagnosticDuration,
             FailedAttemptsCount: failedAttempts,
             SuccessfulAttemptsCount: successfulAttempts,
-            TotalHypothesesTestedCount: totalHypotheses
+            TotalHypothesesTestedCount: totalHypotheses,
+            RootCauseHypotheses: rootCauseHypotheses
         );
     }
 }

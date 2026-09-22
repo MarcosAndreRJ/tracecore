@@ -15,6 +15,11 @@ public class ProductTechnicalProfile
 
     public string? BusinessPurpose { get; set; }
     public string? ArchitectureSummary { get; set; }
+
+    // String controlada simples (não catálogo): Desktop, Web, Mobile, Api, Servico, SaaS, Outro.
+    // Valores validados em Application (case-insensitive), sem travar o banco com enum fechado.
+    public string? SystemType { get; set; }
+
     public string? FrontendStack { get; set; }
     public string? BackendStack { get; set; }
     public string? PrimaryDatabase { get; set; }
@@ -50,6 +55,9 @@ public class ProductTechnicalProfile
     }
 
     public static readonly string[] ValidExternalResearchPolicies = { "Disabled", "OfficialOnly", "AllowListed", "OpenWeb" };
+
+    // Fase 04 — Ajuste do Ecossistema: tipo do sistema (Desktop, Web, Mobile, Api, Servico, SaaS, Outro).
+    public static readonly string[] ValidSystemTypes = { "Desktop", "Web", "Mobile", "Api", "Servico", "SaaS", "Outro" };
 }
 
 /// <summary>

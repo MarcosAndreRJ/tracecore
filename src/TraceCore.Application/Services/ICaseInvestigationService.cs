@@ -19,4 +19,25 @@ public interface ICaseInvestigationService
     Task<CaseEvidenceDto> RecordEvidenceAsync(RecordEvidenceCommand command, long currentUserId, CancellationToken ct = default);
     Task<IReadOnlyList<CaseEvidenceDto>> GetEvidencesByCaseIdAsync(long caseId, CancellationToken ct = default);
     Task<IReadOnlyList<CaseEvidenceDto>> GetEvidencesByHypothesisIdAsync(long hypothesisId, CancellationToken ct = default);
+
+    // Fase 05 — Teste de integração durante a investigação do caso: cria uma
+    // IntegrationRun (RunContext=Diagnostic) + DiagnosticStep (AutomatedCheck) e,
+    // opcionalmente, uma CaseEvidence (DiagnosticTest) vinculada à execução.
+    Task<DiagnosticStepDto> TestIntegrationDuringInvestigationAsync(
+        long caseId,
+        long integrationId,
+        long currentUserId,
+        long? hypothesisId = null,
+        bool recordAsEvidence = false,
+        string? evidenceRelationType = null,
+        CancellationToken ct = default);
+
+    // Fase 05 — Teste de integração durante a validação da solução: cria uma
+    // IntegrationRun (RunContext=SolutionValidation) + CaseEvidence (DiagnosticTest)
+    // na iteração atual do caso.
+    Task<CaseEvidenceDto> TestIntegrationForSolutionValidationAsync(
+        long caseId,
+        long integrationId,
+        long currentUserId,
+        CancellationToken ct = default);
 }

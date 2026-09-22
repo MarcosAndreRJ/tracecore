@@ -25,4 +25,5 @@ public interface IDiagnosticFlowRepository
 
     Task<long> AddCheckOptionAsync(DiagnosticCheckOption option, CancellationToken ct = default);
     Task<long> AddCheckImpactAsync(DiagnosticCheckImpact impact, CancellationToken ct = default);
+    Task<bool> DeleteCheckOptionAsync(long id, CancellationToken ct = default);
 }

@@ -270,6 +270,11 @@ public class DiagnosticEngineService : IDiagnosticEngineService
 
             var candidateChecks = activeFlow.Checks
                 .Where(c => !processedCheckCodes.Contains(c.Code))
+                // Um check "manual" sem opções cadastradas nunca pode ser respondido pelo
+                // formulário (nenhum radio para marcar) e trava o fluxo com "identificador '0'
+                // não encontrado" — só checks automáticos com integração dispensam opções.
+                .Where(c => c.Options.Count > 0 ||
+                    (string.Equals(c.CheckType, "AutomatedCheck", StringComparison.OrdinalIgnoreCase) && c.IntegrationId.HasValue))
                 .ToList();
 
             // Pula perguntas redundantes cuja resposta já esteja nos campos do caso (Anti-padrão §9)
@@ -365,7 +370,7 @@ public class DiagnosticEngineService : IDiagnosticEngineService
                     bestCheck.IntegrationId.HasValue &&
                     _healthCheckService != null)
                 {
-                    var run = await _healthCheckService.ExecuteHealthCheckAsync(bestCheck.IntegrationId.Value, ct);
+                    var run = await _healthCheckService.ExecuteHealthCheckAsync(bestCheck.IntegrationId.Value, ct: ct);
 
                     var stepOutcome = string.Equals(run.Status, "Success", StringComparison.OrdinalIgnoreCase)
                         ? DiagnosticStepOutcome.Worked
@@ -394,7 +399,8 @@ public class DiagnosticEngineService : IDiagnosticEngineService
                         ResultSummary: $"Status da execução: {run.Status}. {(string.IsNullOrWhiteSpace(run.ErrorMessage) ? $"Código HTTP/porta {run.RecordsProcessed ?? 200}" : run.ErrorMessage)}",
                         Outcome: stepOutcome.ToString(),
                         StepType: DiagnosticStepTypes.AutomatedCheck,
-                        RiskLevel: bestCheck.RiskLevel
+                        RiskLevel: bestCheck.RiskLevel,
+                        IntegrationRunId: run.Id
                     ), actorUserId, ct);
 
                     if (bestCheck.Options.Count > 0)
@@ -736,5 +742,20 @@ public class DiagnosticEngineService : IDiagnosticEngineService
     public async Task DeleteFlowAsync(long flowId, CancellationToken ct = default)
     {
         await _flowRepository.DeleteFlowAsync(flowId, ct);
+    }
+
+    public async Task DeleteHypothesisAsync(long hypothesisId, CancellationToken ct = default)
+    {
+        await _flowRepository.DeleteHypothesisAsync(hypothesisId, ct);
+    }
+
+    public async Task DeleteCheckAsync(long checkId, CancellationToken ct = default)
+    {
+        await _flowRepository.DeleteCheckAsync(checkId, ct);
+    }
+
+    public async Task DeleteCheckOptionAsync(long optionId, CancellationToken ct = default)
+    {
+        await _flowRepository.DeleteCheckOptionAsync(optionId, ct);
     }
 }

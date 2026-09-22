@@ -34,6 +34,12 @@ public class ProductTechnicalContextService : IProductTechnicalContextService
         return profile == null ? null : ToDto(profile);
     }
 
+    public async Task<IReadOnlyDictionary<long, ProductTechnicalProfileDto>> GetTechnicalProfilesForAsync(IReadOnlyList<long> productIds, CancellationToken ct = default)
+    {
+        var profiles = await _repository.GetProfilesByProductIdsAsync(productIds, ct);
+        return profiles.ToDictionary(p => p.ProductId, ToDto);
+    }
+
     public async Task UpsertTechnicalProfileAsync(UpsertProductTechnicalProfileCommand command, long? currentUserId, CancellationToken ct = default)
     {
         if (command == null)
@@ -52,6 +58,14 @@ public class ProductTechnicalContextService : IProductTechnicalContextService
                 nameof(command.ExternalResearchPolicy));
         }
 
+        var systemType = Trim(command.SystemType);
+        if (systemType != null && !ProductTechnicalProfile.ValidSystemTypes.Contains(systemType, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Tipo do sistema inválido: '{systemType}'. Valores aceitos: {string.Join(", ", ProductTechnicalProfile.ValidSystemTypes)}.",
+                nameof(command.SystemType));
+        }
+
         var existing = await _repository.GetProfileByProductIdAsync(command.ProductId, ct);
 
         var profile = new ProductTechnicalProfile
@@ -59,6 +73,7 @@ public class ProductTechnicalContextService : IProductTechnicalContextService
             ProductId = command.ProductId,
             BusinessPurpose = Trim(command.BusinessPurpose),
             ArchitectureSummary = Trim(command.ArchitectureSummary),
+            SystemType = systemType,
             FrontendStack = Trim(command.FrontendStack),
             BackendStack = Trim(command.BackendStack),
             PrimaryDatabase = Trim(command.PrimaryDatabase),
@@ -291,7 +306,7 @@ public class ProductTechnicalContextService : IProductTechnicalContextService
             Technologies: technologies,
             Components: components.Select(c => new ComponentSummaryDto(c.Id, c.Name, c.ComponentType, c.Status)).ToList(),
             Dependencies: dependencies,
-            Integrations: integrations.Select(i => new IntegrationSummaryDto(i.Id, i.Code, i.Name, i.IntegrationType, i.Status)).ToList(),
+            Integrations: integrations.Select(i => new IntegrationSummaryDto(i.Id, i.Code, i.Name, i.IntegrationType, i.Status, i.Responsibility, i.HostingLocation, i.Direction)).ToList(),
             TechnicalSources: sources.Select(ToDto).ToList(),
             ExternalResearchPolicy: profileEntity?.ExternalResearchPolicy ?? "Disabled",
             AllowedDomains: allowedDomains.Select(d => d.Domain).ToList()
@@ -347,7 +362,7 @@ public class ProductTechnicalContextService : IProductTechnicalContextService
         p.Id, p.ProductId, p.BusinessPurpose, p.ArchitectureSummary, p.FrontendStack, p.BackendStack,
         p.PrimaryDatabase, p.RuntimePlatform, p.HostingModel, p.AuthenticationModel, p.ObservabilityStack,
         p.DeploymentModel, p.Vendor, p.SupportNotes, p.KnownConstraints, p.InvestigationNotes,
-        p.ExternalResearchPolicy, p.CreatedAt, p.UpdatedAt);
+        p.ExternalResearchPolicy, p.CreatedAt, p.UpdatedAt, p.SystemType);
 
     private static ProductTechnicalSourceDto ToDto(ProductTechnicalSource s) => new(
         s.Id, s.ProductId, s.Name, s.SourceType, s.Url, s.Description, s.TrustLevel, s.IsActive, s.CreatedAt, s.UpdatedAt);

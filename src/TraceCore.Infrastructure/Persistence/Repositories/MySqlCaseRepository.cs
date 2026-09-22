@@ -281,6 +281,62 @@ public class MySqlCaseRepository : ICaseRepository
         });
     }
 
+    public async Task<long> AddSymptomAsync(CaseSymptom symptom, CancellationToken ct = default)
+    {
+        const string sql = @"
+            INSERT INTO case_symptoms (case_id, symptom_code, symptom_text, source, confirmed)
+            VALUES (@CaseId, @SymptomCode, @SymptomText, @Source, @Confirmed);
+            SELECT LAST_INSERT_ID();";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        var id = await conn.ExecuteScalarAsync<long>(sql, symptom);
+        symptom.Id = id;
+
+        await conn.ExecuteAsync(@"
+            UPDATE cases SET updated_at = NOW(), row_version = row_version + 1
+            WHERE id = @CaseId;", new { symptom.CaseId });
+
+        return id;
+    }
+
+    public async Task AddTagAsync(long caseId, string tagName, long? updatedBy, CancellationToken ct = default)
+    {
+        var normalized = (tagName ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized)) return;
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+
+        var tagId = await conn.ExecuteScalarAsync<long?>(
+            "SELECT id FROM tags WHERE name = @Name LIMIT 1;", new { Name = normalized });
+
+        if (tagId == null)
+        {
+            tagId = await conn.ExecuteScalarAsync<long>(
+                "INSERT INTO tags (name) VALUES (@Name); SELECT LAST_INSERT_ID();", new { Name = normalized });
+        }
+
+        await conn.ExecuteAsync(
+            "INSERT IGNORE INTO case_tags (case_id, tag_id) VALUES (@CaseId, @TagId);",
+            new { CaseId = caseId, TagId = tagId!.Value });
+
+        await conn.ExecuteAsync(@"
+            UPDATE cases
+            SET updated_at = NOW(), updated_by = @UpdatedBy, row_version = row_version + 1
+            WHERE id = @CaseId;", new { CaseId = caseId, UpdatedBy = updatedBy });
+    }
+
+    public async Task RemoveTagAsync(long caseId, string tagName, CancellationToken ct = default)
+    {
+        var normalized = (tagName ?? string.Empty).Trim().ToLowerInvariant();
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        await conn.ExecuteAsync(@"
+            DELETE ct FROM case_tags ct
+            INNER JOIN tags t ON t.id = ct.tag_id
+            WHERE ct.case_id = @CaseId AND t.name = @Name;",
+            new { CaseId = caseId, Name = normalized });
+    }
+
     private static async Task LoadCaseAssociationsAsync(System.Data.Common.DbConnection conn, Case @case)
     {
         const string symptomsSql = @"
@@ -308,6 +364,14 @@ public class MySqlCaseRepository : ICaseRepository
             WHERE case_id = @CaseId
             ORDER BY sequence_number ASC;";
         @case.Iterations = (await conn.QueryAsync<CaseIteration>(iterationsSql, new { CaseId = @case.Id })).ToList();
+
+        const string tagsSql = @"
+            SELECT t.name
+            FROM tags t
+            INNER JOIN case_tags ct ON t.id = ct.tag_id
+            WHERE ct.case_id = @CaseId
+            ORDER BY t.name;";
+        @case.Tags = (await conn.QueryAsync<string>(tagsSql, new { CaseId = @case.Id })).ToList();
     }
 
     public async Task<IReadOnlyList<CaseIteration>> GetIterationsByCaseIdAsync(long caseId, CancellationToken ct = default)

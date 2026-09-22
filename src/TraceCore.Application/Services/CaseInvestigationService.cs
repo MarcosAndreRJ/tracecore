@@ -26,19 +26,25 @@ public class CaseInvestigationService : ICaseInvestigationService
     private readonly ICatalogRepository _catalogRepository;
     private readonly IUserRepository _userRepository;
     private readonly IAuditEventRepository _auditEventRepository;
+    private readonly IIntegrationHealthCheckService _healthCheckService;
+    private readonly IIntegrationRepository _integrationRepository;
 
     public CaseInvestigationService(
         IDiagnosticRepository diagnosticRepository,
         ICaseRepository caseRepository,
         ICatalogRepository catalogRepository,
         IUserRepository userRepository,
-        IAuditEventRepository auditEventRepository)
+        IAuditEventRepository auditEventRepository,
+        IIntegrationHealthCheckService healthCheckService,
+        IIntegrationRepository integrationRepository)
     {
         _diagnosticRepository = diagnosticRepository;
         _caseRepository = caseRepository;
         _catalogRepository = catalogRepository;
         _userRepository = userRepository;
         _auditEventRepository = auditEventRepository;
+        _healthCheckService = healthCheckService;
+        _integrationRepository = integrationRepository;
     }
 
     public async Task<CaseHypothesisDto> RegisterHypothesisAsync(
@@ -80,6 +86,8 @@ public class CaseInvestigationService : ICaseInvestigationService
             createdBy: currentUserId,
             createdAt: DateTime.UtcNow
         );
+        // case_iteration_id é NOT NULL (ver migração 12 / Bloco 7.A.3) — sem isso, o INSERT falha.
+        hypothesis.CaseIterationId = @case.GetCurrentIteration()?.Id ?? 0;
 
         if (!string.IsNullOrWhiteSpace(command.SourceType))
         {
@@ -178,7 +186,11 @@ public class CaseInvestigationService : ICaseInvestigationService
             riskLevel: command.RiskLevel ?? "Low",
             durationSeconds: command.DurationSeconds,
             performedAt: DateTime.UtcNow
-        );
+        )
+        {
+            // Fase 05 — vínculo estrutural com a execução de integração que gerou o passo
+            IntegrationRunId = command.IntegrationRunId
+        };
 
         var stepId = await _diagnosticRepository.AddStepAsync(step, ct);
         step.Id = stepId;
@@ -238,7 +250,8 @@ public class CaseInvestigationService : ICaseInvestigationService
             PerformedByName: performedByName,
             PerformedAt: step.PerformedAt,
             MetadataJson: step.MetadataJson,
-            SuggestedEvidence: suggestedEvidence
+            SuggestedEvidence: suggestedEvidence,
+            IntegrationRunId: step.IntegrationRunId
         );
     }
 
@@ -370,7 +383,8 @@ public class CaseInvestigationService : ICaseInvestigationService
                 PerformedBy: s.PerformedBy,
                 PerformedByName: performedByName,
                 PerformedAt: s.PerformedAt,
-                MetadataJson: s.MetadataJson
+                MetadataJson: s.MetadataJson,
+                IntegrationRunId: s.IntegrationRunId
             ));
         }
 
@@ -478,6 +492,10 @@ public class CaseInvestigationService : ICaseInvestigationService
         if (session == null)
         {
             session = new DiagnosticSession(caseId, currentUserId);
+
+            var iter = await _caseRepository.GetCurrentIterationAsync(caseId, ct);
+            session.CaseIterationId = iter?.Id ?? 0;
+
             var id = await _diagnosticRepository.CreateSessionAsync(session, ct);
             session.Id = id;
         }
@@ -519,7 +537,8 @@ public class CaseInvestigationService : ICaseInvestigationService
             PerformedBy: s.PerformedBy,
             PerformedByName: null,
             PerformedAt: s.PerformedAt,
-            MetadataJson: s.MetadataJson
+            MetadataJson: s.MetadataJson,
+            IntegrationRunId: s.IntegrationRunId
         )).ToList();
 
         return new CaseHypothesisDto(
@@ -574,7 +593,11 @@ public class CaseInvestigationService : ICaseInvestigationService
             createdBy: currentUserId,
             caseIterationId: iterationId,
             diagnosticStepId: command.DiagnosticStepId
-        );
+        )
+        {
+            // Fase 05 — execução de integração cujo resultado fundamenta a evidência
+            IntegrationRunId = command.IntegrationRunId
+        };
 
         var evidenceId = await _diagnosticRepository.AddEvidenceAsync(evidence, ct);
         evidence.Id = evidenceId;
@@ -638,7 +661,8 @@ public class CaseInvestigationService : ICaseInvestigationService
             CaseIterationId: evidence.CaseIterationId,
             DiagnosticStepId: evidence.DiagnosticStepId,
             CreatedByName: user?.Name,
-            HypothesisRelations: relDtos
+            HypothesisRelations: relDtos,
+            IntegrationRunId: evidence.IntegrationRunId
         );
     }
 
@@ -685,7 +709,8 @@ public class CaseInvestigationService : ICaseInvestigationService
                 CaseIterationId: ev.CaseIterationId,
                 DiagnosticStepId: ev.DiagnosticStepId,
                 CreatedByName: userName,
-                HypothesisRelations: relDtos
+                HypothesisRelations: relDtos,
+                IntegrationRunId: ev.IntegrationRunId
             ));
         }
 
@@ -735,10 +760,143 @@ public class CaseInvestigationService : ICaseInvestigationService
                 CaseIterationId: ev.CaseIterationId,
                 DiagnosticStepId: ev.DiagnosticStepId,
                 CreatedByName: userName,
-                HypothesisRelations: relDtos
+                HypothesisRelations: relDtos,
+                IntegrationRunId: ev.IntegrationRunId
             ));
         }
 
         return result;
+    }
+
+    public async Task<DiagnosticStepDto> TestIntegrationDuringInvestigationAsync(
+        long caseId,
+        long integrationId,
+        long currentUserId,
+        long? hypothesisId = null,
+        bool recordAsEvidence = false,
+        string? evidenceRelationType = null,
+        CancellationToken ct = default)
+    {
+        // Fase 05 — mecanismo único com contexto: IntegrationRun (Diagnostic) +
+        // DiagnosticStep (AutomatedCheck) e evidência opcional vinculada.
+        var integration = await EnsureTestableIntegrationAsync(caseId, integrationId, ct);
+
+        var run = await _healthCheckService.ExecuteHealthCheckAsync(integrationId, "Diagnostic", caseId, ct);
+
+        var step = await RegisterDiagnosticStepAsync(new RegisterDiagnosticStepCommand(
+            CaseId: caseId,
+            HypothesisId: hypothesisId,
+            Title: $"Teste da integração {integration.Code}",
+            Objective: "Verificar a saúde/disponibilidade atual da integração durante a investigação do caso.",
+            Instruction: $"Execução real ({integration.IntegrationType}) em {integration.HealthCheckUrl ?? "(sem URL de health-check configurada)"}.",
+            InputEvidenceSummary: $"Integração {integration.Code} - {integration.Name}",
+            ResultSummary: run.Status == "Success"
+                ? "Health-check executado com sucesso."
+                : $@"Health-check falhou: {run.ErrorMessage}",
+            Outcome: MapRunOutcome(run.Status),
+            StepType: "AutomatedCheck",
+            IntegrationRunId: run.Id), currentUserId, ct);
+
+        if (recordAsEvidence)
+        {
+            List<HypothesisEvidenceRelationInputDto>? relations = null;
+            if (hypothesisId.HasValue)
+            {
+                relations = new List<HypothesisEvidenceRelationInputDto>
+                {
+                    new(hypothesisId.Value, string.IsNullOrWhiteSpace(evidenceRelationType) ? "Inconclusive" : evidenceRelationType.Trim(),
+                        "Evidência empírica obtida no teste da integração durante a investigação.")
+                };
+            }
+
+            await RecordEvidenceAsync(new RecordEvidenceCommand(
+                CaseId: caseId,
+                EvidenceType: "DiagnosticTest",
+                Description: $"Resultado do teste da integração {integration.Code}: {run.Status}. {(run.Status == "Success" ? "Execução confirmada." : run.ErrorMessage)}",
+                DiagnosticStepId: step.Id,
+                HypothesisRelations: relations,
+                IntegrationRunId: run.Id), currentUserId, ct);
+        }
+
+        await _auditEventRepository.AddAsync(new AuditEvent(
+            action: "integration.run_register",
+            entityType: "integrations",
+            entityId: integrationId.ToString(),
+            actorUserId: currentUserId,
+            afterJson: $"{{\"runId\":{run.Id},\"status\":\"{run.Status}\",\"runContext\":\"Diagnostic\",\"caseId\":{caseId},\"stepId\":{step.Id}}}"
+        ), ct);
+
+        return step;
+    }
+
+    public async Task<CaseEvidenceDto> TestIntegrationForSolutionValidationAsync(
+        long caseId,
+        long integrationId,
+        long currentUserId,
+        CancellationToken ct = default)
+    {
+        // Fase 05 — mecanismo único com contexto: IntegrationRun (SolutionValidation)
+        // + CaseEvidence (DiagnosticTest) vinculada à iteração atual do caso.
+        var integration = await EnsureTestableIntegrationAsync(caseId, integrationId, ct);
+
+        var run = await _healthCheckService.ExecuteHealthCheckAsync(integrationId, "SolutionValidation", caseId, ct);
+
+        var evidence = await RecordEvidenceAsync(new RecordEvidenceCommand(
+            CaseId: caseId,
+            EvidenceType: "DiagnosticTest",
+            Description: $"Validação de solução — teste da integração {integration.Code} ({integration.Name}): {run.Status}. {(run.Status == "Success" ? "Execução confirmada." : run.ErrorMessage)}",
+            IntegrationRunId: run.Id), currentUserId, ct);
+
+        await _auditEventRepository.AddAsync(new AuditEvent(
+            action: "integration.run_register",
+            entityType: "integrations",
+            entityId: integrationId.ToString(),
+            actorUserId: currentUserId,
+            afterJson: $"{{\"runId\":{run.Id},\"status\":\"{run.Status}\",\"runContext\":\"SolutionValidation\",\"caseId\":{caseId},\"evidenceId\":{evidence.Id}}}"
+        ), ct);
+
+        return evidence;
+    }
+
+    /// <summary>
+    /// Valida que a integração pertence ao sistema (produto) do caso antes de testá-la.
+    /// O teste de integração só faz sentido dentro de um caso com sistema associado.
+    /// </summary>
+    private async Task<Integration> EnsureTestableIntegrationAsync(long caseId, long integrationId, CancellationToken ct)
+    {
+        var @case = await _caseRepository.GetByIdAsync(caseId, ct);
+        if (@case == null)
+        {
+            throw new EntityNotFoundException("Caso", caseId);
+        }
+
+        var integration = await _integrationRepository.GetIntegrationByIdAsync(integrationId, ct);
+        if (integration == null)
+        {
+            throw new EntityNotFoundException("Integração", integrationId);
+        }
+
+        if (!@case.ProductId.HasValue)
+        {
+            throw new BusinessRuleValidationException("BR-073", "O caso não possui sistema associado para testar integrações.");
+        }
+
+        if (integration.ProductId != @case.ProductId)
+        {
+            throw new BusinessRuleValidationException("BR-073",
+                $"A integração '{integration.Code}' não está associada ao sistema do caso '{@case.CaseNumber}'.");
+        }
+
+        return integration;
+    }
+
+    private static string MapRunOutcome(string runStatus)
+    {
+        return runStatus switch
+        {
+            "Success" => nameof(DiagnosticStepOutcome.Worked),
+            "Partial" => nameof(DiagnosticStepOutcome.PartiallyWorked),
+            _ => nameof(DiagnosticStepOutcome.DidNotWork)
+        };
     }
 }

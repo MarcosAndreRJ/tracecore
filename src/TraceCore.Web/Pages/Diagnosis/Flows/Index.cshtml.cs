@@ -219,6 +219,79 @@ public class IndexModel : PageModel
         return RedirectToPage(new { SelectedFlowId = flowId });
     }
 
+    public async Task<IActionResult> OnPostDeleteFlowAsync(long flowId)
+    {
+        var authConfig = await _authorizationService.AuthorizeAsync(User, "diagnostico.configurar");
+        if (!authConfig.Succeeded) return Forbid();
+
+        try
+        {
+            await _engineService.DeleteFlowAsync(flowId);
+            StatusMessage = "Fluxo de diagnóstico excluído com sucesso (hipóteses, verificações e impactos vinculados também foram removidos).";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao excluir fluxo: {ex.Message}";
+        }
+
+        // O fluxo excluído não existe mais para permanecer selecionado.
+        return RedirectToPage(new { SelectedFlowId = (long?)null });
+    }
+
+    public async Task<IActionResult> OnPostDeleteHypothesisAsync(long flowId, long hypothesisId)
+    {
+        var authConfig = await _authorizationService.AuthorizeAsync(User, "diagnostico.configurar");
+        if (!authConfig.Succeeded) return Forbid();
+
+        try
+        {
+            await _engineService.DeleteHypothesisAsync(hypothesisId);
+            StatusMessage = "Hipótese candidata removida do fluxo com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao excluir hipótese: {ex.Message}";
+        }
+
+        return RedirectToPage(new { SelectedFlowId = flowId });
+    }
+
+    public async Task<IActionResult> OnPostDeleteCheckAsync(long flowId, long checkId)
+    {
+        var authConfig = await _authorizationService.AuthorizeAsync(User, "diagnostico.configurar");
+        if (!authConfig.Succeeded) return Forbid();
+
+        try
+        {
+            await _engineService.DeleteCheckAsync(checkId);
+            StatusMessage = "Verificação removida do fluxo com sucesso (opções e impactos vinculados também foram removidos).";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao excluir verificação: {ex.Message}";
+        }
+
+        return RedirectToPage(new { SelectedFlowId = flowId });
+    }
+
+    public async Task<IActionResult> OnPostDeleteOptionAsync(long flowId, long optionId)
+    {
+        var authConfig = await _authorizationService.AuthorizeAsync(User, "diagnostico.configurar");
+        if (!authConfig.Succeeded) return Forbid();
+
+        try
+        {
+            await _engineService.DeleteCheckOptionAsync(optionId);
+            StatusMessage = "Opção de resposta removida com sucesso.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao excluir opção: {ex.Message}";
+        }
+
+        return RedirectToPage(new { SelectedFlowId = flowId });
+    }
+
     private long? GetCurrentUserId()
     {
         var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);

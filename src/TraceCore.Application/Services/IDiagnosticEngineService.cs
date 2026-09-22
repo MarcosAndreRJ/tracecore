@@ -21,4 +21,7 @@ public interface IDiagnosticEngineService
     Task<long> AddCheckOptionWithImpactsAsync(long checkId, string optionText, int orderNo, List<(long HypothesisId, string ImpactType, decimal Weight)> impacts, CancellationToken ct = default);
     Task<long> AddFlowHypothesisAsync(long flowId, string title, string? description, long? componentId, CancellationToken ct = default);
     Task DeleteFlowAsync(long flowId, CancellationToken ct = default);
+    Task DeleteHypothesisAsync(long hypothesisId, CancellationToken ct = default);
+    Task DeleteCheckAsync(long checkId, CancellationToken ct = default);
+    Task DeleteCheckOptionAsync(long optionId, CancellationToken ct = default);
 }

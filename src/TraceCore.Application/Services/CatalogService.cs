@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TraceCore.Domain.Entities;
@@ -89,13 +90,13 @@ public class CatalogService : ICatalogService
         return await _catalogRepository.GetVersionsByProductIdAsync(productId, ct);
     }
 
-    public async Task<long> CreateVersionAsync(long productId, string versionLabel, long? currentUserId = null, CancellationToken ct = default)
+    public async Task<long> CreateVersionAsync(long productId, string versionLabel, DateTime? releasedAt = null, long? currentUserId = null, CancellationToken ct = default)
     {
         var product = await _catalogRepository.GetProductByIdAsync(productId, ct);
         if (product == null)
             throw new KeyNotFoundException($"Produto com ID {productId} não encontrado.");
 
-        var version = new ProductVersion(productId, versionLabel);
+        var version = new ProductVersion(productId, versionLabel) { ReleasedAt = releasedAt };
         var id = await _catalogRepository.AddProductVersionAsync(version, ct);
 
         await _auditService.RecordAsync(
@@ -103,7 +104,7 @@ public class CatalogService : ICatalogService
             entityType: "product_versions",
             entityId: id.ToString(),
             actorUserId: currentUserId,
-            after: new { Id = id, ProductId = productId, VersionLabel = versionLabel },
+            after: new { Id = id, ProductId = productId, VersionLabel = versionLabel, ReleasedAt = releasedAt },
             ct: ct
         );
 
@@ -284,5 +285,69 @@ public class CatalogService : ICatalogService
             );
         }
         return deleted;
+    }
+
+    public async Task<IReadOnlyList<ComponentType>> GetComponentTypesAsync(bool includeInactive = false, CancellationToken ct = default)
+    {
+        return await _catalogRepository.GetComponentTypesAsync(includeInactive, ct);
+    }
+
+    public async Task<long> CreateComponentTypeAsync(string code, string name, long? currentUserId = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            throw new ArgumentException("O código do tipo de componente é obrigatório.", nameof(code));
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("O nome do tipo de componente é obrigatório.", nameof(name));
+
+        var type = new ComponentType(code, name);
+        var id = await _catalogRepository.AddComponentTypeAsync(type, ct);
+        type.Id = id;
+
+        await _auditService.RecordAsync(
+            action: "component_type.create",
+            entityType: "component_types",
+            entityId: id.ToString(),
+            actorUserId: currentUserId,
+            after: new { type.Id, type.Code, type.Name, type.IsActive },
+            ct: ct
+        );
+
+        return id;
+    }
+
+    public async Task DeactivateComponentTypeAsync(long id, long? currentUserId = null, CancellationToken ct = default)
+    {
+        var type = await _catalogRepository.GetComponentTypeByIdAsync(id, ct)
+            ?? throw new KeyNotFoundException($"Tipo de componente com ID {id} não encontrado.");
+
+        if (!type.IsActive)
+            return;
+
+        if (await IsComponentTypeInUseAsync(type, ct))
+        {
+            throw new InvalidOperationException(
+                $"O tipo de componente '{type.Name}' não pode ser inativado porque já está em uso por componentes cadastrados.");
+        }
+
+        var before = new { type.Id, type.Code, type.Name, type.IsActive };
+        type.IsActive = false;
+        await _catalogRepository.UpdateComponentTypeAsync(type, ct);
+
+        await _auditService.RecordAsync(
+            action: "component_type.deactivate",
+            entityType: "component_types",
+            entityId: id.ToString(),
+            actorUserId: currentUserId,
+            before: before,
+            after: new { type.Id, type.Code, type.Name, type.IsActive },
+            ct: ct
+        );
+    }
+
+    private async Task<bool> IsComponentTypeInUseAsync(ComponentType type, CancellationToken ct)
+    {
+        var components = await _catalogRepository.GetAllComponentsAsync(ct: ct);
+        return components.Any(c => string.Equals(c.ComponentType, type.Code, StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(c.ComponentType, type.Name, StringComparison.OrdinalIgnoreCase));
     }
 }

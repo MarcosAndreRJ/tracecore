@@ -35,6 +35,7 @@ public class MySqlKnowledgeRepository : IKnowledgeRepository
                 provenance_type AS ProvenanceType,
                 provenance_case_id AS ProvenanceCaseId,
                 provenance_reference AS ProvenanceReference,
+                source_case_iteration_id AS SourceCaseIterationId,
                 review_due_at AS ReviewDueAt,
                 last_reviewed_at AS LastReviewedAt,
                 published_at AS PublishedAt,
@@ -68,6 +69,7 @@ public class MySqlKnowledgeRepository : IKnowledgeRepository
                 provenance_type AS ProvenanceType,
                 provenance_case_id AS ProvenanceCaseId,
                 provenance_reference AS ProvenanceReference,
+                source_case_iteration_id AS SourceCaseIterationId,
                 review_due_at AS ReviewDueAt,
                 last_reviewed_at AS LastReviewedAt,
                 published_at AS PublishedAt,
@@ -84,19 +86,54 @@ public class MySqlKnowledgeRepository : IKnowledgeRepository
         return await conn.QueryFirstOrDefaultAsync<KnowledgeItem>(sql, new { Code = code });
     }
 
+    public async Task<IReadOnlyList<KnowledgeItem>> GetByProvenanceCaseIdAsync(long caseId, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT
+                id AS Id,
+                knowledge_code AS KnowledgeCode,
+                knowledge_type AS KnowledgeType,
+                title AS Title,
+                summary AS Summary,
+                status AS Status,
+                confidentiality AS Confidentiality,
+                owner_user_id AS OwnerUserId,
+                owner_department_id AS OwnerDepartmentId,
+                current_version_no AS CurrentVersionNo,
+                provenance_type AS ProvenanceType,
+                provenance_case_id AS ProvenanceCaseId,
+                provenance_reference AS ProvenanceReference,
+                source_case_iteration_id AS SourceCaseIterationId,
+                review_due_at AS ReviewDueAt,
+                last_reviewed_at AS LastReviewedAt,
+                published_at AS PublishedAt,
+                deprecated_at AS DeprecatedAt,
+                replacement_knowledge_id AS ReplacementKnowledgeId,
+                created_at AS CreatedAt,
+                created_by AS CreatedBy,
+                updated_at AS UpdatedAt
+            FROM knowledge_items
+            WHERE provenance_case_id = @CaseId
+            ORDER BY created_at DESC;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        var items = await conn.QueryAsync<KnowledgeItem>(sql, new { CaseId = caseId });
+        return items.ToList();
+    }
+
     public async Task<long> CreateItemAsync(KnowledgeItem item, CancellationToken ct = default)
     {
         const string sql = @"
             INSERT INTO knowledge_items (
                 knowledge_code, knowledge_type, title, summary, status, confidentiality,
                 owner_user_id, owner_department_id, current_version_no,
-                provenance_type, provenance_case_id, provenance_reference,
+                provenance_type, provenance_case_id, provenance_reference, source_case_iteration_id,
                 review_due_at, last_reviewed_at, published_at, deprecated_at,
                 replacement_knowledge_id, created_at, created_by, updated_at
             ) VALUES (
                 @KnowledgeCode, @KnowledgeType, @Title, @Summary, @Status, @Confidentiality,
                 @OwnerUserId, @OwnerDepartmentId, @CurrentVersionNo,
-                @ProvenanceType, @ProvenanceCaseId, @ProvenanceReference,
+                @ProvenanceType, @ProvenanceCaseId, @ProvenanceReference, @SourceCaseIterationId,
                 @ReviewDueAt, @LastReviewedAt, @PublishedAt, @DeprecatedAt,
                 @ReplacementKnowledgeId, @CreatedAt, @CreatedBy, @UpdatedAt
             );
@@ -119,6 +156,7 @@ public class MySqlKnowledgeRepository : IKnowledgeRepository
                 owner_user_id = @OwnerUserId,
                 owner_department_id = @OwnerDepartmentId,
                 current_version_no = @CurrentVersionNo,
+                source_case_iteration_id = @SourceCaseIterationId,
                 review_due_at = @ReviewDueAt,
                 last_reviewed_at = @LastReviewedAt,
                 published_at = @PublishedAt,

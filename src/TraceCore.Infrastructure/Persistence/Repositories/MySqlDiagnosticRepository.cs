@@ -21,7 +21,7 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
     public async Task<DiagnosticSession?> GetOpenSessionByCaseIdAsync(long caseId, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT id AS Id, case_id AS CaseId, status AS Status,
+            SELECT id AS Id, case_id AS CaseId, case_iteration_id AS CaseIterationId, status AS Status,
                    started_at AS StartedAt, started_by AS StartedBy, ended_at AS EndedAt
             FROM diagnostic_sessions
             WHERE case_id = @caseId AND status = 'Open'
@@ -35,8 +35,8 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
     public async Task<long> CreateSessionAsync(DiagnosticSession session, CancellationToken ct = default)
     {
         const string sql = @"
-            INSERT INTO diagnostic_sessions (case_id, status, started_at, started_by, ended_at)
-            VALUES (@CaseId, @Status, @StartedAt, @StartedBy, @EndedAt);
+            INSERT INTO diagnostic_sessions (case_id, case_iteration_id, status, started_at, started_by, ended_at)
+            VALUES (@CaseId, @CaseIterationId, @Status, @StartedAt, @StartedBy, @EndedAt);
             SELECT LAST_INSERT_ID();";
 
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
@@ -48,7 +48,7 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
     public async Task<DiagnosticSession?> GetSessionByIdAsync(long sessionId, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT id AS Id, case_id AS CaseId, status AS Status,
+            SELECT id AS Id, case_id AS CaseId, case_iteration_id AS CaseIterationId, status AS Status,
                    started_at AS StartedAt, started_by AS StartedBy, ended_at AS EndedAt
             FROM diagnostic_sessions
             WHERE id = @sessionId;";
@@ -61,10 +61,10 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
     {
         const string sql = @"
             INSERT INTO case_hypotheses (
-                case_id, component_id, title, description, status,
+                case_id, case_iteration_id, component_id, title, description, status,
                 source_type, justification, created_at, created_by, updated_at
             ) VALUES (
-                @CaseId, @ComponentId, @Title, @Description, @Status,
+                @CaseId, @CaseIterationId, @ComponentId, @Title, @Description, @Status,
                 @SourceType, @Justification, @CreatedAt, @CreatedBy, @UpdatedAt
             );
             SELECT LAST_INSERT_ID();";
@@ -78,7 +78,7 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
     public async Task<CaseHypothesis?> GetHypothesisByIdAsync(long hypothesisId, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT id AS Id, case_id AS CaseId, component_id AS ComponentId,
+            SELECT id AS Id, case_id AS CaseId, case_iteration_id AS CaseIterationId, component_id AS ComponentId,
                    title AS Title, description AS Description, status AS Status,
                    source_type AS SourceType, justification AS Justification,
                    created_at AS CreatedAt, created_by AS CreatedBy, updated_at AS UpdatedAt
@@ -92,7 +92,7 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
     public async Task<IReadOnlyList<CaseHypothesis>> GetHypothesesByCaseIdAsync(long caseId, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT id AS Id, case_id AS CaseId, component_id AS ComponentId,
+            SELECT id AS Id, case_id AS CaseId, case_iteration_id AS CaseIterationId, component_id AS ComponentId,
                    title AS Title, description AS Description, status AS Status,
                    source_type AS SourceType, justification AS Justification,
                    created_at AS CreatedAt, created_by AS CreatedBy, updated_at AS UpdatedAt
@@ -136,12 +136,12 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
                 diagnostic_session_id, sequence_no, step_type, hypothesis_id,
                 title, objective, instruction, input_evidence_summary,
                 result_summary, outcome, risk_level, duration_seconds,
-                performed_by, performed_at, metadata_json
+                performed_by, performed_at, metadata_json, integration_run_id
             ) VALUES (
                 @DiagnosticSessionId, @SequenceNo, @StepType, @HypothesisId,
                 @Title, @Objective, @Instruction, @InputEvidenceSummary,
                 @ResultSummary, @Outcome, @RiskLevel, @DurationSeconds,
-                @PerformedBy, @PerformedAt, @MetadataJson
+                @PerformedBy, @PerformedAt, @MetadataJson, @IntegrationRunId
             );
             SELECT LAST_INSERT_ID();";
 
@@ -158,8 +158,9 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
                    step_type AS StepType, hypothesis_id AS HypothesisId, title AS Title,
                    objective AS Objective, instruction AS Instruction, input_evidence_summary AS InputEvidenceSummary,
                    result_summary AS ResultSummary, outcome AS Outcome, risk_level AS RiskLevel,
-                   duration_seconds AS DurationSeconds, performed_by AS PerformedBy,
-                   performed_at AS PerformedAt, metadata_json AS MetadataJson
+duration_seconds AS DurationSeconds, performed_by AS PerformedBy,
+                    performed_at AS PerformedAt, metadata_json AS MetadataJson,
+                    integration_run_id AS IntegrationRunId
             FROM diagnostic_steps
             WHERE id = @stepId;";
 
@@ -174,8 +175,9 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
                    step_type AS StepType, hypothesis_id AS HypothesisId, title AS Title,
                    objective AS Objective, instruction AS Instruction, input_evidence_summary AS InputEvidenceSummary,
                    result_summary AS ResultSummary, outcome AS Outcome, risk_level AS RiskLevel,
-                   duration_seconds AS DurationSeconds, performed_by AS PerformedBy,
-                   performed_at AS PerformedAt, metadata_json AS MetadataJson
+duration_seconds AS DurationSeconds, performed_by AS PerformedBy,
+                    performed_at AS PerformedAt, metadata_json AS MetadataJson,
+                    integration_run_id AS IntegrationRunId
             FROM diagnostic_steps
             WHERE diagnostic_session_id = @sessionId
             ORDER BY sequence_no ASC;";
@@ -192,8 +194,9 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
                    s.step_type AS StepType, s.hypothesis_id AS HypothesisId, s.title AS Title,
                    s.objective AS Objective, s.instruction AS Instruction, s.input_evidence_summary AS InputEvidenceSummary,
                    s.result_summary AS ResultSummary, s.outcome AS Outcome, s.risk_level AS RiskLevel,
-                   s.duration_seconds AS DurationSeconds, s.performed_by AS PerformedBy,
-                   s.performed_at AS PerformedAt, s.metadata_json AS MetadataJson
+s.duration_seconds AS DurationSeconds, s.performed_by AS PerformedBy,
+                    s.performed_at AS PerformedAt, s.metadata_json AS MetadataJson,
+                    s.integration_run_id AS IntegrationRunId
             FROM diagnostic_steps s
             INNER JOIN diagnostic_sessions sess ON s.diagnostic_session_id = sess.id
             WHERE sess.case_id = @caseId
@@ -211,8 +214,9 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
                    step_type AS StepType, hypothesis_id AS HypothesisId, title AS Title,
                    objective AS Objective, instruction AS Instruction, input_evidence_summary AS InputEvidenceSummary,
                    result_summary AS ResultSummary, outcome AS Outcome, risk_level AS RiskLevel,
-                   duration_seconds AS DurationSeconds, performed_by AS PerformedBy,
-                   performed_at AS PerformedAt, metadata_json AS MetadataJson
+duration_seconds AS DurationSeconds, performed_by AS PerformedBy,
+                    performed_at AS PerformedAt, metadata_json AS MetadataJson,
+                    integration_run_id AS IntegrationRunId
             FROM diagnostic_steps
             WHERE hypothesis_id = @hypothesisId
             ORDER BY performed_at ASC, sequence_no ASC;";
@@ -225,8 +229,8 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
     public async Task<long> AddEvidenceAsync(CaseEvidence evidence, CancellationToken ct = default)
     {
         const string sql = @"
-            INSERT INTO case_evidences (case_id, case_iteration_id, diagnostic_step_id, evidence_type, description, attachment_id, created_by, created_at)
-            VALUES (@CaseId, @CaseIterationId, @DiagnosticStepId, @EvidenceType, @Description, @AttachmentId, @CreatedBy, @CreatedAt);
+            INSERT INTO case_evidences (case_id, case_iteration_id, diagnostic_step_id, evidence_type, description, attachment_id, created_by, created_at, integration_run_id)
+            VALUES (@CaseId, @CaseIterationId, @DiagnosticStepId, @EvidenceType, @Description, @AttachmentId, @CreatedBy, @CreatedAt, @IntegrationRunId);
             SELECT LAST_INSERT_ID();";
 
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
@@ -240,7 +244,7 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
         const string sqlEvidence = @"
             SELECT id AS Id, case_id AS CaseId, case_iteration_id AS CaseIterationId, diagnostic_step_id AS DiagnosticStepId,
                    evidence_type AS EvidenceType, description AS Description, attachment_id AS AttachmentId,
-                   created_by AS CreatedBy, created_at AS CreatedAt
+                   created_by AS CreatedBy, created_at AS CreatedAt, integration_run_id AS IntegrationRunId
             FROM case_evidences
             WHERE id = @evidenceId
             LIMIT 1;";
@@ -259,7 +263,7 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
         const string sql = @"
             SELECT id AS Id, case_id AS CaseId, case_iteration_id AS CaseIterationId, diagnostic_step_id AS DiagnosticStepId,
                    evidence_type AS EvidenceType, description AS Description, attachment_id AS AttachmentId,
-                   created_by AS CreatedBy, created_at AS CreatedAt
+                   created_by AS CreatedBy, created_at AS CreatedAt, integration_run_id AS IntegrationRunId
             FROM case_evidences
             WHERE case_id = @caseId
             ORDER BY created_at DESC;";
@@ -292,7 +296,7 @@ public class MySqlDiagnosticRepository : IDiagnosticRepository
         const string sql = @"
             SELECT ce.id AS Id, ce.case_id AS CaseId, ce.case_iteration_id AS CaseIterationId, ce.diagnostic_step_id AS DiagnosticStepId,
                    ce.evidence_type AS EvidenceType, ce.description AS Description, ce.attachment_id AS AttachmentId,
-                   ce.created_by AS CreatedBy, ce.created_at AS CreatedAt
+                   ce.created_by AS CreatedBy, ce.created_at AS CreatedAt, ce.integration_run_id AS IntegrationRunId
             FROM case_evidences ce
             INNER JOIN case_hypothesis_evidence che ON ce.id = che.evidence_id
             WHERE che.hypothesis_id = @hypothesisId

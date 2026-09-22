@@ -105,6 +105,30 @@ public class MySqlCaseRelationRepository : ICaseRelationRepository
         });
     }
 
+    public async Task<CaseRelation?> GetByIdAsync(long relationId, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT
+                id AS Id, source_case_id AS SourceCaseId, target_case_id AS TargetCaseId,
+                relation_type AS RelationType, similarity_score AS SimilarityScore,
+                matched_factors_json AS MatchedFactorsJson, created_by AS CreatedBy, created_at AS CreatedAt
+            FROM case_relations
+            WHERE id = @RelationId
+            LIMIT 1;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        return await conn.QueryFirstOrDefaultAsync<CaseRelation>(sql, new { RelationId = relationId });
+    }
+
+    public async Task<bool> DeleteManualRelationAsync(long relationId, CancellationToken ct = default)
+    {
+        const string sql = "DELETE FROM case_relations WHERE id = @RelationId AND relation_type != 'Similar';";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        int affected = await conn.ExecuteAsync(sql, new { RelationId = relationId });
+        return affected > 0;
+    }
+
     public async Task<IReadOnlyList<Case>> GetPotentialSimilarCandidatesAsync(long excludeCaseId, long? clientId, long? productId, string? errorCode, int limit = 50, CancellationToken ct = default)
     {
         using var conn = await _connectionFactory.CreateConnectionAsync(ct);
@@ -162,9 +186,33 @@ public class MySqlCaseRelationRepository : ICaseRelationRepository
             var components = await conn.QueryAsync<CaseComponent>(compSql, new { CaseIds = caseIds });
             var compLookup = components.ToLookup(cc => cc.CaseId);
 
+            // Sintomas também entram no corpo textual usado para casar palavras-chave
+            // (ver CaseRelationService) — sem isso, dois casos com o mesmo sintoma mas
+            // relatos originais diferentes nunca se aproximavam na pontuação.
+            const string symptomSql = @"
+                SELECT id AS Id, case_id AS CaseId, symptom_code AS SymptomCode, symptom_text AS SymptomText, source AS Source, confirmed AS Confirmed
+                FROM case_symptoms
+                WHERE case_id IN @CaseIds;";
+
+            var symptoms = await conn.QueryAsync<CaseSymptom>(symptomSql, new { CaseIds = caseIds });
+            var symptomLookup = symptoms.ToLookup(s => s.CaseId);
+
+            // Tags manuais também entram como sinal adicional de peso menor na
+            // pontuação de similaridade (ver CaseRelationService.ScoreAndRankCandidates).
+            const string tagSql = @"
+                SELECT ct.case_id AS CaseId, t.name AS TagName
+                FROM case_tags ct
+                INNER JOIN tags t ON t.id = ct.tag_id
+                WHERE ct.case_id IN @CaseIds;";
+
+            var tagRows = await conn.QueryAsync<CaseTagRow>(tagSql, new { CaseIds = caseIds });
+            var tagLookup = tagRows.ToLookup(t => t.CaseId, t => t.TagName);
+
             foreach (var c in cases)
             {
                 c.AffectedComponents = compLookup[c.Id].ToList();
+                c.Symptoms = symptomLookup[c.Id].ToList();
+                c.Tags = tagLookup[c.Id].ToList();
             }
         }
 
@@ -229,5 +277,11 @@ public class MySqlCaseRelationRepository : ICaseRelationRepository
 
         var rows = await conn.QueryAsync<CaseResolution>(sql, new { CaseIds = idList });
         return rows.ToList();
+    }
+
+    private sealed class CaseTagRow
+    {
+        public long CaseId { get; set; }
+        public string TagName { get; set; } = string.Empty;
     }
 }

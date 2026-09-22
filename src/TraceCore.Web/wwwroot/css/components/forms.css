@@ -162,6 +162,27 @@
     padding-left: 2.25rem;
 }
 
+/* -------------------------------------------------------------------------
+   Linha Repetível (1→N) — input + botão remover lado a lado
+   Usado em listas dinâmicas como Sintomas e Evidências (Abertura de Caso).
+   Sem isso, .tc-input (width:100%) toma a linha inteira e empurra o botão
+   para baixo dentro de um .input-group comum do Bootstrap.
+   ------------------------------------------------------------------------- */
+.tc-repeatable-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+
+.tc-repeatable-row > .tc-input {
+    flex: 1 1 auto;
+    width: 1%;
+}
+
+.tc-repeatable-row > .remove-row-btn {
+    flex-shrink: 0;
+}
+
 .tc-input-addon {
     display: flex;
     align-items: center;
@@ -202,4 +223,18 @@
     color: var(--tc-text-body);
     cursor: pointer;
     user-select: none;
+}
+
+/* -------------------------------------------------------------------------
+   Cards filtráveis (ex.: Componentes Suspeitos na Abertura de Caso) — o filtro
+   de texto não esconde itens, apenas destaca a borda dos que correspondem,
+   para não perder de vista opções já selecionadas fora do filtro.
+   ------------------------------------------------------------------------- */
+.component-card {
+    transition: border-color var(--tc-transition-fast), box-shadow var(--tc-transition-fast);
+}
+
+.component-card.filter-match {
+    border-color: var(--tc-primary) !important;
+    box-shadow: 0 0 0 1px var(--tc-primary);
 }

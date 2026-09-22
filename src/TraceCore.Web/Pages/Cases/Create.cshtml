@@ -25,7 +25,7 @@
                 <span class="tc-badge tc-badge-neutral">Fase 3</span>
             </div>
             <p class="tc-subtitle text-muted mb-0">
-                Registro factual primário da ocorrência. Apenas a descrição é estritamente obrigatória para abertura imediata (BR-022).
+                Registro factual primário da ocorrência, em etapas. Apenas a descrição é estritamente obrigatória (BR-022).
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -47,33 +47,61 @@
         </div>
     }
 
-    <form method="post" enctype="multipart/form-data" class="needs-validation">
+    <!-- INDICADOR DE ETAPAS -->
+    <div class="tc-card p-3 mb-4">
+        <div class="d-flex flex-wrap gap-2" id="wizardStepper">
+            @{
+                var stepLabels = new[] { "Relato", "Contexto & Cliente", "Componentes", "Gravidade", "Sintomas", "Evidências" };
+            }
+            @for (int i = 1; i <= 6; i++)
+            {
+                <button type="button" class="tc-btn tc-btn-sm wizard-step-btn @(i == 1 ? "tc-btn-primary" : "tc-btn-secondary")" data-step-target="@i" disabled="@(i > 1 ? "disabled" : null)">
+                    <span class="badge bg-white text-dark rounded-pill me-1">@i</span>@stepLabels[i - 1]
+                </button>
+            }
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="needs-validation" id="createCaseForm">
         <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
 
-        <div class="row justify-content-center">
-            <div class="col-12 col-xl-10">
+        <div class="row g-4">
+            <!-- COLUNA PRINCIPAL: ETAPAS DO WIZARD -->
+            <div class="col-lg-8">
                 <!-- 1. RELATO ORIGINAL (BR-020) -->
-                <div class="tc-card p-4 mb-4 border-primary">
+                <div class="tc-card p-4 mb-4 border-primary wizard-step" data-step="1">
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <span class="badge bg-primary rounded-pill px-2 py-1">1</span>
                         <h3 class="tc-title-section mb-0">Relato Original da Ocorrência *</h3>
                     </div>
                     <div class="mb-3">
+                        <label asp-for="Input.TitleSummary" class="tc-form-label">Título Resumido</label>
+                        <input asp-for="Input.TitleSummary" class="tc-input" id="titleSummaryInput"
+                               placeholder="Ex: NF-e bloqueada por certificado A1 vencido no TMS Desktop" maxlength="200" />
+                        <div class="tc-form-text text-muted mt-1 small">
+                            Opcional. Se não informado, o caso é exibido pelo próprio relato original até que um resumo seja definido nos Detalhes.
+                        </div>
+                    </div>
+                    <div class="mb-3">
                         <label asp-for="Input.OriginalReport" class="tc-form-label">
                             Descrição Detalhada do Relato <span class="text-danger">*</span>
                         </label>
-                        <textarea asp-for="Input.OriginalReport" class="tc-textarea font-monospace" rows="5"
+                        <textarea asp-for="Input.OriginalReport" class="tc-textarea font-monospace" rows="6" id="originalReportInput"
                                   placeholder="Descreva exatamente o que foi relatado pelo cliente ou identificado pelo operador..." required></textarea>
                         <span asp-validation-for="Input.OriginalReport" class="text-danger small"></span>
                         <div class="tc-form-text text-muted mt-2 small">
                             <i class="bi bi-shield-lock text-primary me-1"></i>
                             <strong>Imutabilidade Primária (Regra BR-020):</strong> Este relato original é a base fática da investigação e é estritamente imutável após a criação para garantir rastreabilidade pericial.
                         </div>
+                        <div class="text-danger small mt-1 d-none" id="step1ValidationMsg">Descreva o relato antes de continuar.</div>
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="tc-btn tc-btn-primary wizard-next">Próximo <i class="bi bi-arrow-right ms-1"></i></button>
                     </div>
                 </div>
 
                 <!-- 2. CONTEXTO TÉCNICO E CLIENTE (BR-022) -->
-                <div class="tc-card p-4 mb-4">
+                <div class="tc-card p-4 mb-4 wizard-step d-none" data-step="2">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-secondary rounded-pill px-2 py-1">2</span>
@@ -84,19 +112,17 @@
 
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label asp-for="Input.ClientId" class="tc-form-label">Cliente / Conta Impactada</label>
-                            <select asp-for="Input.ClientId" class="tc-select">
-                                <option value="">-- Cliente não informado / Desconhecido --</option>
-                                @foreach (var c in Model.Clients)
-                                {
-                                    <option value="@c.Id">@c.Code — @c.Name</option>
-                                }
-                            </select>
+                            <label class="tc-form-label">Cliente / Conta Impactada</label>
+                            <input type="hidden" asp-for="Input.ClientId" id="clientIdInput" />
+                            <button type="button" class="tc-input text-start d-flex align-items-center justify-content-between" data-bs-toggle="modal" data-bs-target="#clientPickerModal" id="clientPickerButton">
+                                <span id="clientPickerLabel" class="text-muted">-- Cliente não informado / Desconhecido --</span>
+                                <i class="bi bi-search text-muted"></i>
+                            </button>
                         </div>
 
                         <div class="col-md-6">
                             <label asp-for="Input.ProductId" class="tc-form-label">Sistema / Produto Principal</label>
-                            <select asp-for="Input.ProductId" class="tc-select">
+                            <select asp-for="Input.ProductId" class="tc-select" id="productSelect">
                                 <option value="">-- Produto não informado --</option>
                                 @foreach (var p in Model.Products)
                                 {
@@ -117,14 +143,21 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label asp-for="Input.ProductVersionId" class="tc-form-label">Identificador de Versão</label>
-                            <input asp-for="Input.ProductVersionId" type="number" class="tc-input" placeholder="ID da versão (se conhecido)" />
+                            <label asp-for="Input.ProductVersionId" class="tc-form-label">Versão</label>
+                            <select asp-for="Input.ProductVersionId" class="tc-select" id="versionSelect" disabled>
+                                <option value="">-- Selecione um Sistema primeiro --</option>
+                            </select>
                         </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="tc-btn tc-btn-secondary wizard-prev"><i class="bi bi-arrow-left me-1"></i> Voltar</button>
+                        <button type="button" class="tc-btn tc-btn-primary wizard-next">Próximo <i class="bi bi-arrow-right ms-1"></i></button>
                     </div>
                 </div>
 
                 <!-- 3. COMPONENTES AFETADOS (BR-023: Múltiplos) -->
-                <div class="tc-card p-4 mb-4">
+                <div class="tc-card p-4 mb-4 wizard-step d-none" data-step="3">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-secondary rounded-pill px-2 py-1">3</span>
@@ -136,13 +169,18 @@
                         Selecione um ou mais componentes suspeitos. Em conformidade com a regra BR-023, um caso pode afetar múltiplos componentes simultaneamente.
                     </p>
 
-                    <div class="row g-2">
+                    <div class="mb-3">
+                        <input type="search" class="tc-input" id="componentFilterInput" autocomplete="off"
+                               placeholder="Filtrar por nome ou tipo — destaca os componentes correspondentes..." />
+                    </div>
+
+                    <div class="row g-2" id="componentsChecklist">
                         @foreach (var comp in Model.AvailableComponents)
                         {
                             <div class="col-md-6 col-lg-4">
-                                <div class="p-2 border rounded bg-light">
+                                <div class="p-2 border rounded bg-light component-card" data-search-text="@($"{comp.Name} {comp.ComponentType}".ToLowerInvariant())">
                                     <div class="tc-check-group">
-                                        <input class="tc-check-input" type="checkbox"
+                                        <input class="tc-check-input component-checkbox" type="checkbox"
                                                name="Input.SelectedComponentIds" value="@comp.Id" id="comp_@comp.Id" />
                                         <label class="tc-check-label flex-grow-1" for="comp_@comp.Id">
                                             <strong class="text-dark">@comp.Name</strong>
@@ -153,10 +191,15 @@
                             </div>
                         }
                     </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="tc-btn tc-btn-secondary wizard-prev"><i class="bi bi-arrow-left me-1"></i> Voltar</button>
+                        <button type="button" class="tc-btn tc-btn-primary wizard-next">Próximo <i class="bi bi-arrow-right ms-1"></i></button>
+                    </div>
                 </div>
 
                 <!-- 4. CLASSIFICAÇÃO OPERACIONAL -->
-                <div class="tc-card p-4 mb-4">
+                <div class="tc-card p-4 mb-4 wizard-step d-none" data-step="4">
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <span class="badge bg-secondary rounded-pill px-2 py-1">4</span>
                         <h3 class="tc-title-section mb-0">Classificação & Gravidade Operacional</h3>
@@ -183,68 +226,472 @@
                             </select>
                         </div>
                     </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="tc-btn tc-btn-secondary wizard-prev"><i class="bi bi-arrow-left me-1"></i> Voltar</button>
+                        <button type="button" class="tc-btn tc-btn-primary wizard-next">Próximo <i class="bi bi-arrow-right ms-1"></i></button>
+                    </div>
                 </div>
 
                 <!-- 5. DIAGNÓSTICO PRELIMINAR E SINTOMAS -->
-                <div class="tc-card p-4 mb-4">
+                <div class="tc-card p-4 mb-4 wizard-step d-none" data-step="5">
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <span class="badge bg-secondary rounded-pill px-2 py-1">5</span>
                         <h3 class="tc-title-section mb-0">Sintomas & Códigos de Erro</h3>
                     </div>
 
-                    <div class="row g-3">
+                    <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <label asp-for="Input.ErrorCode" class="tc-form-label">Código de Erro Técnico</label>
-                            <input asp-for="Input.ErrorCode" class="tc-input font-monospace" placeholder="Ex: ERR-504, HTTP 504" />
+                            <input asp-for="Input.ErrorCode" class="tc-input font-monospace" id="errorCodeInput" placeholder="Ex: ERR-504, HTTP 504" />
                         </div>
                         <div class="col-md-8">
                             <label asp-for="Input.ErrorErrorMessage" class="tc-form-label">Mensagem de Exceção ou Log Resumido</label>
                             <input asp-for="Input.ErrorErrorMessage" class="tc-input font-monospace" placeholder="Ex: Connection pool timeout expired after 30000ms..." />
                         </div>
-                        <div class="col-12">
-                            <label asp-for="Input.SymptomText" class="tc-form-label">Sintoma Observado em Linguagem Natural</label>
-                            <input asp-for="Input.SymptomText" class="tc-input" placeholder="Ex: Gateway trava sob pico e requisições retornam timeout sem resposta..." />
-                        </div>
+                    </div>
+
+                    <label class="tc-form-label">Sintomas Observados em Linguagem Natural</label>
+                    <p class="tc-caption text-muted mb-2">Quanto mais sintomas registrados, mais a busca de casos semelhantes (ao lado) consegue afunilar as causas prováveis.</p>
+                    <div id="symptomsList" class="d-flex flex-column gap-2 mb-2"></div>
+                    <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" id="addSymptomBtn">
+                        <i class="bi bi-plus-lg me-1"></i>Adicionar Sintoma
+                    </button>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="tc-btn tc-btn-secondary wizard-prev"><i class="bi bi-arrow-left me-1"></i> Voltar</button>
+                        <button type="button" class="tc-btn tc-btn-primary wizard-next">Próximo <i class="bi bi-arrow-right ms-1"></i></button>
                     </div>
                 </div>
 
                 <!-- 6. EVIDÊNCIAS E ANEXOS (STORAGE SEGURO) -->
-                <div class="tc-card p-4 mb-4">
+                <div class="tc-card p-4 mb-4 wizard-step d-none" data-step="6">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-secondary rounded-pill px-2 py-1">6</span>
-                            <h3 class="tc-title-section mb-0">Evidências Iniciais & Anexo de Arquivo</h3>
+                            <h3 class="tc-title-section mb-0">Evidências Iniciais & Anexos</h3>
                         </div>
                         <span class="tc-caption text-muted">Storage Seguro com SHA-256</span>
                     </div>
 
+                    <label class="tc-form-label">Observações Factuais / Evidências Textuais</label>
+                    <div id="evidencesList" class="d-flex flex-column gap-2 mb-2"></div>
+                    <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm mb-3" id="addEvidenceBtn">
+                        <i class="bi bi-plus-lg me-1"></i>Adicionar Evidência
+                    </button>
+
                     <div class="mb-3">
-                        <label asp-for="Input.EvidenceDescription" class="tc-form-label">Observação Factual / Evidência Textual</label>
-                        <input asp-for="Input.EvidenceDescription" class="tc-input" placeholder="Ex: Print do painel de monitoramento Grafana mostrando saturation a 99%..." />
+                        <label class="tc-form-label">Tags (opcional)</label>
+                        <p class="tc-caption text-muted mb-2">
+                            Ajudam a localizar e filtrar casos semelhantes depois (peso menor no motor de similaridade). Pressione Enter ou vírgula para adicionar.
+                        </p>
+                        <div id="tagsChipContainer" class="d-flex flex-wrap gap-2 align-items-center p-2 border rounded bg-light" style="min-height: 44px;">
+                            <input type="text" id="tagInput" class="border-0 bg-transparent flex-grow-1" style="min-width: 160px; outline: none;" placeholder="nova tag..." />
+                        </div>
                     </div>
 
                     <div class="mb-2">
-                        <label asp-for="Input.AttachmentFile" class="tc-form-label">Anexar Arquivo de Apoio (Log, Screenshot ou Relatório)</label>
-                        <input asp-for="Input.AttachmentFile" type="file" class="tc-input" />
+                        <label for="attachmentFilesInput" class="tc-form-label">Anexar Arquivos de Apoio (Log, Screenshot ou Relatório)</label>
+                        <!-- Sem asp-for: List<IFormFile> não-anulável gera "data-val-required" automático
+                             (pelo menos um arquivo obrigatório), mas anexo é opcional aqui (BR-022). -->
+                        <input type="file" name="Input.AttachmentFiles" id="attachmentFilesInput" class="tc-input" multiple />
                         <div class="tc-form-text text-muted mt-1 small">
-                            Formatos permitidos: imagens (.png, .jpg, .webp), logs (.log, .txt), documentos (.pdf, .json, .csv, .zip). Limite de 25 MB por arquivo.
+                            Múltiplos arquivos permitidos. Formatos: imagens (.png, .jpg, .webp), logs (.log, .txt), documentos (.pdf, .json, .csv, .zip). Limite de 25 MB por arquivo.
                         </div>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between mt-4">
+                        <button type="button" class="tc-btn tc-btn-secondary wizard-prev"><i class="bi bi-arrow-left me-1"></i> Voltar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary tc-btn-lg">
+                            <i class="bi bi-check2-circle me-1"></i>
+                            <span>Confirmar e Abrir Caso</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- AÇÕES FINAIS -->
-                <div class="d-flex align-items-center justify-content-end gap-2 mb-5">
-                    <a asp-page="/Cases/Index" class="tc-btn tc-btn-secondary">Cancelar</a>
-                    <button type="submit" class="tc-btn tc-btn-primary tc-btn-lg">
-                        <i class="bi bi-check2-circle me-1"></i>
-                        <span>Confirmar e Abrir Caso</span>
-                    </button>
+                <div class="d-flex align-items-center justify-content-end gap-2 mb-3">
+                    <a asp-page="/Cases/Index" class="tc-btn tc-btn-ghost tc-btn-sm">Cancelar e voltar para a lista</a>
+                </div>
+            </div>
+
+            <!-- COLUNA LATERAL: CASOS SEMELHANTES AO VIVO -->
+            <div class="col-lg-4">
+                <div class="tc-card p-3 mb-0" style="position: sticky; top: 1rem;">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="bi bi-intersect text-primary"></i>
+                        <h3 class="tc-title-section mb-0 fs-6">Casos Semelhantes</h3>
+                    </div>
+                    <p class="tc-caption text-muted mb-3">
+                        Busca automática enquanto você preenche — tente resolver com um caso já conhecido antes de abrir um novo.
+                    </p>
+                    <div id="similarCasesContainer">
+                        <div class="tc-empty-state tc-empty-state-compact p-3">
+                            <div class="tc-empty-icon"><i class="bi bi-search"></i></div>
+                            <div class="tc-empty-title small">Comece pelo relato</div>
+                            <p class="tc-empty-description small mb-0">Descreva a ocorrência na Etapa 1 para iniciar a busca.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </form>
+
+    <!-- MODAL: BUSCAR CLIENTE -->
+    <div class="modal fade" id="clientPickerModal" tabindex="-1" aria-labelledby="clientPickerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content tc-modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="clientPickerModalLabel">
+                        <i class="bi bi-search me-2 text-primary"></i>Buscar Cliente / Conta
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="p-3 border-bottom">
+                        <input type="search" class="tc-input" id="clientSearchInput" placeholder="Buscar por nome ou código..." autocomplete="off" />
+                    </div>
+                    <div class="list-group list-group-flush" style="max-height: 50vh; overflow-y: auto;" id="clientPickerList">
+                        <button type="button" class="list-group-item list-group-item-action client-option" data-client-id="" data-client-label="-- Cliente não informado / Desconhecido --">
+                            <span class="text-muted">-- Cliente não informado / Desconhecido --</span>
+                        </button>
+                        @foreach (var c in Model.Clients)
+                        {
+                            <button type="button" class="list-group-item list-group-item-action client-option"
+                                    data-client-id="@c.Id" data-client-label="@c.Code — @c.Name" data-search-text="@($"{c.Code} {c.Name}".ToLowerInvariant())">
+                                <span class="font-monospace text-muted me-2">@c.Code</span>
+                                <span class="fw-semibold">@c.Name</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: RESUMO RÁPIDO DE CASO SEMELHANTE -->
+    <div class="modal fade" id="similarCaseModal" tabindex="-1" aria-labelledby="similarCaseModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content tc-modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title d-flex align-items-center gap-2" id="similarCaseModalLabel">
+                        <span id="simModalCaseNumber" class="text-primary"></span>
+                        <span id="simModalStatusBadge"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span id="simModalSeverityBadge"></span>
+                        <span id="simModalLikelihood" class="tc-caption fw-semibold"></span>
+                    </div>
+                    <p id="simModalTitle" class="tc-body mb-2"></p>
+                    <div id="simModalFactors" class="d-flex flex-wrap gap-1"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <a id="simModalDetailsLink" href="#" target="_blank" class="tc-btn tc-btn-primary">
+                        Detalhes <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- TEMPLATES (clonados via JS, nunca enviados por não terem "name") -->
+<template id="symptomRowTemplate">
+    <div class="tc-repeatable-row symptom-row">
+        <input type="text" class="tc-input" name="Input.Symptoms" placeholder="Ex: Gateway trava sob pico e requisições retornam timeout sem resposta..." />
+        <button type="button" class="tc-btn tc-btn-secondary remove-row-btn" title="Remover"><i class="bi bi-x-lg"></i></button>
+    </div>
+</template>
+<template id="evidenceRowTemplate">
+    <div class="tc-repeatable-row evidence-row">
+        <input type="text" class="tc-input" name="Input.Evidences" placeholder="Ex: Print do painel de monitoramento Grafana mostrando saturação a 99%..." />
+        <button type="button" class="tc-btn tc-btn-secondary remove-row-btn" title="Remover"><i class="bi bi-x-lg"></i></button>
+    </div>
+</template>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            var productVersions = @Html.Raw(Model.ProductVersionsJson);
+            var currentStep = 1;
+            var totalSteps = 6;
+
+            // ---------- Wizard: navegação entre etapas (tudo client-side, um único POST no final) ----------
+            function showStep(step) {
+                document.querySelectorAll('.wizard-step').forEach(function (el) {
+                    el.classList.toggle('d-none', parseInt(el.dataset.step, 10) !== step);
+                });
+                document.querySelectorAll('.wizard-step-btn').forEach(function (btn) {
+                    var target = parseInt(btn.dataset.stepTarget, 10);
+                    btn.classList.toggle('tc-btn-primary', target === step);
+                    btn.classList.toggle('tc-btn-secondary', target !== step);
+                    btn.disabled = target > Math.max(step, maxReachedStep);
+                });
+                currentStep = step;
+                var stepEl = document.querySelector('.wizard-step[data-step="' + step + '"]');
+                if (stepEl) stepEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            var maxReachedStep = 1;
+
+            document.querySelectorAll('.wizard-next').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    if (currentStep === 1) {
+                        var report = document.getElementById('originalReportInput').value.trim();
+                        var msg = document.getElementById('step1ValidationMsg');
+                        if (!report) {
+                            msg.classList.remove('d-none');
+                            return;
+                        }
+                        msg.classList.add('d-none');
+                    }
+                    var next = Math.min(currentStep + 1, totalSteps);
+                    maxReachedStep = Math.max(maxReachedStep, next);
+                    showStep(next);
+                });
+            });
+
+            document.querySelectorAll('.wizard-prev').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    showStep(Math.max(currentStep - 1, 1));
+                });
+            });
+
+            document.querySelectorAll('.wizard-step-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var target = parseInt(btn.dataset.stepTarget, 10);
+                    if (target <= maxReachedStep) showStep(target);
+                });
+            });
+
+            // ---------- Cliente: modal de busca ----------
+            var clientIdInput = document.getElementById('clientIdInput');
+            var clientPickerLabel = document.getElementById('clientPickerLabel');
+            var clientSearchInput = document.getElementById('clientSearchInput');
+            var clientPickerModalEl = document.getElementById('clientPickerModal');
+
+            document.querySelectorAll('.client-option').forEach(function (opt) {
+                opt.addEventListener('click', function () {
+                    clientIdInput.value = opt.dataset.clientId || '';
+                    clientPickerLabel.textContent = opt.dataset.clientLabel;
+                    clientPickerLabel.classList.toggle('text-muted', !opt.dataset.clientId);
+                    bootstrap.Modal.getOrCreateInstance(clientPickerModalEl).hide();
+                    scheduleSimilarSearch();
+                });
+            });
+
+            clientSearchInput.addEventListener('input', function () {
+                var term = clientSearchInput.value.trim().toLowerCase();
+                document.querySelectorAll('.client-option').forEach(function (opt) {
+                    var searchText = opt.dataset.searchText || '';
+                    var isEmpty = !opt.dataset.clientId;
+                    opt.classList.toggle('d-none', !isEmpty && term.length > 0 && searchText.indexOf(term) === -1);
+                });
+            });
+
+            clientPickerModalEl.addEventListener('shown.bs.modal', function () {
+                clientSearchInput.value = '';
+                clientSearchInput.focus();
+                document.querySelectorAll('.client-option').forEach(function (opt) { opt.classList.remove('d-none'); });
+            });
+
+            // ---------- Sistema -> Versão (dependente, sem round-trip) ----------
+            var productSelect = document.getElementById('productSelect');
+            var versionSelect = document.getElementById('versionSelect');
+
+            function refreshVersionOptions() {
+                var productId = productSelect.value;
+                versionSelect.innerHTML = '';
+                if (!productId || !productVersions[productId] || productVersions[productId].length === 0) {
+                    var opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = productId ? '-- Nenhuma versão registrada para este sistema --' : '-- Selecione um Sistema primeiro --';
+                    versionSelect.appendChild(opt);
+                    versionSelect.disabled = true;
+                    return;
+                }
+                var placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '-- Versão não informada --';
+                versionSelect.appendChild(placeholder);
+                productVersions[productId].forEach(function (v) {
+                    var opt = document.createElement('option');
+                    opt.value = v.Id;
+                    opt.textContent = v.Label;
+                    versionSelect.appendChild(opt);
+                });
+                versionSelect.disabled = false;
+            }
+
+            productSelect.addEventListener('change', function () {
+                refreshVersionOptions();
+                scheduleSimilarSearch();
+            });
+            refreshVersionOptions();
+
+            // ---------- Sintomas / Evidências: linhas repetíveis (1→N) ----------
+            function setupRepeatableList(containerId, templateId, addBtnId, onChange) {
+                var container = document.getElementById(containerId);
+                var template = document.getElementById(templateId);
+                var addBtn = document.getElementById(addBtnId);
+
+                function addRow() {
+                    var clone = template.content.cloneNode(true);
+                    var input = clone.querySelector('input');
+                    clone.querySelector('.remove-row-btn').addEventListener('click', function (e) {
+                        e.target.closest('.tc-repeatable-row').remove();
+                        if (onChange) onChange();
+                    });
+                    input.addEventListener('input', function () { if (onChange) onChange(); });
+                    container.appendChild(clone);
+                }
+
+                addBtn.addEventListener('click', addRow);
+                addRow(); // primeira linha já visível
+                return addRow;
+            }
+
+            setupRepeatableList('symptomsList', 'symptomRowTemplate', 'addSymptomBtn', scheduleSimilarSearch);
+            setupRepeatableList('evidencesList', 'evidenceRowTemplate', 'addEvidenceBtn', null);
+
+            // ---------- Tags: input de "chips" (Enter/vírgula adiciona, Backspace no campo vazio remove o último) ----------
+            (function setupTagChipInput() {
+                var container = document.getElementById('tagsChipContainer');
+                var input = document.getElementById('tagInput');
+
+                function addChip(value) {
+                    value = value.trim();
+                    if (!value) return;
+                    var existing = Array.from(container.querySelectorAll('input[name="Input.Tags"]')).map(function (i) { return i.value.toLowerCase(); });
+                    if (existing.indexOf(value.toLowerCase()) !== -1) return;
+
+                    var hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'Input.Tags';
+                    hidden.value = value;
+
+                    var chip = document.createElement('span');
+                    chip.className = 'tc-badge tc-badge-neutral d-inline-flex align-items-center gap-1';
+                    chip.appendChild(document.createTextNode(value));
+
+                    var removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn btn-link p-0 border-0 text-dark lh-1';
+                    var icon = document.createElement('i');
+                    icon.className = 'bi bi-x-lg';
+                    icon.style.fontSize = '0.6rem';
+                    removeBtn.appendChild(icon);
+                    removeBtn.addEventListener('click', function () {
+                        chip.remove();
+                        hidden.remove();
+                    });
+                    chip.appendChild(removeBtn);
+
+                    container.insertBefore(hidden, input);
+                    container.insertBefore(chip, input);
+                }
+
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        addChip(input.value);
+                        input.value = '';
+                    } else if (e.key === 'Backspace' && input.value === '') {
+                        var chips = container.querySelectorAll('.tc-badge');
+                        var lastChip = chips[chips.length - 1];
+                        if (lastChip) {
+                            var hidden = lastChip.previousElementSibling;
+                            lastChip.remove();
+                            if (hidden && hidden.tagName === 'INPUT') hidden.remove();
+                        }
+                    }
+                });
+
+                input.addEventListener('blur', function () {
+                    if (input.value.trim()) {
+                        addChip(input.value);
+                        input.value = '';
+                    }
+                });
+            })();
+
+            // ---------- Casos semelhantes: pré-visualização ao vivo (debounced) ----------
+            var similarCasesContainer = document.getElementById('similarCasesContainer');
+            var debounceTimer = null;
+            var lastAbortController = null;
+
+            function scheduleSimilarSearch() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(runSimilarSearch, 450);
+            }
+
+            function runSimilarSearch() {
+                var report = document.getElementById('originalReportInput').value.trim();
+                var symptoms = Array.from(document.querySelectorAll('input[name="Input.Symptoms"]'))
+                    .map(function (i) { return i.value.trim(); })
+                    .filter(function (v) { return v.length > 0; });
+
+                if (!report && symptoms.length === 0) {
+                    similarCasesContainer.innerHTML = '<div class="tc-empty-state tc-empty-state-compact p-3">' +
+                        '<div class="tc-empty-icon"><i class="bi bi-search"></i></div>' +
+                        '<div class="tc-empty-title small">Comece pelo relato</div>' +
+                        '<p class="tc-empty-description small mb-0">Descreva a ocorrência na Etapa 1 para iniciar a busca.</p></div>';
+                    return;
+                }
+
+                var componentIds = Array.from(document.querySelectorAll('.component-checkbox:checked')).map(function (c) { return c.value; });
+
+                var params = new URLSearchParams();
+                params.set('handler', 'PreviewSimilarCases');
+                if (report) params.set('reportText', report);
+                if (clientIdInput.value) params.set('clientId', clientIdInput.value);
+                if (productSelect.value) params.set('productId', productSelect.value);
+                if (versionSelect.value) params.set('productVersionId', versionSelect.value);
+                var errorCode = document.getElementById('errorCodeInput').value.trim();
+                if (errorCode) params.set('errorCode', errorCode);
+                componentIds.forEach(function (id) { params.append('componentIds', id); });
+                symptoms.forEach(function (s) { params.append('symptoms', s); });
+
+                if (lastAbortController) lastAbortController.abort();
+                lastAbortController = new AbortController();
+
+                similarCasesContainer.style.opacity = '0.6';
+                fetch(window.location.pathname + '?' + params.toString(), { signal: lastAbortController.signal })
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) {
+                        similarCasesContainer.innerHTML = html;
+                        similarCasesContainer.style.opacity = '1';
+                    })
+                    .catch(function (err) {
+                        if (err.name !== 'AbortError') similarCasesContainer.style.opacity = '1';
+                    });
+            }
+
+            document.getElementById('originalReportInput').addEventListener('input', scheduleSimilarSearch);
+            document.getElementById('errorCodeInput').addEventListener('input', scheduleSimilarSearch);
+            document.querySelectorAll('.component-checkbox').forEach(function (cb) {
+                cb.addEventListener('change', scheduleSimilarSearch);
+            });
+
+            // ---------- Componentes: filtro que destaca (não esconde) os cards correspondentes ----------
+            var componentFilterInput = document.getElementById('componentFilterInput');
+            componentFilterInput.addEventListener('input', function () {
+                var term = componentFilterInput.value.trim().toLowerCase();
+                document.querySelectorAll('.component-card').forEach(function (card) {
+                    var match = term.length > 0 && (card.dataset.searchText || '').indexOf(term) !== -1;
+                    card.classList.toggle('filter-match', match);
+                });
+            });
+
+            showStep(1);
+        })();
+    </script>
+    <script src="~/js/similar-case-modal.js"></script>
 }

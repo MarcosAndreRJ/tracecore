@@ -288,5 +288,65 @@ public class MySqlCatalogRepository : ICatalogRepository
         var rows = await conn.ExecuteAsync(sql, new { Id = id });
         return rows > 0;
     }
+
+    public async Task<IReadOnlyList<ComponentType>> GetComponentTypesAsync(bool includeInactive = false, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT
+                id,
+                code,
+                name,
+                is_active AS IsActive,
+                created_at AS CreatedAt
+            FROM component_types
+            WHERE (@IncludeInactive = TRUE OR is_active = TRUE)
+            ORDER BY name ASC;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        var list = await conn.QueryAsync<ComponentType>(sql, new { IncludeInactive = includeInactive });
+        return list.ToList();
+    }
+
+    public async Task<ComponentType?> GetComponentTypeByIdAsync(long id, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT
+                id,
+                code,
+                name,
+                is_active AS IsActive,
+                created_at AS CreatedAt
+            FROM component_types
+            WHERE id = @Id;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        return await conn.QuerySingleOrDefaultAsync<ComponentType>(sql, new { Id = id });
+    }
+
+    public async Task<long> AddComponentTypeAsync(ComponentType type, CancellationToken ct = default)
+    {
+        const string sql = @"
+            INSERT INTO component_types (code, name, is_active, created_at)
+            VALUES (@Code, @Name, @IsActive, @CreatedAt);
+            SELECT LAST_INSERT_ID();";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        var id = await conn.ExecuteScalarAsync<long>(sql, type);
+        type.Id = id;
+        return id;
+    }
+
+    public async Task UpdateComponentTypeAsync(ComponentType type, CancellationToken ct = default)
+    {
+        const string sql = @"
+            UPDATE component_types
+            SET code = @Code,
+                name = @Name,
+                is_active = @IsActive
+            WHERE id = @Id;";
+
+        using var conn = await _connectionFactory.CreateConnectionAsync(ct);
+        await conn.ExecuteAsync(sql, type);
+    }
 }
 

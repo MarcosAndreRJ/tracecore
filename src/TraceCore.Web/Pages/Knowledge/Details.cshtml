@@ -82,6 +82,14 @@
                     </form>
                 }
 
+                @if ((Model.Item.LifecycleStatus == "Draft" || Model.Item.LifecycleStatus == "Review") && Model.CanCreate)
+                {
+                    <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm border-danger text-danger" data-bs-toggle="modal" data-bs-target="#modalArchive">
+                        <i class="bi bi-x-circle"></i>
+                        <span>Arquivar/Cancelar Solução</span>
+                    </button>
+                }
+
                 @if (Model.Item.LifecycleStatus == "Published")
                 {
                     @if (Model.CanCreate)
@@ -400,6 +408,42 @@
 </div>
 
 <!-- MODAL: REGISTRAR USO EM CASO (BR-047 / BR-048) -->
+<!-- MODAL: ARQUIVAR/CANCELAR SOLUÇÃO -->
+<div class="modal fade" id="modalArchive" tabindex="-1" aria-labelledby="modalArchiveLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content tc-modal-content">
+            <form method="post" asp-page-handler="Archive" asp-route-id="@Model.Item.Id">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title tc-modal-title" id="modalArchiveLabel">
+                            <i class="bi bi-x-circle me-2 text-danger"></i>Arquivar/Cancelar Solução
+                        </h5>
+                        <p class="tc-caption text-muted mb-0">Cancela este rascunho/revisão sem excluí-lo do histórico</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="tc-alert tc-alert-warning small mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Esta solução deixará de ficar ativa. O caso de origem só poderá gerar uma nova solução após este cancelamento (ou após ser reaberto e resolvido novamente).
+                    </div>
+                    <div class="mb-0">
+                        <label asp-for="ArchiveReasonInput" class="tc-form-label">Motivo do Cancelamento (opcional)</label>
+                        <textarea asp-for="ArchiveReasonInput" rows="3" class="tc-textarea" placeholder="Ex.: Solução criada por engano, substituída por outra abordagem, etc."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Voltar</button>
+                    <button type="submit" class="tc-btn tc-btn-primary border-danger text-danger">
+                        <i class="bi bi-x-circle me-1"></i>
+                        <span>Confirmar Cancelamento</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalApplySolution" tabindex="-1" aria-labelledby="modalApplySolutionLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content tc-modal-content">

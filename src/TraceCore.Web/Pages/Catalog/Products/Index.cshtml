@@ -2,6 +2,9 @@
 @model TraceCore.Web.Pages.Catalog.Products.IndexModel
 @{
     ViewData["Title"] = "Catálogo de Produtos - TraceCore";
+    var hasActiveFilters = !string.IsNullOrWhiteSpace(Model.Search) ||
+                            !string.IsNullOrWhiteSpace(Model.Origin) ||
+                            !string.IsNullOrWhiteSpace(Model.Status);
 }
 
 <div class="tc-breadcrumb">
@@ -40,15 +43,92 @@
     </div>
 }
 
+<div class="tc-filter-bar">
+    <form method="get" class="tc-filter-form">
+        <div class="tc-filter-item tc-filter-item-search">
+            <label class="tc-form-label" for="search-input">Pesquisa Textual</label>
+            <div class="tc-input-group">
+                <span class="tc-input-group-icon"><i class="bi bi-search"></i></span>
+                <input type="search" id="search-input" name="Search" value="@Model.Search"
+                       class="tc-input has-icon-left" placeholder="Nome, código ou descrição..." />
+            </div>
+        </div>
+
+        <div class="tc-filter-item">
+            <label class="tc-form-label" for="origin-select">Tipo / Origem</label>
+            <select id="origin-select" name="Origin" class="tc-select">
+                <option value="">Todas as Origens</option>
+                <option value="Internal" selected="@(Model.Origin == "Internal")">Interno</option>
+                <option value="External" selected="@(Model.Origin == "External")">Externo</option>
+            </select>
+        </div>
+
+        <div class="tc-filter-item">
+            <label class="tc-form-label" for="status-select">Status</label>
+            <select id="status-select" name="Status" class="tc-select">
+                <option value="">Todos os Status</option>
+                <option value="Active" selected="@(Model.Status == "Active")">Ativo</option>
+                <option value="Inactive" selected="@(Model.Status == "Inactive")">Inativo</option>
+            </select>
+        </div>
+
+        <div class="tc-filter-actions">
+            <button type="submit" class="tc-btn tc-btn-primary">
+                <i class="bi bi-funnel"></i>
+                <span>Filtrar</span>
+            </button>
+            @if (hasActiveFilters)
+            {
+                <a asp-page="/Catalog/Products/Index" class="tc-btn tc-btn-ghost" title="Limpar filtros aplicados">
+                    <i class="bi bi-x-circle"></i>
+                    <span>Limpar</span>
+                </a>
+            }
+        </div>
+    </form>
+
+    @if (hasActiveFilters)
+    {
+        <div class="tc-active-filters">
+            <span>Filtros ativos:</span>
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <span class="tc-filter-tag"><span>Busca: "@Model.Search"</span></span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Origin))
+            {
+                <span class="tc-filter-tag"><span>Origem: @(Model.Origin == "External" ? "Externo" : "Interno")</span></span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Status))
+            {
+                <span class="tc-filter-tag"><span>Status: @(Model.Status == "Active" ? "Ativo" : "Inativo")</span></span>
+            }
+        </div>
+    }
+</div>
+
 <div class="tc-card">
     <div class="tc-card-header d-flex justify-content-between align-items-center">
         <div>
             <h2 class="tc-card-title mb-0">Produtos Cadastrados</h2>
-            <span class="tc-caption text-muted">@Model.ProductsList.Count produto(s) no portfólio</span>
+            <span class="tc-caption text-muted">
+                @Model.ProductsList.Count de @Model.TotalProductsCount produto(s) @(hasActiveFilters ? "(filtrado)" : "no portfólio")
+            </span>
         </div>
     </div>
     <div class="tc-card-body p-0">
-        @if (Model.ProductsList.Count == 0)
+        @if (Model.ProductsList.Count == 0 && hasActiveFilters)
+        {
+            <div class="p-5 text-center text-muted">
+                <i class="bi bi-search display-4 d-block mb-3 text-secondary opacity-50"></i>
+                <h5>Nenhum produto encontrado</h5>
+                <p class="tc-caption text-secondary mb-3">Nenhum sistema corresponde aos filtros selecionados. Tente ajustar os parâmetros de pesquisa.</p>
+                <a asp-page="/Catalog/Products/Index" class="tc-btn tc-btn-secondary">
+                    <i class="bi bi-x-circle"></i> Limpar Filtros
+                </a>
+            </div>
+        }
+        else if (Model.ProductsList.Count == 0)
         {
             <div class="p-5 text-center text-muted">
                 <i class="bi bi-box-seam display-4 d-block mb-3 text-secondary opacity-50"></i>
@@ -97,6 +177,10 @@
                                             <i class="bi bi-building me-1"></i>Interno
                                         </span>
                                     }
+                                    @if (Model.ProfilesByProductId.TryGetValue(p.Id, out var pf) && !string.IsNullOrWhiteSpace(pf.SystemType))
+                                    {
+                                        <div class="tc-caption text-muted" title="Tipo do sistema">@pf.SystemType</div>
+                                    }
                                 </td>
                                 <td>
                                     @if (p.Status == "Active")
@@ -116,7 +200,7 @@
                                         <i class="bi bi-eye me-1"></i>Detalhes
                                     </a>
                                     <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm"
-                                            onclick="openEditModal(@p.Id, '@Html.Raw(p.Name)', '@Html.Raw(p.Code ?? "")', '@Html.Raw(p.Description ?? "")', '@p.Status', @(p.IsExternal ? "true" : "false"))">
+                                            data-bs-toggle="modal" data-bs-target="#editProductModal-@p.Id">
                                         <i class="bi bi-pencil me-1"></i>Editar
                                     </button>
                                 </td>
@@ -131,7 +215,7 @@
 
 <!-- MODAL: Novo Produto -->
 <div class="modal fade" id="newProductModal" tabindex="-1" aria-labelledby="newProductModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content tc-modal-content">
             <form method="post" asp-page-handler="Create">
                 <div class="modal-header">
@@ -141,26 +225,68 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="newProdName">Nome do Produto <span class="text-danger">*</span></label>
-                        <input type="text" id="newProdName" class="tc-input" asp-for="NewProduct.Name" placeholder="Ex.: Portal do Cliente" required />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="newProdCode">Código / Sigla</label>
-                        <input type="text" id="newProdCode" class="tc-input" asp-for="NewProduct.Code" placeholder="Ex.: PRD-WEB-01" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="newProdDesc">Descrição</label>
-                        <textarea id="newProdDesc" class="tc-textarea" asp-for="NewProduct.Description" rows="3" placeholder="Finalidade do produto ou sistema..."></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <div class="tc-check-group">
-                            <input type="checkbox" id="newProdIsExternal" class="tc-check-input" asp-for="NewProduct.IsExternal" />
-                            <label class="tc-check-label fw-semibold" for="newProdIsExternal">
-                                Produto / Serviço Externo (Terceiro / SaaS)
-                            </label>
+                    @if (Model.ReopenNewProductModal && !string.IsNullOrEmpty(Model.ErrorMessage))
+                    {
+                        <div class="tc-alert tc-alert-danger mb-3"><i class="bi bi-exclamation-triangle-fill me-2"></i>@Model.ErrorMessage</div>
+                    }
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold" for="newProdName">Nome do Produto <span class="text-danger">*</span></label>
+                            <input type="text" id="newProdName" class="tc-input" asp-for="NewProduct.Name" placeholder="Ex.: Portal do Cliente" required />
                         </div>
-                        <span class="tc-caption text-muted d-block mt-1">Marque se este produto for um fornecedor externo ou API de terceiro integrada.</span>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold" for="newProdCode">Código / Sigla</label>
+                            <input type="text" id="newProdCode" class="tc-input" asp-for="NewProduct.Code" placeholder="Ex.: PRD-WEB-01" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" for="newProdDesc">Descrição</label>
+                            <textarea id="newProdDesc" class="tc-textarea" asp-for="NewProduct.Description" rows="2" placeholder="Finalidade do produto ou sistema..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div class="tc-check-group">
+                                <input type="checkbox" id="newProdIsExternal" class="tc-check-input" asp-for="NewProduct.IsExternal" />
+                                <label class="tc-check-label fw-semibold" for="newProdIsExternal">
+                                    Produto / Serviço Externo (Terceiro / SaaS)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-top mb-3">
+                        <span class="fw-semibold">Contexto Técnico Básico</span>
+                        <span class="tc-caption text-muted d-block">Opcional — cria o perfil técnico inicial do sistema.</span>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="newProdSystemType">Tipo do Sistema</label>
+                            <select id="newProdSystemType" class="tc-select" asp-for="NewProduct.SystemType">
+                                <option value="">Selecione...</option>
+                                @foreach (var t in Model.SystemTypes)
+                                {
+                                    <option value="@t">@t</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="newProdTechnology">Tecnologia Principal</label>
+                            <input type="text" id="newProdTechnology" class="tc-input" asp-for="NewProduct.Technology" placeholder="Ex.: .NET 8, Angular 17" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="newProdPrimaryDb">Banco Principal</label>
+                            <input type="text" id="newProdPrimaryDb" class="tc-input" asp-for="NewProduct.PrimaryDatabase" placeholder="Ex.: SQL Server" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="newProdHosting">Hospedagem / Execução</label>
+                            <input type="text" id="newProdHosting" class="tc-input" asp-for="NewProduct.HostingModel" placeholder="Ex.: On-premise (datacenter), Cloud, Híbrido" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="newProdPurpose">Finalidade</label>
+                            <textarea id="newProdPurpose" class="tc-textarea" asp-for="NewProduct.BusinessPurpose" rows="2" placeholder="Objetivo de negócio do sistema..."></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="newProdArch">Resumo da Arquitetura</label>
+                            <textarea id="newProdArch" class="tc-textarea" asp-for="NewProduct.ArchitectureSummary" rows="2" placeholder="Visão geral da arquitetura..."></textarea>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -174,70 +300,143 @@
     </div>
 </div>
 
-<!-- MODAL: Editar Produto -->
-<div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content tc-modal-content">
-            <form method="post" asp-page-handler="Update">
-                <input type="hidden" id="editProdId" asp-for="EditProduct.Id" />
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editProductModalLabel">
-                        <i class="bi bi-pencil-square me-2 text-primary"></i>Editar Produto
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="editProdName">Nome do Produto <span class="text-danger">*</span></label>
-                        <input type="text" id="editProdName" class="tc-input" asp-for="EditProduct.Name" required />
+<!-- MODAL: Editar Produto (um por linha, pré-renderizado com os dados + perfil técnico) -->
+@foreach (var p in Model.ProductsList)
+{
+    var profile = Model.ProfilesByProductId.TryGetValue(p.Id, out var pf) ? pf : null;
+
+    // Se esta linha acabou de falhar ao salvar (ex.: código duplicado), redisplay usa
+    // o que o usuário digitou (EditProduct) em vez do valor atual do banco (p/profile),
+    // para não obrigar a redigitar tudo.
+    var isReopening = Model.ReopenEditProductId == p.Id;
+    var effName = isReopening ? Model.EditProduct.Name : p.Name;
+    var effCode = isReopening ? Model.EditProduct.Code : p.Code;
+    var effStatus = isReopening ? Model.EditProduct.Status : p.Status;
+    var effDesc = isReopening ? Model.EditProduct.Description : p.Description;
+    var effIsExternal = isReopening ? Model.EditProduct.IsExternal : p.IsExternal;
+    var effSystemType = isReopening ? Model.EditProduct.SystemType : profile?.SystemType;
+    var effTechnology = isReopening ? Model.EditProduct.Technology : profile?.BackendStack;
+    var effPrimaryDb = isReopening ? Model.EditProduct.PrimaryDatabase : profile?.PrimaryDatabase;
+    var effHosting = isReopening ? Model.EditProduct.HostingModel : profile?.HostingModel;
+    var effPurpose = isReopening ? Model.EditProduct.BusinessPurpose : profile?.BusinessPurpose;
+    var effArch = isReopening ? Model.EditProduct.ArchitectureSummary : profile?.ArchitectureSummary;
+    var hasLegacySystemType = effSystemType != null && !Model.SystemTypes.Contains(effSystemType, StringComparer.OrdinalIgnoreCase);
+    <div class="modal fade" id="editProductModal-@p.Id" tabindex="-1" aria-labelledby="editProductModalLabel-@p.Id" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="Update">
+                    <input type="hidden" id="editProdId-@p.Id" name="EditProduct.Id" value="@p.Id" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editProductModalLabel-@p.Id">
+                            <i class="bi bi-pencil-square me-2 text-primary"></i>Editar Sistema: @p.Name
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="editProdCode">Código / Sigla</label>
-                        <input type="text" id="editProdCode" class="tc-input" asp-for="EditProduct.Code" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="editProdStatus">Status</label>
-                        <select id="editProdStatus" class="tc-select" asp-for="EditProduct.Status">
-                            <option value="Active">Ativo</option>
-                            <option value="Inactive">Inativo</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold" for="editProdDesc">Descrição</label>
-                        <textarea id="editProdDesc" class="tc-textarea" asp-for="EditProduct.Description" rows="3"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <div class="tc-check-group">
-                            <input type="checkbox" id="editProdIsExternal" class="tc-check-input" asp-for="EditProduct.IsExternal" />
-                            <label class="tc-check-label fw-semibold" for="editProdIsExternal">
-                                Produto / Serviço Externo (Terceiro / SaaS)
-                            </label>
+                    <div class="modal-body">
+                        @if (isReopening && !string.IsNullOrEmpty(Model.ErrorMessage))
+                        {
+                            <div class="tc-alert tc-alert-danger mb-3"><i class="bi bi-exclamation-triangle-fill me-2"></i>@Model.ErrorMessage</div>
+                        }
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="editProdName-@p.Id">Nome do Produto <span class="text-danger">*</span></label>
+                                <input type="text" id="editProdName-@p.Id" class="tc-input" name="EditProduct.Name" value="@effName" required />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="editProdCode-@p.Id">Código / Sigla</label>
+                                <input type="text" id="editProdCode-@p.Id" class="tc-input" name="EditProduct.Code" value="@effCode" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="editProdStatus-@p.Id">Status</label>
+                                <select id="editProdStatus-@p.Id" class="tc-select" name="EditProduct.Status">
+                                    <option value="Active" selected="@(effStatus == "Active" ? "selected" : null)">Ativo</option>
+                                    <option value="Inactive" selected="@(effStatus == "Inactive" ? "selected" : null)">Inativo</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="editProdDesc-@p.Id">Descrição</label>
+                                <textarea id="editProdDesc-@p.Id" class="tc-textarea" name="EditProduct.Description" rows="2">@effDesc</textarea>
+                            </div>
+                            <div class="col-12">
+                                <div class="tc-check-group">
+                                    <input type="checkbox" id="editProdIsExternal-@p.Id" class="tc-check-input" name="EditProduct.IsExternal" value="true" checked="@(effIsExternal ? "checked" : null)" />
+                                    <label class="tc-check-label fw-semibold" for="editProdIsExternal-@p.Id">
+                                        Produto / Serviço Externo (Terceiro / SaaS)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-top mb-3">
+                            <span class="fw-semibold">Contexto Técnico Básico</span>
+                            <span class="tc-caption text-muted d-block">Perfil existente é carregado automaticamente.</span>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="editProdSystemType-@p.Id">Tipo do Sistema</label>
+                                <select id="editProdSystemType-@p.Id" class="tc-select" name="EditProduct.SystemType">
+                                    <option value="" selected="@(effSystemType == null ? "selected" : null)">Selecione...</option>
+                                    @foreach (var t in Model.SystemTypes)
+                                    {
+                                        <option value="@t" selected="@(string.Equals(effSystemType, t, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@t</option>
+                                    }
+                                    @if (hasLegacySystemType)
+                                    {
+                                        <option value="@effSystemType" selected>@effSystemType (legado)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="editProdTechnology-@p.Id">Tecnologia Principal</label>
+                                <input type="text" id="editProdTechnology-@p.Id" class="tc-input" name="EditProduct.Technology" value="@effTechnology" placeholder="Ex.: .NET 8, Angular 17" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="editProdPrimaryDb-@p.Id">Banco Principal</label>
+                                <input type="text" id="editProdPrimaryDb-@p.Id" class="tc-input" name="EditProduct.PrimaryDatabase" value="@effPrimaryDb" placeholder="Ex.: SQL Server" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="editProdHosting-@p.Id">Hospedagem / Execução</label>
+                                <input type="text" id="editProdHosting-@p.Id" class="tc-input" name="EditProduct.HostingModel" value="@effHosting" placeholder="Ex.: On-premise (datacenter), Cloud, Híbrido" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="editProdPurpose-@p.Id">Finalidade</label>
+                                <textarea id="editProdPurpose-@p.Id" class="tc-textarea" name="EditProduct.BusinessPurpose" rows="2" placeholder="Objetivo de negócio do sistema...">@effPurpose</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="editProdArch-@p.Id">Resumo da Arquitetura</label>
+                                <textarea id="editProdArch-@p.Id" class="tc-textarea" name="EditProduct.ArchitectureSummary" rows="2" placeholder="Visão geral da arquitetura...">@effArch</textarea>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="tc-btn tc-btn-primary">
-                        <i class="bi bi-save me-1"></i>Salvar Alterações
-                    </button>
-                </div>
-            </form>
+                    <div class="modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary">
+                            <i class="bi bi-save me-1"></i>Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
+}
 
-@section Scripts {
+@{
+    var reopenModalId = Model.ReopenNewProductModal
+        ? "newProductModal"
+        : Model.ReopenEditProductId.HasValue
+            ? $"editProductModal-{Model.ReopenEditProductId}"
+            : null;
+}
+@if (reopenModalId != null)
+{
+    <span id="reopenModalTarget" data-modal-id="@reopenModalId" hidden></span>
     <script>
-        function openEditModal(id, name, code, description, status, isExternal) {
-            document.getElementById('editProdId').value = id;
-            document.getElementById('editProdName').value = name;
-            document.getElementById('editProdCode').value = code;
-            document.getElementById('editProdDesc').value = description;
-            document.getElementById('editProdStatus').value = status;
-            document.getElementById('editProdIsExternal').checked = isExternal;
-
-            const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
-            modal.show();
-        }
+        document.addEventListener('DOMContentLoaded', function () {
+            var marker = document.getElementById('reopenModalTarget');
+            var el = marker && document.getElementById(marker.dataset.modalId);
+            if (el) {
+                new bootstrap.Modal(el).show();
+            }
+        });
     </script>
 }

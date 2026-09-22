@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -42,6 +43,14 @@ public class IndexModel : PageModel
     public DiagnosticFlowDto? SuggestedFlow { get; private set; }
     public bool CanConfigureFlows { get; private set; }
 
+    // Testes e Validações (evidências do tipo DiagnosticTest registradas para o caso)
+    public IReadOnlyList<CaseEvidenceDto> TestEvidences { get; private set; } = [];
+
+    [BindProperty]
+    public string? TestDescriptionInput { get; set; }
+    [BindProperty]
+    public long? TestHypothesisIdInput { get; set; }
+
     [TempData]
     public string? StatusMessage { get; set; }
 
@@ -67,6 +76,12 @@ public class IndexModel : PageModel
             {
                 Timeline = await _investigationService.GetInvestigationTimelineAsync(CaseId.Value);
                 EngineState = await _engineService.GetEngineStateAsync(CaseId.Value);
+
+                var evidences = await _investigationService.GetEvidencesByCaseIdAsync(CaseId.Value);
+                TestEvidences = evidences
+                    .Where(e => e.EvidenceType == "DiagnosticTest")
+                    .OrderByDescending(e => e.CreatedAt)
+                    .ToList();
 
                 if (EngineState.ActiveFlow == null)
                 {
@@ -143,6 +158,53 @@ public class IndexModel : PageModel
         catch (Exception ex)
         {
             ErrorMessage = $"Erro ao registrar desconsideração: {ex.Message}";
+        }
+
+        return RedirectToPage(new { CaseId = caseId });
+    }
+
+    public async Task<IActionResult> OnPostRecordTestAsync(long caseId)
+    {
+        var auth = await _authorizationService.AuthorizeAsync(User, "caso.diagnosticar");
+        if (!auth.Succeeded) return Forbid();
+
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue) return Challenge();
+
+        if (string.IsNullOrWhiteSpace(TestDescriptionInput))
+        {
+            ErrorMessage = "A descrição do teste/validação é obrigatória.";
+            return RedirectToPage(new { CaseId = caseId });
+        }
+
+        try
+        {
+            var relations = new List<HypothesisEvidenceRelationInputDto>();
+            if (TestHypothesisIdInput.HasValue && TestHypothesisIdInput.Value > 0)
+            {
+                relations.Add(new HypothesisEvidenceRelationInputDto(
+                    TestHypothesisIdInput.Value,
+                    "Inconclusive",
+                    null
+                ));
+            }
+
+            await _investigationService.RecordEvidenceAsync(new RecordEvidenceCommand(
+                CaseId: caseId,
+                EvidenceType: "DiagnosticTest",
+                Description: TestDescriptionInput.Trim(),
+                HypothesisRelations: relations
+            ), userId.Value);
+
+            StatusMessage = "Teste/validação registrado com sucesso na Central de Diagnóstico Guiado.";
+        }
+        catch (BusinessRuleValidationException ex)
+        {
+            ErrorMessage = $"Regra de Negócio: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Erro ao registrar teste: {ex.Message}";
         }
 
         return RedirectToPage(new { CaseId = caseId });

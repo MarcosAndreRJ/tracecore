@@ -1,5 +1,6 @@
 @page "{id:long}"
 @model TraceCore.Web.Pages.Cases.DetailsModel
+@using TraceCore.Application.DTOs
 @{
     ViewData["Title"] = $"Caso #{Model.Case.CaseNumber} - TraceCore";
     var activeTab = Request.Query["tab"].ToString();
@@ -52,10 +53,24 @@
                     <i class="bi bi-diagram-3 text-primary"></i>
                     <span>Diagnóstico Guiado</span>
                 </a>
+                @if (Model.CanTestIntegrations)
+                {
+                    <button type="button" class="tc-btn tc-btn-outline tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalTestIntegration" title="Testar uma integração real do sistema deste caso (Fase 05 — mecanismo único de execução com contexto)">
+                        <i class="bi bi-lightning-charge text-primary"></i>
+                        <span>Testar Integração</span>
+                    </button>
+                }
             }
 
             @if (Model.CanResolve)
             {
+                @if (Model.CanTestIntegrationsForValidation)
+                {
+                    <button type="button" class="tc-btn tc-btn-outline tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalTestIntegrationValidation" title="Testar uma integração real do sistema para validar a solução antes do encerramento (BR-027/BR-028)">
+                        <i class="bi bi-patch-check text-primary"></i>
+                        <span>Validar Integração</span>
+                    </button>
+                }
                 <button type="button" class="tc-btn tc-btn-sm text-white" style="background-color: #198754; border-color: #198754;" data-bs-toggle="modal" data-bs-target="#modalResolveCase">
                     <i class="bi bi-check2-circle"></i>
                     <span>Encerrar Caso</span>
@@ -98,6 +113,42 @@
             <span class="text-muted"><i class="bi bi-diagram-3 me-1"></i>Departamento:</span>
             <span class="text-dark">@(Model.Case.CurrentDepartmentName ?? "Geral")</span>
         </div>
+    </div>
+
+    <!-- Tags Manuais (sinal adicional de peso menor no motor de casos semelhantes) -->
+    <div class="d-flex align-items-center flex-wrap gap-2 pt-3 mt-2 border-top">
+        <span class="text-muted small fw-semibold"><i class="bi bi-tags me-1"></i>Tags:</span>
+        @if (Model.Case.Tags != null && Model.Case.Tags.Count > 0)
+        {
+            @foreach (var tag in Model.Case.Tags)
+            {
+                <span class="tc-badge tc-badge-neutral d-inline-flex align-items-center gap-1">
+                    <span>@tag</span>
+                    @if (Model.CanDiagnose)
+                    {
+                        <form method="post" asp-page-handler="RemoveTag" asp-route-id="@Model.Case.Id" class="d-inline m-0 p-0 lh-1">
+                            <input type="hidden" name="tagName" value="@tag" />
+                            <button type="submit" class="btn btn-link p-0 border-0 text-dark lh-1" title="Remover tag '@tag'">
+                                <i class="bi bi-x-lg" style="font-size: 0.6rem;"></i>
+                            </button>
+                        </form>
+                    }
+                </span>
+            }
+        }
+        else
+        {
+            <span class="text-muted small fst-italic">Nenhuma tag definida</span>
+        }
+        @if (Model.CanDiagnose)
+        {
+            <form method="post" asp-page-handler="AddTag" asp-route-id="@Model.Case.Id" class="d-flex align-items-center gap-1 ms-1">
+                <input type="text" name="tagName" class="tc-input tc-input-sm" style="width: 140px;" placeholder="nova tag..." maxlength="60" required />
+                <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm py-0 px-2" title="Adicionar tag">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </form>
+        }
     </div>
 </div>
 
@@ -200,18 +251,21 @@
                                         </span>
                                     }
 
-                                    @if (Model.Resolution.ResolutionType == "Definitive")
-                                    {
-                                        <span class="tc-badge tc-badge-verified" title="Solução definitiva e estrutural">
-                                            <i class="bi bi-shield-check"></i> Definitiva
-                                        </span>
+                                    @{
+                                        var (resTypeIcon, resTypeLabel, resTypeBadgeClass) = Model.Resolution.ResolutionType switch
+                                        {
+                                            "Definitive" => ("bi-shield-check", "Definitiva", "tc-badge-verified"),
+                                            "Workaround" => ("bi-exclamation-triangle", "Paliativa (Workaround)", "tc-badge-high"),
+                                            "NeedsFollowUp" => ("bi-eye", "Precisa de Acompanhamento", "tc-badge-medium"),
+                                            "Inconclusive" => ("bi-question-diamond", "Inconclusiva", "tc-badge-discarded"),
+                                            "NotAnIssue" => ("bi-info-circle", "Não é um Problema / Regra de Negócio", "tc-badge-neutral"),
+                                            "ClientEnvironment" => ("bi-building", "Ambiente do Cliente", "tc-badge-medium"),
+                                            _ => ("bi-shield-check", Model.Resolution.ResolutionType, "tc-badge-neutral")
+                                        };
                                     }
-                                    else
-                                    {
-                                        <span class="tc-badge tc-badge-high" title="Solução paliativa / contorno temporário">
-                                            <i class="bi bi-exclamation-triangle"></i> Paliativa (Workaround)
-                                        </span>
-                                    }
+                                    <span class="tc-badge @resTypeBadgeClass" title="Tipo de solução aplicada">
+                                        <i class="bi @resTypeIcon"></i> @resTypeLabel
+                                    </span>
 
                                     @if (Model.Resolution.RecurrenceRisk == "Low")
                                     {
@@ -283,6 +337,25 @@
 
                                 <div class="row g-3 mb-3">
                                     <!-- Causa Raiz e Componente Responsável -->
+                                    @if (Model.Resolution.RootCauseHypotheses != null && Model.Resolution.RootCauseHypotheses.Count > 0)
+                                    {
+                                        <div class="col-12">
+                                            <div class="p-3 border rounded h-100 bg-success-subtle bg-opacity-25">
+                                                <span class="tc-caption text-muted text-uppercase d-block mb-1">
+                                                    <i class="bi bi-lightbulb text-success me-1"></i>Hipótese(s) Causadora(s) Confirmada(s)
+                                                </span>
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    @foreach (var h in Model.Resolution.RootCauseHypotheses)
+                                                    {
+                                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                            <i class="bi bi-check2 me-1"></i>@h.Title
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+
                                     <div class="col-md-6">
                                         <div class="p-3 border rounded h-100">
                                             <span class="tc-caption text-muted text-uppercase d-block mb-1">
@@ -465,20 +538,6 @@
                         </div>
                     </div>
 
-                    <!-- Relato Original da Origem (BR-020: Imutável) -->
-                    <div class="tc-card mb-4">
-                        <div class="tc-card-header">
-                            <h3 class="tc-card-title">
-                                <i class="bi bi-shield-lock text-secondary"></i>
-                                <span>Relato Original da Origem</span>
-                            </h3>
-                            <span class="tc-badge tc-badge-closed">BR-020: Imutável</span>
-                        </div>
-                        <div class="tc-card-body">
-                            <div class="tc-evidence-content font-monospace">@Model.Case.OriginalReport</div>
-                        </div>
-                    </div>
-
                     <!-- Comportamento Observado vs Esperado -->
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -510,6 +569,20 @@
 
                 <!-- Coluna Lateral de Detalhes -->
                 <div class="col-lg-4">
+                    <!-- Relato Original da Origem (BR-020: Imutável) — é o "motivo" do caso, em destaque -->
+                    <div class="tc-card mb-4 border-start border-4 border-primary shadow-sm">
+                        <div class="tc-card-header">
+                            <h3 class="tc-card-title">
+                                <i class="bi bi-quote text-primary fs-5"></i>
+                                <span>Relato Original da Origem</span>
+                            </h3>
+                            <span class="tc-badge tc-badge-closed">BR-020: Imutável</span>
+                        </div>
+                        <div class="tc-card-body">
+                            <div class="tc-evidence-content font-monospace fs-6">@Model.Case.OriginalReport</div>
+                        </div>
+                    </div>
+
                     <!-- Detalhes de Erro e Escopo -->
                     <div class="tc-card mb-4">
                         <div class="tc-card-header">
@@ -549,6 +622,15 @@
                                         </li>
                                     }
                                 </ul>
+                            }
+                            @if (Model.CanDiagnose)
+                            {
+                                <form method="post" asp-page-handler="AddSymptom" asp-route-id="@Model.Case.Id" class="d-flex align-items-center gap-2 mt-3 pt-2 border-top">
+                                    <input type="text" name="symptomText" class="tc-input tc-input-sm" placeholder="Novo sintoma observado..." maxlength="500" required />
+                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm flex-shrink-0">
+                                        <i class="bi bi-plus-lg"></i> Sintoma
+                                    </button>
+                                </form>
                             }
                         </div>
                     </div>
@@ -749,6 +831,35 @@
 
         <!-- ABA 5: CASOS & SOLUÇÕES SEMELHANTES -->
         <div class="tab-pane fade @(activeTab == "related" ? "show active" : "")" id="tab-related" role="tabpanel">
+            @{
+                var openCommonCauseLinks = (Model.RelationsOverview?.ManualRelations ?? new List<CaseRelationDto>())
+                    .Where(r => string.Equals(r.RelationType, "CommonCause", StringComparison.OrdinalIgnoreCase) &&
+                                (r.TargetCaseStatus == "Open" || r.TargetCaseStatus == "Reopened" || r.TargetCaseStatus == "Investigating"))
+                    .ToList();
+            }
+            @if (Model.Case.Status == "Resolved" && openCommonCauseLinks.Count > 0)
+            {
+                <!-- APLICAR MESMA RESOLUÇÃO A CASOS VINCULADOS POR CAUSA COMUM -->
+                <div class="tc-card p-4 mb-4 border-start border-4 border-success bg-light shadow-sm">
+                    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="fs-2 text-success"><i class="bi bi-diagram-3-fill"></i></div>
+                            <div>
+                                <h4 class="tc-title-card mb-1 text-dark">Casos com Causa Comum Ainda em Aberto (@openCommonCauseLinks.Count)</h4>
+                                <p class="tc-body mb-1 text-dark">
+                                    @string.Join(", ", openCommonCauseLinks.Select(r => $"#{r.TargetCaseNumber}"))
+                                </p>
+                                <span class="tc-caption text-muted">Aplica o mesmo resumo de resolução, validação e causa raiz registrados neste caso a todos os listados.</span>
+                            </div>
+                        </div>
+                        <form method="post" asp-page-handler="ApplyResolutionToLinkedCases" asp-route-id="@Model.Case.Id">
+                            <button type="submit" class="tc-btn tc-btn-primary" style="background-color: #198754; border-color: #198754;">
+                                <i class="bi bi-check2-all me-1"></i> Aplicar Mesma Resolução a Todos
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
             @if (Model.RelationsOverview?.Insight != null)
             {
                 <!-- BANNER: INSIGHT AGREGADO DETERMINÍSTICO (FASE 8 / BR-048) -->
@@ -799,12 +910,22 @@
                         <div class="d-flex flex-column gap-3">
                             @foreach (var sim in Model.RelationsOverview.SimilarCases)
                             {
-                                <div class="tc-card p-3 mb-0">
+                                var borderClass = SimilarityDisplay.GetBorderClass(sim.SimilarityScore);
+                                <div class="tc-card p-3 mb-0 border-start border-4 @borderClass">
                                     <div class="d-flex align-items-center justify-content-between mb-2">
                                         <div class="d-flex align-items-center gap-2">
-                                            <a asp-page="/Cases/Details" asp-route-id="@sim.TargetCaseId" class="fw-bold text-primary text-decoration-none">
+                                            <button type="button" class="fw-bold text-primary text-decoration-none btn btn-link p-0 border-0 similar-case-trigger"
+                                                    data-bs-toggle="modal" data-bs-target="#similarCaseModal"
+                                                    data-case-number="@sim.TargetCaseNumber"
+                                                    data-title="@sim.TargetCaseSummary"
+                                                    data-status="@sim.TargetCaseStatus"
+                                                    data-severity="@sim.TargetCaseSeverity"
+                                                    data-score="@(sim.SimilarityScore ?? 0)"
+                                                    data-likelihood="@SimilarityDisplay.GetLikelihoodLabel(sim.SimilarityScore)"
+                                                    data-factors="@string.Join("|", sim.MatchedFactors)"
+                                                    data-details-url="@Url.Page("/Cases/Details", new { id = sim.TargetCaseId })">
                                                 #@sim.TargetCaseNumber
-                                            </a>
+                                            </button>
                                             @await Html.PartialAsync("Partials/_CaseStatusBadge", sim.TargetCaseStatus)
                                             @await Html.PartialAsync("Partials/_SeverityBadge", sim.TargetCaseSeverity)
                                         </div>
@@ -836,9 +957,19 @@
 
                                     <div class="d-flex align-items-center justify-content-between mt-2 pt-1">
                                         <span class="tc-caption text-muted">Aberto em: @sim.TargetCaseOpenedAt.ToString("dd/MM/yyyy")</span>
-                                        <a asp-page="/Cases/Details" asp-route-id="@sim.TargetCaseId" class="tc-btn tc-btn-secondary tc-btn-sm py-0 px-2">
-                                            Ver Caso <i class="bi bi-arrow-right ms-1"></i>
-                                        </a>
+                                        <div class="d-flex align-items-center gap-2">
+                                            @if (Model.CanRelate)
+                                            {
+                                                <button type="button" class="tc-btn tc-btn-outline tc-btn-sm py-0 px-2" title="Promover para relação manual confirmada"
+                                                        data-bs-toggle="modal" data-bs-target="#modalAddCaseRelation"
+                                                        onclick="document.getElementById('ManualTargetCaseNumberInput').value = '@sim.TargetCaseNumber'; document.getElementById('targetResolvedWarning').classList.toggle('d-none', '@sim.TargetCaseStatus' !== 'Resolved');">
+                                                    <i class="bi bi-check2-circle me-1"></i>Confirmar Relação
+                                                </button>
+                                            }
+                                            <a asp-page="/Cases/Details" asp-route-id="@sim.TargetCaseId" class="tc-btn tc-btn-secondary tc-btn-sm py-0 px-2">
+                                                Ver Caso <i class="bi bi-arrow-right ms-1"></i>
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             }
@@ -855,7 +986,8 @@
                         </div>
                         @if (Model.CanRelate)
                         {
-                            <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddCaseRelation">
+                            <button type="button" class="tc-btn tc-btn-primary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#modalAddCaseRelation"
+                                    onclick="document.getElementById('ManualTargetCaseNumberInput').value = ''; document.getElementById('targetResolvedWarning').classList.add('d-none');">
                                 <i class="bi bi-link-45deg"></i>
                                 <span>Relacionar Caso</span>
                             </button>
@@ -904,9 +1036,20 @@
                                         <span class="tc-caption text-muted">
                                             Vinculado por: @(rel.CreatedByName ?? "Analista Técnico")
                                         </span>
-                                        <a asp-page="/Cases/Details" asp-route-id="@rel.TargetCaseId" class="tc-btn tc-btn-secondary tc-btn-sm py-0 px-2">
-                                            Ver Caso <i class="bi bi-arrow-right ms-1"></i>
-                                        </a>
+                                        <div class="d-flex align-items-center gap-2">
+                                            @if (Model.CanRelate)
+                                            {
+                                                <button type="button" class="tc-btn tc-btn-outline tc-btn-sm text-danger py-0 px-2" title="Excluir relacionamento"
+                                                        data-bs-toggle="modal" data-bs-target="#modalConfirmDeleteRelation"
+                                                        data-delete-url="@Url.Page("/Cases/Details", "DeleteRelation", new { id = Model.Case.Id, relationId = rel.Id })"
+                                                        data-confirm-message="Excluir o relacionamento '@rel.RelationType' com o caso #@rel.TargetCaseNumber? Isso não afeta os casos em si, só remove o vínculo declarado.">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            }
+                                            <a asp-page="/Cases/Details" asp-route-id="@rel.TargetCaseId" class="tc-btn tc-btn-secondary tc-btn-sm py-0 px-2">
+                                                Ver Caso <i class="bi bi-arrow-right ms-1"></i>
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             }
@@ -1064,6 +1207,113 @@
     </div>
 </div>
 
+@if (Model.CanTestIntegrations)
+{
+    <!-- MODAL: TESTAR INTEGRAÇÃO DURANTE A INVESTIGAÇÃO (FASE 05 — mecanismo único de execução com contexto) -->
+    <div class="modal fade" id="modalTestIntegration" tabindex="-1" aria-labelledby="modalTestIntegrationLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="TestIntegration" asp-route-id="@Model.Case.Id">
+                    <div class="modal-header tc-modal-header">
+                        <h5 class="modal-title tc-modal-title" id="modalTestIntegrationLabel">
+                            <i class="bi bi-lightning-charge text-primary"></i>
+                            <span>Testar Integração do Sistema</span>
+                        </h5>
+                        <button type="button" class="btn-close tc-modal-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body tc-modal-body">
+                        <p class="tc-caption text-muted">
+                            Executa um teste real (health-check) contra a integração selecionada e registra o resultado como um passo diagnóstico automático (BR-025/BR-026), vinculado à execução (<code>IntegrationRun</code>) gerada.
+                        </p>
+                        <div class="tc-form-group">
+                            <label asp-for="TestIntegrationIdInput" class="tc-form-label required" for="TestIntegrationIdInput_Diagnosis">Integração</label>
+                            <select asp-for="TestIntegrationIdInput" class="tc-select" id="TestIntegrationIdInput_Diagnosis" required>
+                                <option value="">-- Selecione a integração a testar --</option>
+                                @foreach (var integ in Model.CaseIntegrations)
+                                {
+                                    <option value="@integ.Id">@integ.Code — @integ.Name (@integ.IntegrationType)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="tc-form-group">
+                            <label asp-for="TestIntegrationHypothesisIdInput" class="tc-form-label">Hipótese Relacionada</label>
+                            <select asp-for="TestIntegrationHypothesisIdInput" class="tc-select">
+                                <option value="">-- Nenhuma (Observação geral do caso) --</option>
+                                @foreach (var hyp in Model.InvestigationTimeline.Hypotheses)
+                                {
+                                    <option value="@hyp.Id">@hyp.Title (@hyp.Status)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="tc-check-group mb-2">
+                            <input asp-for="TestIntegrationRecordAsEvidenceInput" class="tc-check-input" type="checkbox" id="testIntegrationRecordAsEvidence" />
+                            <label asp-for="TestIntegrationRecordAsEvidenceInput" class="tc-check-label" for="testIntegrationRecordAsEvidence">
+                                Registrar o resultado também como evidência formal do caso
+                            </label>
+                        </div>
+                        <div class="tc-form-group">
+                            <label asp-for="TestIntegrationRelationTypeInput" class="tc-form-label">Tipo de Relação com a Hipótese (se registrar como evidência)</label>
+                            <select asp-for="TestIntegrationRelationTypeInput" class="tc-select">
+                                <option value="Supports">Supports (Apoia)</option>
+                                <option value="Confirms">Confirms (Confirma)</option>
+                                <option value="Contradicts">Contradicts (Contradiz)</option>
+                                <option value="Inconclusive" selected>Inconclusive (Inconclusivo)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer tc-modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary">
+                            <i class="bi bi-lightning-charge me-1"></i> Testar Integração
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@if (Model.CanTestIntegrationsForValidation)
+{
+    <!-- MODAL: TESTAR INTEGRAÇÃO PARA VALIDAÇÃO DA SOLUÇÃO (FASE 05 — mesmo mecanismo, contexto SolutionValidation) -->
+    <div class="modal fade" id="modalTestIntegrationValidation" tabindex="-1" aria-labelledby="modalTestIntegrationValidationLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="TestIntegrationForValidation" asp-route-id="@Model.Case.Id">
+                    <div class="modal-header tc-modal-header">
+                        <h5 class="modal-title tc-modal-title" id="modalTestIntegrationValidationLabel">
+                            <i class="bi bi-patch-check text-primary"></i>
+                            <span>Testar Integração para Validação da Solução</span>
+                        </h5>
+                        <button type="button" class="btn-close tc-modal-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body tc-modal-body">
+                        <p class="tc-caption text-muted">
+                            Executa um teste real contra a integração selecionada e registra o resultado como evidência da iteração atual do caso (BR-027/BR-028), antes do encerramento.
+                        </p>
+                        <div class="tc-form-group">
+                            <label asp-for="TestIntegrationIdInput" class="tc-form-label required" for="TestIntegrationIdInput_Validation">Integração</label>
+                            <select asp-for="TestIntegrationIdInput" class="tc-select" id="TestIntegrationIdInput_Validation" required>
+                                <option value="">-- Selecione a integração a testar --</option>
+                                @foreach (var integ in Model.CaseIntegrations)
+                                {
+                                    <option value="@integ.Id">@integ.Code — @integ.Name (@integ.IntegrationType)</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer tc-modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary">
+                            <i class="bi bi-patch-check me-1"></i> Testar para Validação
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
 <!-- MODAL: AVALIAR HIPÓTESE (BR-024) -->
 <div class="modal fade" id="modalEvaluateHypothesis" tabindex="-1" aria-labelledby="modalEvaluateHypothesisLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -1130,9 +1380,9 @@
 
 <!-- MODAL: ENCERRAMENTO ESTRUTURADO DO CASO (FASE 5 / M04 / BR-027 / BR-028) -->
 <div class="modal fade" id="modalResolveCase" tabindex="-1" aria-labelledby="modalResolveCaseLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content tc-modal-content">
-            <form method="post" asp-page-handler="ResolveCase" asp-route-id="@Model.Case.Id">
+            <form method="post" asp-page-handler="ResolveCase" asp-route-id="@Model.Case.Id" id="resolveCaseForm">
                 <div class="modal-header tc-modal-header border-bottom">
                     <h5 class="modal-title tc-modal-title text-success" id="modalResolveCaseLabel">
                         <i class="bi bi-check2-circle me-1"></i>
@@ -1140,6 +1390,26 @@
                     </h5>
                     <button type="button" class="btn-close tc-modal-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
+
+                <!-- ABAS: divide o formulário para não ficar extenso verticalmente -->
+                <ul class="nav nav-tabs px-3 pt-2" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#resolveTabSolution" type="button" role="tab">
+                            <i class="bi bi-check2-square me-1"></i>Solução
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#resolveTabCause" type="button" role="tab">
+                            <i class="bi bi-search me-1"></i>Causa Raiz
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#resolveTabLinks" type="button" role="tab">
+                            <i class="bi bi-link-45deg me-1"></i>Vínculos & Extras
+                        </button>
+                    </li>
+                </ul>
+
                 <div class="modal-body tc-modal-body">
                     <div class="alert alert-success d-flex align-items-center gap-2 py-2 mb-3">
                         <i class="bi bi-info-circle-fill fs-5"></i>
@@ -1148,152 +1418,225 @@
                         </div>
                     </div>
 
-                    <!-- 1. Resumo da Solução Aplicada (BR-027) -->
-                    <div class="tc-form-group mb-3">
-                        <label asp-for="ResolutionSummaryInput" class="tc-form-label required">
-                            Resumo da Ação de Resolução <span class="badge bg-success-subtle text-success border border-success-subtle ms-1">BR-027</span>
-                        </label>
-                        <textarea asp-for="ResolutionSummaryInput" class="tc-textarea" rows="3"
-                                  placeholder="Descreva a ação técnica concreta que resolveu ou mitigou o problema..." required></textarea>
-                        <span class="tc-help-text">Obrigatório por BR-027. Detalhe como a ocorrência foi corrigida ou contornada.</span>
-                    </div>
-
-                    <!-- 2. Validação da Eficácia (BR-027) -->
-                    <div class="tc-form-group mb-3">
-                        <label asp-for="ValidationSummaryInput" class="tc-form-label required">
-                            Procedimento de Validação <span class="badge bg-success-subtle text-success border border-success-subtle ms-1">BR-027</span>
-                        </label>
-                        <textarea asp-for="ValidationSummaryInput" class="tc-textarea" rows="2"
-                                  placeholder="Como foi validado que a solução foi eficaz e o problema cessou?" required></textarea>
-                        <span class="tc-help-text">Obrigatório por BR-027. Ex.: Teste de carga, verificação de logs sem erros por 30 minutos, validação com usuário.</span>
-                    </div>
-
-                    <hr class="my-3" />
-
-                    <!-- 3. Causa Raiz Corporativa e Confirmação (BR-028) -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-7">
-                            <div class="tc-form-group">
-                                <label asp-for="RootCauseIdInput" class="tc-form-label">Causa Raiz Corporativa (Catálogo)</label>
-                                <select asp-for="RootCauseIdInput" id="selectRootCause" class="tc-select">
-                                    <option value="">-- Não identificada / Não catalogada --</option>
-                                    @foreach (var rc in Model.AvailableRootCauses)
-                                    {
-                                        <option value="@rc.Id">@rc.Name @(!string.IsNullOrEmpty(rc.Category) ? $"[{rc.Category}]" : "")</option>
-                                    }
-                                    <option value="-1">+ Cadastrar nova causa raiz inline...</option>
-                                </select>
-                                <span class="tc-help-text">Catálogo reutilizável corporativo de causas raízes.</span>
-                            </div>
-                        </div>
-                        <div class="col-md-5 d-flex align-items-center pt-3">
-                            <div class="tc-check-group">
-                                <input class="tc-check-input" type="checkbox" asp-for="RootCauseConfirmedInput" id="checkRootCauseConfirmed" />
-                                <label class="tc-check-label fw-semibold" for="checkRootCauseConfirmed">
-                                    Causa Raiz Confirmada?
+                    <div class="tab-content">
+                        <!-- ABA 1: SOLUÇÃO -->
+                        <div class="tab-pane fade show active" id="resolveTabSolution" role="tabpanel">
+                            <div class="tc-form-group mb-3">
+                                <label asp-for="ResolutionSummaryInput" class="tc-form-label required">
+                                    Resumo da Ação de Resolução <span class="badge bg-success-subtle text-success border border-success-subtle ms-1">BR-027</span>
                                 </label>
-                                <span class="d-block text-muted" style="font-size: 0.75rem;">
-                                    BR-028: Se desmarcado ou não informada, o status do caso ficará explicitamente como <code>NotConfirmed</code>.
-                                </span>
+                                <textarea asp-for="ResolutionSummaryInput" class="tc-textarea" rows="3"
+                                          placeholder="Descreva a ação técnica concreta que resolveu ou mitigou o problema..." required></textarea>
+                                <span class="tc-help-text">Obrigatório por BR-027. Detalhe como a ocorrência foi corrigida ou contornada.</span>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Campos inline para Nova Causa Raiz (ocultos inicialmente) -->
-                    <div id="newRootCauseFields" class="p-3 mb-3 border rounded bg-light d-none">
-                        <div class="fw-semibold text-dark small mb-2"><i class="bi bi-plus-circle me-1"></i>Nova Causa Raiz no Catálogo Corporativo</div>
-                        <div class="row g-2">
-                            <div class="col-md-7">
-                                <input asp-for="NewRootCauseNameInput" class="tc-input" placeholder="Nome da causa raiz (ex.: Esgotamento de Conexões em Pool)" />
-                            </div>
-                            <div class="col-md-5">
-                                <input asp-for="NewRootCauseCategoryInput" class="tc-input" placeholder="Categoria (ex.: Software, Infraestrutura)" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="my-3" />
-
-                    <!-- 4. Componente Causador e Departamento Responsável -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <div class="tc-form-group">
-                                <label asp-for="ResponsibleComponentIdInput" class="tc-form-label">
-                                    Componente Causador <span class="badge bg-secondary-subtle text-secondary ms-1">RootCause</span>
+                            <div class="tc-form-group mb-3">
+                                <label asp-for="ValidationSummaryInput" class="tc-form-label required">
+                                    Procedimento de Validação <span class="badge bg-success-subtle text-success border border-success-subtle ms-1">BR-027</span>
                                 </label>
-                                <select asp-for="ResponsibleComponentIdInput" class="tc-select">
-                                    <option value="">-- Nenhum componente específico --</option>
-                                    @foreach (var comp in Model.Case.AffectedComponents)
-                                    {
-                                        <option value="@comp.ComponentId">@(comp.ComponentName ?? $"Componente #{comp.ComponentId}")</option>
-                                    }
-                                </select>
-                                <span class="tc-help-text">Será marcado como <code>RootCause</code> em <code>case_components</code>.</span>
+                                <textarea asp-for="ValidationSummaryInput" class="tc-textarea" rows="2"
+                                          placeholder="Como foi validado que a solução foi eficaz e o problema cessou?" required></textarea>
+                                <span class="tc-help-text">Obrigatório por BR-027. Ex.: Teste de carga, verificação de logs sem erros por 30 minutos, validação com usuário.</span>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="tc-form-group">
+                                        <label asp-for="ResolutionTypeInput" class="tc-form-label required">Tipo de Solução</label>
+                                        <select asp-for="ResolutionTypeInput" class="tc-select" required>
+                                            <option value="Definitive">Definitiva (problema corrigido em definitivo)</option>
+                                            <option value="Workaround">Paliativa / Contorno Temporário</option>
+                                            <option value="NeedsFollowUp">Precisa de Acompanhamento</option>
+                                            <option value="Inconclusive">Inconclusiva</option>
+                                            <option value="NotAnIssue">Sem Solução (Não é um Problema / Regra de Negócio)</option>
+                                            <option value="ClientEnvironment">Ambiente do Cliente</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="tc-form-group">
+                                        <label asp-for="RecurrenceRiskInput" class="tc-form-label required">Risco de Recorrência</label>
+                                        <select asp-for="RecurrenceRiskInput" class="tc-select" required>
+                                            <option value="Low">Low (Baixo risco)</option>
+                                            <option value="Medium">Medium (Médio risco)</option>
+                                            <option value="High">High (Alto risco)</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="tc-form-group">
-                                <label asp-for="ResponsibleDepartmentIdInput" class="tc-form-label">
-                                    Departamento Responsável
+
+                        <!-- ABA 2: CAUSA RAIZ -->
+                        <div class="tab-pane fade" id="resolveTabCause" role="tabpanel">
+                            <!-- Hipóteses do caso apontadas como causa raiz real investigada -->
+                            <div class="tc-form-group mb-3">
+                                <label class="tc-form-label">Hipótese(s) Causadora(s) do Caso</label>
+                                <p class="tc-help-text mt-0 mb-2">
+                                    Marque a(s) hipótese(s) investigada(s) neste caso que foi(ram) confirmada(s) como a causa. Ao encerrar, elas são automaticamente avaliadas como <code>Supported</code>.
+                                </p>
+                                @if (Model.InvestigationTimeline.Hypotheses.Count == 0)
+                                {
+                                    <div class="tc-caption text-muted fst-italic">Nenhuma hipótese foi registrada para este caso.</div>
+                                }
+                                else
+                                {
+                                    <div class="d-flex flex-column gap-2">
+                                        @foreach (var hyp in Model.InvestigationTimeline.Hypotheses)
+                                        {
+                                            var hypBadge = hyp.Status switch
+                                            {
+                                                "Supported" => "bg-success-subtle text-success border-success-subtle",
+                                                "Discarded" => "bg-danger-subtle text-danger border-danger-subtle",
+                                                _ => "bg-secondary-subtle text-secondary border-secondary-subtle"
+                                            };
+                                            <div class="tc-check-group p-2 border rounded">
+                                                <input class="tc-check-input" type="checkbox" name="ResolveHypothesisIdsInput" value="@hyp.Id" id="resHyp_@hyp.Id"
+                                                       checked="@(hyp.Status == "Supported" ? "checked" : null)" />
+                                                <label class="tc-check-label flex-grow-1" for="resHyp_@hyp.Id">
+                                                    <strong class="text-dark">@hyp.Title</strong>
+                                                    <span class="badge @hypBadge border ms-1">@hyp.Status</span>
+                                                </label>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            <hr class="my-3" />
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-7">
+                                    <div class="tc-form-group">
+                                        <label asp-for="RootCauseIdInput" class="tc-form-label">Causa Raiz Corporativa (Catálogo)</label>
+                                        <select asp-for="RootCauseIdInput" id="selectRootCause" class="tc-select">
+                                            <option value="">-- Não identificada / Não catalogada --</option>
+                                            @foreach (var rc in Model.AvailableRootCauses)
+                                            {
+                                                <option value="@rc.Id">@rc.Name @(!string.IsNullOrEmpty(rc.Category) ? $"[{rc.Category}]" : "")</option>
+                                            }
+                                            <option value="-1">+ Cadastrar nova causa raiz inline...</option>
+                                        </select>
+                                        <span class="tc-help-text">
+                                            Taxonomia genérica reutilizável entre casos — complementa, não substitui, a hipótese acima.
+                                            <a asp-page="/Cases/RootCauses/Index" target="_blank" class="ms-1">
+                                                <i class="bi bi-gear"></i> Gerenciar catálogo completo
+                                            </a>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-5 d-flex align-items-center pt-3">
+                                    <div class="tc-check-group">
+                                        <input class="tc-check-input" type="checkbox" asp-for="RootCauseConfirmedInput" id="checkRootCauseConfirmed" />
+                                        <label class="tc-check-label fw-semibold" for="checkRootCauseConfirmed">
+                                            Causa Raiz Confirmada?
+                                        </label>
+                                        <span class="d-block text-muted" style="font-size: 0.75rem;">
+                                            BR-028: Se desmarcado, o status fica <code>NotConfirmed</code>.
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="newRootCauseFields" class="p-3 mb-3 border rounded bg-light d-none">
+                                <div class="fw-semibold text-dark small mb-2"><i class="bi bi-plus-circle me-1"></i>Nova Causa Raiz no Catálogo Corporativo</div>
+                                <div class="row g-2">
+                                    <div class="col-md-7">
+                                        <input asp-for="NewRootCauseNameInput" class="tc-input" placeholder="Nome da causa raiz (ex.: Esgotamento de Conexões em Pool)" />
+                                    </div>
+                                    <div class="col-md-5">
+                                        <input asp-for="NewRootCauseCategoryInput" class="tc-input" placeholder="Categoria (ex.: Software, Infraestrutura)" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="tc-form-group">
+                                        <label asp-for="ResponsibleComponentIdInput" class="tc-form-label">
+                                            Componente Causador <span class="badge bg-secondary-subtle text-secondary ms-1">RootCause</span>
+                                        </label>
+                                        <select asp-for="ResponsibleComponentIdInput" class="tc-select">
+                                            <option value="">-- Nenhum componente específico --</option>
+                                            @foreach (var comp in Model.Case.AffectedComponents)
+                                            {
+                                                <option value="@comp.ComponentId">@(comp.ComponentName ?? $"Componente #{comp.ComponentId}")</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="tc-form-group">
+                                        <label asp-for="ResponsibleDepartmentIdInput" class="tc-form-label">Departamento Responsável</label>
+                                        <select asp-for="ResponsibleDepartmentIdInput" class="tc-select">
+                                            <option value="">-- Não atribuído a departamento --</option>
+                                            @foreach (var dept in Model.AvailableDepartments)
+                                            {
+                                                <option value="@dept.Id">@dept.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ABA 3: VÍNCULOS & EXTRAS -->
+                        <div class="tab-pane fade" id="resolveTabLinks" role="tabpanel">
+                            <!-- Casos semelhantes em aberto que podem ser o mesmo problema -->
+                            <div class="tc-form-group mb-3">
+                                <label class="tc-form-label">Casos Semelhantes em Aberto (Mesmo Problema?)</label>
+                                <p class="tc-help-text mt-0 mb-2">
+                                    Marque os casos abaixo que você confirma serem a mesma ocorrência. Cria um vínculo de "Causa Comum" — eles não são fechados automaticamente; depois é possível aplicar a mesma resolução a todos de uma vez.
+                                </p>
+                                @{
+                                    var openSimilarCases = (Model.RelationsOverview?.SimilarCases ?? new List<CaseRelationDto>())
+                                        .Where(s => s.TargetCaseStatus == "Open" || s.TargetCaseStatus == "Reopened" || s.TargetCaseStatus == "Investigating")
+                                        .DistinctBy(s => s.TargetCaseId)
+                                        .ToList();
+                                }
+                                @if (openSimilarCases.Count == 0)
+                                {
+                                    <div class="tc-caption text-muted fst-italic">Nenhum caso semelhante em aberto foi identificado até agora.</div>
+                                }
+                                else
+                                {
+                                    <div class="d-flex flex-column gap-2">
+                                        @foreach (var sim in openSimilarCases)
+                                        {
+                                            <div class="tc-check-group p-2 border rounded">
+                                                <input class="tc-check-input" type="checkbox" name="ResolveLinkedCaseIdsInput" value="@sim.TargetCaseId" id="resLinked_@sim.TargetCaseId" />
+                                                <label class="tc-check-label flex-grow-1" for="resLinked_@sim.TargetCaseId">
+                                                    <strong class="text-primary">#@sim.TargetCaseNumber</strong>
+                                                    <span class="text-dark">@sim.TargetCaseSummary</span>
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">Score @(sim.SimilarityScore ?? 0)</span>
+                                                </label>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            <hr class="my-3" />
+
+                            <div class="tc-form-group mb-3">
+                                <label asp-for="RecurrenceNotesInput" class="tc-form-label">Observações sobre Recorrência (Opcional)</label>
+                                <textarea asp-for="RecurrenceNotesInput" class="tc-textarea" rows="2"
+                                          placeholder="Sob quais condições operacionais o problema poderia reaparecer?"></textarea>
+                            </div>
+
+                            <div class="tc-form-group mb-3">
+                                <label asp-for="PreventiveActionsInput" class="tc-form-label">
+                                    Medidas Preventivas Recomendadas
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle ms-1" title="Gancho para base de conhecimento M05 / BR-046">BR-046 / M05</span>
                                 </label>
-                                <select asp-for="ResponsibleDepartmentIdInput" class="tc-select">
-                                    <option value="">-- Não atribuído a departamento --</option>
-                                    @foreach (var dept in Model.AvailableDepartments)
-                                    {
-                                        <option value="@dept.Id">@dept.Name</option>
-                                    }
-                                </select>
-                                <span class="tc-help-text">Sugerido pelo proprietário do componente, mas editável.</span>
+                                <textarea asp-for="PreventiveActionsInput" class="tc-textarea" rows="2"
+                                          placeholder="Ações para evitar reincidência (ex.: alertas preventivos, ajuste de timeout, treinamento da equipe)..."></textarea>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- 5. Tipo de Solução e Risco de Recorrência -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
                             <div class="tc-form-group">
-                                <label asp-for="ResolutionTypeInput" class="tc-form-label required">Tipo de Solução</label>
-                                <select asp-for="ResolutionTypeInput" class="tc-select" required>
-                                    <option value="Definitive">Definitive (Solução Definitiva)</option>
-                                    <option value="Workaround">Workaround (Paliativa / Contorno Temporário)</option>
-                                </select>
+                                <label asp-for="EffortMinutesInput" class="tc-form-label">Esforço Manual Complementar (Minutos, Opcional)</label>
+                                <input asp-for="EffortMinutesInput" type="number" min="0" class="tc-input" placeholder="Ex.: 45" />
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="tc-form-group">
-                                <label asp-for="RecurrenceRiskInput" class="tc-form-label required">Risco de Recorrência</label>
-                                <select asp-for="RecurrenceRiskInput" class="tc-select" required>
-                                    <option value="Low">Low (Baixo risco)</option>
-                                    <option value="Medium">Medium (Médio risco)</option>
-                                    <option value="High">High (Alto risco)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 6. Notas de Recorrência -->
-                    <div class="tc-form-group mb-3">
-                        <label asp-for="RecurrenceNotesInput" class="tc-form-label">Observações sobre Recorrência (Opcional)</label>
-                        <textarea asp-for="RecurrenceNotesInput" class="tc-textarea" rows="2"
-                                  placeholder="Sob quais condições operacionais o problema poderia reaparecer?"></textarea>
-                    </div>
-
-                    <!-- 7. Medidas Preventivas (Gancho M05 / BR-046) -->
-                    <div class="tc-form-group mb-3">
-                        <label asp-for="PreventiveActionsInput" class="tc-form-label">
-                            Medidas Preventivas Recomendadas
-                            <span class="badge bg-info-subtle text-info border border-info-subtle ms-1" title="Gancho para base de conhecimento M05 / BR-046">BR-046 / M05</span>
-                        </label>
-                        <textarea asp-for="PreventiveActionsInput" class="tc-textarea" rows="2"
-                                  placeholder="Ações para evitar reincidência (ex.: alertas preventivos, ajuste de timeout, treinamento da equipe)..."></textarea>
-                        <span class="tc-help-text">Registrado como base para catalogação na Base de Conhecimento corporativa (M05 / BR-046).</span>
-                    </div>
-
-                    <!-- 8. Esforço Manual Complementar -->
-                    <div class="tc-form-group">
-                        <label asp-for="EffortMinutesInput" class="tc-form-label">Esforço Manual Complementar (Minutos, Opcional)</label>
-                        <input asp-for="EffortMinutesInput" type="number" min="0" class="tc-input" placeholder="Ex.: 45" />
-                        <span class="tc-help-text">Tempo extra em diagnósticos fora do sistema, reuniões de crise ou análise manual.</span>
                     </div>
                 </div>
                 <div class="modal-footer tc-modal-footer">
@@ -1420,7 +1763,8 @@
 <div class="modal fade" id="modalAddCaseRelation" tabindex="-1" aria-labelledby="modalAddCaseRelationLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content tc-modal-content">
-            <form method="post" asp-page-handler="AddRelation" asp-route-id="@Model.Case.Id">
+            <form method="post" asp-page-handler="AddRelation" asp-route-id="@Model.Case.Id" id="addCaseRelationForm">
+                <input type="hidden" name="alsoResolveCurrentCase" id="alsoResolveCurrentCaseInput" value="false" />
                 <div class="modal-header tc-modal-header">
                     <h5 class="modal-title tc-modal-title" id="modalAddCaseRelationLabel">
                         <i class="bi bi-link-45deg me-2 text-primary"></i>Relacionar Caso
@@ -1432,6 +1776,13 @@
                         <i class="bi bi-info-circle tc-alert-icon"></i>
                         <div class="tc-alert-content small">
                             A correlação manual estabelece vínculo explícito entre casos investigados e é auditada conforme BR-030.
+                        </div>
+                    </div>
+
+                    <div id="targetResolvedWarning" class="tc-alert tc-alert-warning mb-3 d-none">
+                        <i class="bi bi-exclamation-triangle tc-alert-icon"></i>
+                        <div class="tc-alert-content small">
+                            <strong>Atenção:</strong> este caso já está <strong>Resolvido</strong>. Ao confirmar, você poderá optar por encerrar este caso também com a mesma resolução.
                         </div>
                     </div>
 
@@ -1454,7 +1805,7 @@
                 </div>
                 <div class="modal-footer tc-modal-footer">
                     <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="tc-btn tc-btn-primary">
+                    <button type="submit" class="tc-btn tc-btn-primary" id="addCaseRelationSubmitBtn">
                         <i class="bi bi-check2-circle me-1"></i> Confirmar Vínculo
                     </button>
                 </div>
@@ -1462,4 +1813,147 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL: PERGUNTA — CASO VINCULADO JÁ RESOLVIDO, ENCERRAR O CASO ATUAL TAMBÉM? -->
+<div class="modal fade" id="modalAskCloseCurrentCase" tabindex="-1" aria-labelledby="modalAskCloseCurrentCaseLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content tc-modal-content">
+            <div class="modal-header tc-modal-header">
+                <h5 class="modal-title tc-modal-title" id="modalAskCloseCurrentCaseLabel">
+                    <i class="bi bi-question-circle me-2 text-warning"></i>Caso Semelhante Já Fechado
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body tc-modal-body">
+                <p class="mb-0">
+                    O caso vinculado já está <strong>Resolvido</strong>. Deseja encerrar este caso (#@Model.Case.CaseNumber) também, usando a mesma resolução?
+                </p>
+            </div>
+            <div class="modal-footer tc-modal-footer">
+                <button type="button" class="tc-btn tc-btn-secondary" id="btnAskCloseNo">
+                    <i class="bi bi-link-45deg me-1"></i> Não, Apenas Vincular
+                </button>
+                <button type="button" class="tc-btn tc-btn-primary" style="background-color: #198754; border-color: #198754;" id="btnAskCloseYes">
+                    <i class="bi bi-check2-all me-1"></i> Sim, Encerrar Este Caso Também
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CONFIRMAÇÃO DE EXCLUSÃO DE RELACIONAMENTO MANUAL -->
+<div class="modal fade" id="modalConfirmDeleteRelation" tabindex="-1" aria-labelledby="modalConfirmDeleteRelationLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content tc-modal-content">
+            <div class="modal-header tc-modal-header">
+                <h5 class="modal-title tc-modal-title text-danger" id="modalConfirmDeleteRelationLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Exclusão
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body tc-modal-body">
+                <p id="confirmDeleteRelationMessage" class="mb-0"></p>
+            </div>
+            <div class="modal-footer tc-modal-footer">
+                <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="post" id="confirmDeleteRelationForm">
+                    <button type="submit" class="tc-btn tc-btn-primary" style="background-color: var(--tc-danger); border-color: var(--tc-danger);">
+                        <i class="bi bi-trash me-1"></i> Excluir Relacionamento
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: RESUMO RÁPIDO DE CASO SEMELHANTE -->
+<div class="modal fade" id="similarCaseModal" tabindex="-1" aria-labelledby="similarCaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content tc-modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="similarCaseModalLabel">
+                    <span id="simModalCaseNumber" class="text-primary"></span>
+                    <span id="simModalStatusBadge"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span id="simModalSeverityBadge"></span>
+                    <span id="simModalLikelihood" class="tc-caption fw-semibold"></span>
+                </div>
+                <p id="simModalTitle" class="tc-body mb-2"></p>
+                <div id="simModalFactors" class="d-flex flex-wrap gap-1"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <a id="simModalDetailsLink" href="#" target="_blank" class="tc-btn tc-btn-primary">
+                    Detalhes <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/similar-case-modal.js"></script>
+    <script>
+        (function () {
+            // Atalho vindo do Diagnóstico Guiado (?openResolve=1): abre o modal de
+            // encerramento automaticamente quando não há mais verificações pendentes.
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('openResolve') === '1') {
+                var modalEl = document.getElementById('modalResolveCase');
+                if (modalEl) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                }
+            }
+
+            // Modal de confirmação genérico para excluir um relacionamento manual.
+            var deleteRelationModalEl = document.getElementById('modalConfirmDeleteRelation');
+            if (deleteRelationModalEl) {
+                deleteRelationModalEl.addEventListener('show.bs.modal', function (ev) {
+                    var trigger = ev.relatedTarget;
+                    if (!trigger) return;
+                    document.getElementById('confirmDeleteRelationMessage').textContent =
+                        trigger.dataset.confirmMessage || 'Tem certeza que deseja excluir este relacionamento?';
+                    document.getElementById('confirmDeleteRelationForm').action = trigger.dataset.deleteUrl;
+                });
+            }
+
+            // Ao relacionar manualmente com um caso já Resolvido, pergunta explicitamente se o
+            // caso atual também deve ser encerrado com a mesma resolução antes de enviar o form.
+            var addRelationForm = document.getElementById('addCaseRelationForm');
+            var askCloseModalEl = document.getElementById('modalAskCloseCurrentCase');
+            var addRelationModalEl = document.getElementById('modalAddCaseRelation');
+            if (addRelationForm && askCloseModalEl && addRelationModalEl) {
+                var askCloseModal = new bootstrap.Modal(askCloseModalEl);
+                var pendingSubmit = false;
+
+                addRelationForm.addEventListener('submit', function (ev) {
+                    var targetResolved = !document.getElementById('targetResolvedWarning').classList.contains('d-none');
+                    if (targetResolved && !pendingSubmit) {
+                        ev.preventDefault();
+                        bootstrap.Modal.getOrCreateInstance(addRelationModalEl).hide();
+                        askCloseModal.show();
+                    }
+                });
+
+                document.getElementById('btnAskCloseYes').addEventListener('click', function () {
+                    document.getElementById('alsoResolveCurrentCaseInput').value = 'true';
+                    pendingSubmit = true;
+                    askCloseModal.hide();
+                    addRelationForm.requestSubmit();
+                });
+
+                document.getElementById('btnAskCloseNo').addEventListener('click', function () {
+                    document.getElementById('alsoResolveCurrentCaseInput').value = 'false';
+                    pendingSubmit = true;
+                    askCloseModal.hide();
+                    addRelationForm.requestSubmit();
+                });
+            }
+        })();
+    </script>
+}
 

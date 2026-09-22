@@ -1,0 +1,59 @@
+@model System.Collections.Generic.IReadOnlyList<TraceCore.Application.DTOs.CaseRelationDto>
+
+@if (Model == null || Model.Count == 0)
+{
+    <div class="tc-empty-state tc-empty-state-compact p-3">
+        <div class="tc-empty-icon"><i class="bi bi-intersect"></i></div>
+        <div class="tc-empty-title small">Nenhum caso semelhante ainda</div>
+        <p class="tc-empty-description small mb-0">Continue preenchendo o relato, cliente, sistema ou sintomas — a busca refina automaticamente.</p>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column gap-2">
+        @foreach (var sim in Model)
+        {
+            var borderClass = SimilarityDisplay.GetBorderClass(sim.SimilarityScore);
+            <div class="tc-card p-2 px-3 mb-0 border-start border-4 @borderClass">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="fw-bold text-primary text-decoration-none small btn btn-link p-0 border-0 similar-case-trigger"
+                                data-bs-toggle="modal" data-bs-target="#similarCaseModal"
+                                data-case-number="@sim.TargetCaseNumber"
+                                data-title="@sim.TargetTitle"
+                                data-status="@sim.TargetStatus"
+                                data-severity="@sim.TargetSeverity"
+                                data-score="@(sim.SimilarityScore ?? 0)"
+                                data-likelihood="@SimilarityDisplay.GetLikelihoodLabel(sim.SimilarityScore)"
+                                data-factors="@string.Join("|", sim.MatchedFactors)"
+                                data-details-url="@Url.Page("/Cases/Details", new { id = sim.TargetCaseId })">
+                            #@sim.TargetCaseNumber
+                        </button>
+                        @await Html.PartialAsync("~/Pages/Shared/Partials/_CaseStatusBadge.cshtml", sim.TargetStatus)
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle small fw-semibold"
+                          title="Score de correspondência determinística (não é probabilidade)">
+                        @(sim.SimilarityScore ?? 0)
+                    </span>
+                </div>
+                <div class="small text-dark mb-1 tc-truncate" style="max-width: 100%;" title="@sim.TargetTitle">
+                    @sim.TargetTitle
+                </div>
+                @if (sim.MatchedFactors.Count > 0)
+                {
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var factor in sim.MatchedFactors)
+                        {
+                            <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.68rem;">
+                                @factor
+                            </span>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+    <p class="tc-caption text-muted mt-2 mb-0">
+        <i class="bi bi-info-circle me-1"></i>Se nenhum resolver o seu caso, eles ficam vinculados automaticamente como "semelhantes" assim que o caso for aberto.
+    </p>
+}

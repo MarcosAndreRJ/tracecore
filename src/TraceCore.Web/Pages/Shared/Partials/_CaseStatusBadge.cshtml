@@ -1,12 +1,17 @@
 @model string
 
 @{
+    // Valores válidos de Case.Status: Open, Reopened, Investigating, Resolved (ver Case.cs).
+    // "Reopened"/"Investigating" caíam incorretamente no rótulo "Fechado" antes desta correção.
     var status = Model ?? "Open";
-    var isResolved = status.Equals("Resolved", StringComparison.OrdinalIgnoreCase);
-    var isOpen = status.Equals("Open", StringComparison.OrdinalIgnoreCase);
-    var badgeClass = isResolved ? "tc-badge-confirmed" : (isOpen ? "tc-badge-open" : "tc-badge-closed");
-    var iconClass = isResolved ? "bi-check2-all" : (isOpen ? "bi-record-circle" : "bi-check-circle");
-    var label = isResolved ? "Resolvido" : (isOpen ? "Aberto" : "Fechado");
+    var (badgeClass, iconClass, label) = status.ToLowerInvariant() switch
+    {
+        "resolved" => ("tc-badge-confirmed", "bi-check2-all", "Resolvido"),
+        "open" => ("tc-badge-open", "bi-record-circle", "Aberto"),
+        "reopened" => ("tc-badge-open", "bi-arrow-counterclockwise", "Reaberto"),
+        "investigating" => ("tc-badge-open", "bi-search", "Em Investigação"),
+        _ => ("tc-badge-closed", "bi-check-circle", "Fechado")
+    };
 }
 
 <span class="tc-badge @badgeClass" role="status" title="Status do Caso: @label">

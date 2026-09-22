@@ -171,6 +171,7 @@
                                     <th>Nome</th>
                                     <th>Tipo</th>
                                     <th>Status</th>
+                                    <th class="text-end">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -191,6 +192,19 @@
                                             else
                                             {
                                                 <span class="tc-badge tc-badge-sm tc-badge-closed">Inativo</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" data-bs-toggle="modal" data-bs-target="#editComponentModal-@c.Id" title="Editar Componente">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            @if (c.Status == "Active")
+                                            {
+                                                <form method="post" asp-page-handler="DeactivateComponent" asp-route-componentId="@c.Id" class="d-inline" onsubmit="return confirm('Inativar este componente? Dependências e vínculos serão preservados.');">
+                                                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm text-danger" title="Inativar Componente (sem exclusão)">
+                                                        <i class="bi bi-pause-circle"></i>
+                                                    </button>
+                                                </form>
                                             }
                                         </td>
                                     </tr>
@@ -295,13 +309,12 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="newCompType">Tipo de Componente <span class="text-danger">*</span></label>
                         <select id="newCompType" class="tc-select" asp-for="NewComponent.ComponentType" required>
-                            <option value="Service">Serviço / Backend API</option>
-                            <option value="Frontend">Frontend / Interface Web</option>
-                            <option value="Database">Banco de Dados / Persistência</option>
-                            <option value="Worker">Worker / Fila de Processamento</option>
-                            <option value="Gateway">API Gateway / Proxy</option>
-                            <option value="Integration">Conector / Integração Externa</option>
+                            @foreach (var type in Model.ComponentTypesList)
+                            {
+                                <option value="@type.Code">@type.Name (@type.Code)</option>
+                            }
                         </select>
+                        <span class="tc-caption text-muted">Catálogo administrável — inclui "Módulo" para módulos funcionais (ex.: "Emissão de CT-e").</span>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="newCompProduct">Produto Associado</label>
@@ -382,8 +395,9 @@
                             <option value="Synchronous">Síncrona (REST / gRPC / HTTP)</option>
                             <option value="Asynchronous">Assíncrona (Mensageria / RabbitMQ / Kafka)</option>
                             <option value="Database">Acesso a Banco de Dados / SQL</option>
+                            <option value="Messaging">Mensageria / Barramento</option>
                             <option value="External">API Externa / Fornecedor</option>
-                            <option value="SharedResource">Arquivo / Cache Compartilhado</option>
+                            <option value="Runtime">Dependência de Runtime / Execução</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -462,3 +476,79 @@
         </div>
     </div>
 </div>
+
+<!-- MODAIS: Editar Componente (um por componente) -->
+@foreach (var c in Model.ComponentsList)
+{
+    var hasTypeInCatalog = Model.ComponentTypesList.Any(t => string.Equals(t.Code, c.ComponentType, StringComparison.OrdinalIgnoreCase));
+    <div class="modal fade" id="editComponentModal-@c.Id" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content tc-modal-content">
+                <form method="post" asp-page-handler="UpdateComponent">
+                    <input type="hidden" name="EditComponent.Id" value="@c.Id" />
+                    <input type="hidden" name="EditComponent.Status" value="@c.Status" />
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-pencil-square me-2 text-primary"></i>Editar Componente — @c.Name
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nome do Componente <span class="text-danger">*</span></label>
+                            <input type="text" class="tc-input" name="EditComponent.Name" value="@c.Name" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Tipo de Componente <span class="text-danger">*</span></label>
+                            <select class="tc-select" name="EditComponent.ComponentType" required>
+                                @if (!hasTypeInCatalog && !string.IsNullOrWhiteSpace(c.ComponentType))
+                                {
+                                    <option value="@c.ComponentType" selected>@c.ComponentType (valor legado — não está no catálogo)</option>
+                                }
+                                @foreach (var type in Model.ComponentTypesList)
+                                {
+                                    <option value="@type.Code" selected="@(string.Equals(c.ComponentType, type.Code, StringComparison.OrdinalIgnoreCase))">@type.Name (@type.Code)</option>
+                                }
+                            </select>
+                            <span class="tc-caption text-muted">Catálogo administrável da Fase 01.</span>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Produto Associado</label>
+                            <select class="tc-select" name="EditComponent.ProductId">
+                                <option value="">-- Sem produto específico --</option>
+                                @foreach (var prod in Model.ProductsList)
+                                {
+                                    <option value="@prod.Id" selected="@(c.ProductId == prod.Id)">@prod.Name @(prod.IsExternal ? "(Externo)" : "")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Código / Sigla</label>
+                            <input type="text" class="tc-input" name="EditComponent.Code" value="@c.Code" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Departamento Responsável Principal</label>
+                            <select class="tc-select" name="EditComponent.OwnerDepartmentId">
+                                <option value="">-- Não atribuído --</option>
+                                @foreach (var dept in Model.DepartmentsList)
+                                {
+                                    <option value="@dept.Id" selected="@(c.OwnerDepartmentId == dept.Id)">@dept.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Descrição</label>
+                            <textarea class="tc-textarea" name="EditComponent.Description" rows="2">@c.Description</textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="tc-btn tc-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="tc-btn tc-btn-primary">
+                            <i class="bi bi-save me-1"></i>Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

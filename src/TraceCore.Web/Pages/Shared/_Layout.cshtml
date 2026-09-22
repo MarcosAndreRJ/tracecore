@@ -184,13 +184,6 @@
                                             <span>Componentes</span>
                                         </a>
                                     </li>
-                                    <li class="tc-sidebar-item">
-                                        <a class="tc-sidebar-link @(currentPath.StartsWith("/Catalog/Components", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-                                           asp-page="/Catalog/Components/Index">
-                                            <i class="bi bi-bezier2"></i>
-                                            <span>Dependências</span>
-                                        </a>
-                                    </li>
                                 }
                                 @if (User.HasClaim("permission", "integracao.gerenciar"))
                                 {
@@ -288,6 +281,16 @@
                                     <a class="tc-sidebar-link" asp-page="/Placeholder" asp-route-module="Perfis e Permissões">
                                         <i class="bi bi-shield-lock"></i>
                                         <span>Perfis e Permissões</span>
+                                    </a>
+                                </li>
+                            }
+                            @if (User.HasClaim("permission", "caso.encerrar"))
+                            {
+                                <li class="tc-sidebar-item">
+                                    <a class="tc-sidebar-link @(currentPath.StartsWith("/Cases/RootCauses", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                       asp-page="/Cases/RootCauses/Index">
+                                        <i class="bi bi-diagram-2"></i>
+                                        <span>Causas Raízes</span>
                                     </a>
                                 </li>
                             }

@@ -10,6 +10,8 @@ public interface ICaseRelationRepository
     Task<IReadOnlyList<CaseRelation>> GetRelationsByCaseIdAsync(long caseId, CancellationToken ct = default);
     Task SaveSimilarRelationsAsync(long sourceCaseId, IEnumerable<CaseRelation> relations, CancellationToken ct = default);
     Task<long> AddManualRelationAsync(CaseRelation relation, CancellationToken ct = default);
+    Task<CaseRelation?> GetByIdAsync(long relationId, CancellationToken ct = default);
+    Task<bool> DeleteManualRelationAsync(long relationId, CancellationToken ct = default);
     Task<IReadOnlyList<Case>> GetPotentialSimilarCandidatesAsync(long excludeCaseId, long? clientId, long? productId, string? errorCode, int limit = 50, CancellationToken ct = default);
     Task<IReadOnlyList<DiagnosticStep>> GetSuccessfulDiagnosticStepsForCasesAsync(IEnumerable<long> caseIds, CancellationToken ct = default);
     Task<IReadOnlyList<CaseResolution>> GetResolutionsForCasesAsync(IEnumerable<long> caseIds, CancellationToken ct = default);
